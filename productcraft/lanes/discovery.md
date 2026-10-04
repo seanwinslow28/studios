@@ -1,0 +1,117 @@
+---
+lane: discovery
+seat: discovery-lead
+updated: 2026-09-29
+---
+# Lane manifest — Discovery
+
+Mandatory first read for the [Discovery Lead](../bench/discovery-lead.md). Entries are
+title + pointer + one-line when-to-read — shelf labels, never the books: the content lives
+in the private corpus (`../corpus/`, gitignored), so pointers resolve only on a machine that
+has it (degradation ladder otherwise). Follow only the pointers relevant to the task. Seats
+stop at `## Reading path`; that section is the owner's.
+
+This lane's free layer is one hub plus one solo-founder supplement. Most pointers below
+resolve to Torres's file, so when the corpus is absent the lane degrades all at once —
+declare `manifest-only` and mean it. Cohen's essays add the one thing Torres assumes away:
+discovery run by a single person with no product trio to check them.
+
+## The habit, and its cadence
+
+- **Continuous discovery: the definition and the weekly cadence** — [`producttalk.md`](../corpus/canon/producttalk.md) — a team asks how often discovery should happen, or someone proposes a research phase instead of a rhythm.
+- **Outcomes vs. outputs, and the three kinds of measurement** — [`producttalk.md`](../corpus/canon/producttalk.md) — a team has been handed a feature target, a lagging business metric, or more than one goal for the quarter.
+- **Discovery before product-market fit** — [`producttalk.md`](../corpus/canon/producttalk.md) — there is no product, no customers, and no metric to move yet.
+
+## The opportunity solution tree
+
+- **The opportunity solution tree** — [`producttalk.md`](../corpus/canon/producttalk.md) — discovery has no shared structure, or the team cannot say how this sprint's work connects to the outcome.
+- **Opportunity mapping: sourcing and structuring the space** — [`producttalk.md`](../corpus/canon/producttalk.md) — you have a pile of interview notes and no defensible way to turn them into a tree.
+- **Assessing and prioritizing opportunities** — [`producttalk.md`](../corpus/canon/producttalk.md) — the team is about to rank a feature list, or reaches for a RICE score to settle a disagreement.
+
+## Interviewing
+
+- **Story-based interviewing and the ladder of evidence** — [`producttalk.md`](../corpus/canon/producttalk.md) — interviews are producing opinions instead of behavior, or a survey is offered as a substitute for talking to someone.
+- **The interview snapshot** — [`producttalk.md`](../corpus/canon/producttalk.md) — a finished interview needs to become something the team can act on this week and still recognize in six months.
+- **Recruiting, and the Zonar booking-funnel automation** — [`producttalk.md`](../corpus/canon/producttalk.md) — weekly interviewing keeps slipping because nobody is on the calendar.
+- **Finding people to interview when you have nothing** — [`jason-cohen.md`](../corpus/canon/jason-cohen.md) — there is no product, brand or audience yet, and nobody to interview.
+
+## Interviewing alone
+
+The trio is a check this lane assumes; a solo founder has to build it out of paper.
+
+- **Goals before hypotheses: what an interview series must learn** — [`jason-cohen.md`](../corpus/canon/jason-cohen.md) — interviews are about to start without a written list of what they need to learn, or the plan is to ask customers what to build.
+- **Hypotheses written down first: the pre-commitment sheet** — [`jason-cohen.md`](../corpus/canon/jason-cohen.md) — one person is interviewing with no second researcher, and needs a guard against hearing only what they hoped to hear.
+- **From hypothesis to open question** — [`jason-cohen.md`](../corpus/canon/jason-cohen.md) — the draft questions lead the witness or ask about future intent.
+- **Running the interview: surprise, segments, price, and the market guru** — [`jason-cohen.md`](../corpus/canon/jason-cohen.md) — mid-series, answers are splitting into groups, price has not come up, or interviewees keep speaking for "most people."
+- **Stop rules: boring, convergent, and ten who say they will buy** — [`jason-cohen.md`](../corpus/canon/jason-cohen.md) — after a batch of interviews, deciding whether to go on, change method, or drop the idea.
+
+## Assumption testing
+
+- **Assumption mapping and the five types of assumptions** — [`producttalk.md`](../corpus/canon/producttalk.md) — a solution is about to be built whole, or the team cannot state what would have to be true for it to work.
+- **The line in the sand** — [`producttalk.md`](../corpus/canon/producttalk.md) — before running any assumption test where success criteria have not been agreed in advance.
+
+## Deciding, and defending the work
+
+- **Compare-and-contrast decisions** — [`producttalk.md`](../corpus/canon/producttalk.md) — the team is evaluating a single idea on its merits, or one idea has quietly already become the plan.
+- **The product trio, stakeholders, and showing your work** — [`producttalk.md`](../corpus/canon/producttalk.md) — discovery is being carried by one person, or good findings keep losing arguments with senior stakeholders.
+
+## Reference
+
+- **The Product Talk discovery glossary** — [`producttalk.md`](../corpus/canon/producttalk.md) — you need Torres's exact wording for a term rather than your own paraphrase of it.
+
+## Book layer
+
+All three of this lane's books are ingested, and between them they close both holes the
+free layer left open — experiment design with success criteria agreed in advance, and the
+experiment library itself.
+
+- **Torres, *Continuous Discovery Habits* — ch. 2, 5, 6, 7, 9, 10** — [`books/continuous-discovery-habits/`](../corpus/books/continuous-discovery-habits/) — framing an opportunity space, running customer interviews, or testing a solution's assumptions.
+- **Fitzpatrick, *The Mom Test* — ch. 1, 2, 3, 7** — [`books/the-mom-test/`](../corpus/books/the-mom-test/) — interviews return praise and hypotheticals, or answers contradict because the segment is too broad.
+- **Bland & Osterwalder, *Testing Business Ideas* — ch. 3, 8, 9** — [`books/testing-business-ideas/`](../corpus/books/testing-business-ideas/) — prioritizing assumptions, selecting an experiment by rule, or picking from the experiment library.
+- **Singer, *Shape Up* — ch. 3, 4, 5** — [`books/shape-up/`](../corpus/books/shape-up/) — narrowing a vague request into a bounded problem and roughing out a de-risked solution.
+- **Patton, *User Story Mapping* — ch. 13, 14, 15** — [`books/user-story-mapping/`](../corpus/books/user-story-mapping/) — framing opportunities, or designing the smallest test of an assumption.
+- **Bryar & Carr, *Working Backwards* — ch. 5, 10** — [`books/working-backwards/`](../corpus/books/working-backwards/) — defining a product before building it, or sizing a market by subtraction.
+- **Maurya, *Running Lean* — ch. 7, 8, 10** — [`books/running-lean/`](../corpus/books/running-lean/) — first contact with customers when there is no product, and the offer, the pitch and a pricing call-to-action have to be designed together.
+- **Maurya, *Running Lean* — ch. 9** — [`books/running-lean/`](../corpus/books/running-lean/) — the smallest product has to ship in about two months, and a concierge, Wizard-of-Oz or foot-in-the-door version is on the table.
+- **Weinberg & Mares, *Traction* — ch. 9, 18** — [`books/traction/`](../corpus/books/traction/) — a demand test is being designed before building, or the first business-customer problem conversations are being planned.
+- **Hubbard, *How to Measure Anything* — ch. 8, 11** — [`books/how-to-measure-anything/`](../corpus/books/how-to-measure-anything/) — designing a survey or an observation plan, and choosing between an existing trail, direct observation and an experiment.
+- **Ramanujam & Tacke, *Monetizing Innovation* — ch. 4, 5** — [`books/monetizing-innovation/`](../corpus/books/monetizing-innovation/) — testing what customers will actually pay before committing to a build.
+
+**The *Testing Business Ideas* triage layer is back** (recovered 2026-09-21). Evidence
+strength, cost, setup time, run time and the desirability/feasibility/viability coverage
+were dot glyphs the capture reduced to noise on every experiment card — but the book prints
+the same ratings for all 44 experiments on its two index spreads, and those were read back
+deterministically and checked against a card page. They live in that book's
+`experiment-index.md`; reach for it when you are choosing between experiments, and still use
+ch. 8's three questions and four rules of thumb to frame the choice. One piece stays
+missing: the two selection maps, whose per-experiment positions on the average-time axis
+could not be read back within a bounded error.
+
+*Running Lean*'s ch. 8 interview script opens under a false research pretext, and the book
+does not remark on it; drop that line when reusing the script. Eleven figures in Torres are prose
+reconstructions, flagged chapter by chapter.
+
+## Reading path
+
+Corpus states are as of the `updated:` date in the header.
+
+| # | Title | Read this when | Format | Audio | Corpus |
+|---|---|---|---|---|---|
+| 1 | Torres, *Continuous Discovery Habits* (2021) | before your first Discovery engagement | Apple Books | Teresa Torres · 7:09 | ingested |
+| 2 | Fitzpatrick, *The Mom Test* (2013) | before you talk to a single customer | EPUB | Rob Fitzpatrick · 3:50 | ingested |
+| 3 | Bland & Osterwalder, *Testing Business Ideas* (2019) | when an engagement needs an experiment picked, not invented | Apple Books | — none | ingested |
+| 4 | Singer, *Shape Up* | — read on the delivery path | | | |
+| 5 | Patton, *User Story Mapping* | — read on the delivery path | | | |
+| 6 | Bryar & Carr, *Working Backwards* | — read on the leadership path | | | |
+| 7 | Ramanujam & Tacke, *Monetizing Innovation* | — read on the business path | | | |
+| 8 | Maurya, *Running Lean* | — read on the business path | | | |
+| 9 | Weinberg & Mares, *Traction* | — read on the growth path | | | |
+| 10 | Hubbard, *How to Measure Anything* | — read on the insights path | | | |
+
+### Next
+
+- Portigal, *Interviewing Users* (2nd ed., 2023) — deepest treatment of interview craft; Torres plus Fitzpatrick carry the first engagement.
+- Hansen, *Deploy Empathy* (2025 ed.) — phrase-level scripts and an AI-in-research chapter; a strong challenger the research pass surfaced.
+- Ulwick, *Jobs to be Done: Theory to Practice* — the author gives the whole book away as a PDF; a free later ingest if this lane wants outcome-driven innovation syntax.
+- Perri, *Escaping the Build Trap* — anchors no seat but reads well across four; Sean's reading before the corpus.
+- Dikkers, *Creativity Machine* — contingent hold, shared with the strategy lane; revisit if option generation feels thin.

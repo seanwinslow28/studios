@@ -1,0 +1,18 @@
+# PRIVATE LAYER. Each team's corpus (free-canon distillates and book-to-skill
+# ingests, derivative of licensed sources), its ledger (a clone of the team's
+# own private ledger repo) and its books/ guard stay on this disk only. Never
+# `git add` them; book-derived text never lands in a tracked file or an issue.
+# `bin/canary-check.sh` proves these rules hold; run it before every push.
+/*/corpus/
+/*/ledger/
+/*/books/
+*.epub
+
+# Caches and local files
+.DS_Store
+.impeccable/
+__pycache__/
+.pytest_cache/
+.venv/
+.env
+.claude/settings.local.json

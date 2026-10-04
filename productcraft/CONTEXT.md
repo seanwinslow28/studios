@@ -1,0 +1,313 @@
+# Productcraft
+
+The product leadership studio: a seven-seat bench that plans, executes, and audits product work as a sequential pipeline of owned artifacts. This glossary holds the studio's language as it gets resolved; the ratified decisions themselves live on the build map's tickets.
+
+## Language
+
+### Artifacts and the train
+
+**Seat**:
+One of the seven specialist identities in the bench, each owning exactly one artifact, one lane manifest, one audit duty, and a baseline model.
+_Avoid_: agent, persona, role
+
+**Artifact**:
+The single named document a seat owns and hands forward in full, never as a summary.
+_Avoid_: deliverable, output, bundle
+
+**Packet**:
+An artifact with fixed, named parts that ships as one unit (the Discovery packet, the Leadership packet). Audits cover the whole packet, with the stake anchored on one named part.
+_Avoid_: bundle, set
+
+**Train**:
+The seven seats running in pipeline order on a full-train engagement, each receiving every artifact above it.
+_Avoid_: panel, pipeline run
+
+**Loopback**:
+A downstream seat returning an upstream artifact to its drafting seat with evidence, instead of rewriting it in place.
+_Avoid_: override, edit, rewrite
+
+### Checks
+
+**Co-sign**:
+A fresh-context pass by a second seat over one named section of another seat's artifact, passing or bouncing each claim, required before that artifact is done. Three exist in the train: Insights on Discovery's evidence, Insights' own stage-three check on the Strategist's outcomes, the Strategist on Delivery's OKR translation.
+_Avoid_: review, approval, sign-off
+
+**Audit**:
+A fresh-context invocation by a peer seat over a complete artifact, never the drafting conversation, with a one-sentence stake. Every seat audits exactly one artifact and is audited by exactly one peer, in two closed cycles.
+_Avoid_: review, critique, QA
+
+**Stake**:
+The one question an auditor is adversarially responsible for answering about the artifact it audits.
+_Avoid_: checklist, criteria
+
+**Trailing audit**:
+An audit that fires the moment its artifact is final, after any co-sign, and runs beside the next seat's draft rather than waiting for the end of the train. Discovery's audit of the Strategy doc is the one that waits, for stage two's evidence.
+_Avoid_: end-of-train review, post-mortem
+
+**Stale cascade**:
+What a loopback does to the train: a changed artifact stales every artifact below it, and those are redrafted in pipeline order from the pass budget, their own audits re-firing. The coordinator names the cascade's size before firing it.
+_Avoid_: rework, ripple, regression
+
+**Evidence-strength grade**:
+The label the Insights seat attaches to each claim in a Discovery evidence section, judged against raw-evidence pointers rather than summaries.
+_Avoid_: confidence score, rating
+
+**Repair cap**:
+Standing law since 2026-09-21: one repair round per artifact per check. A residual that survives it routes to the next scheduled gate as a candidate acceptance, or to Sean. Ratified from pc-eng-001's own mid-train amendment, not an exception to it.
+_Avoid_: retry limit, budget
+
+**Verification pass**:
+Round two of a check, run in `verify` stance with three duties — rule each repair holds or residual, attack the text the repair changed, stop. Not a fresh audit: a defect outside the changed text is a gate residual. Runs on the vendor that did not write the repair.
+_Avoid_: re-audit, second pass, follow-up review
+
+**Gate residual**:
+A defect a verification pass found outside the text the repair changed, or a finding the repair cap left open. It travels to the next scheduled gate as a candidate acceptance and is re-read against current state before Close — never a second loopback.
+_Avoid_: leftover, open issue, backlog item
+
+**Check series**:
+Every round a single check ran on a single artifact, reported at each gate as round / findings / repair size so shrinkage is visible. It ends at a verification pass that holds with no new material, or at the spent repair cap. A series that does not shrink is a variance question to Sean.
+_Avoid_: loop, cycle, iteration
+
+**Process waste**:
+A finding against the studio rather than the seat: a series past its stopping rule, a verification pass that re-audited, a recounted duplicate, or a defect a template or the trace kit caused. Coded from the taxonomy's process-waste family, never graded as a seat's failure.
+_Avoid_: false positive, noise, churn
+
+**Red-team gate**:
+A milestone check run as a stateless protocol, not by a seat, on the vendor that did not last write its anchor artifact; fires at strategy sign-off, before the handoff crosses, and at close.
+_Avoid_: audit, review
+
+**Anchor artifact**:
+The one artifact a gate or a packet audit is answerable for: the Strategy & POV doc at strategy sign-off, the handoff brief before it crosses, the whole train at close. It decides which vendor runs the gate.
+_Avoid_: primary artifact, focus
+
+### Engagements
+
+**Engagement**:
+One unit of studio work, typed at Open as one of five kinds: full train, audit, execution breakdown, one-off, or support landing a role.
+_Avoid_: project, session, run
+
+**Execution breakdown**:
+The Delivery-only engagement that turns a design returned from the Systemcraft handoff into buildable work: epics, stories in a design set and an implementation set, and a first sprint plan, filed as tracker issues. It creates the implementation candidate that Systemcraft's pre-launch gate waits for.
+_Avoid_: sprint planning, grooming, ticketing
+
+**Handoff brief**:
+The typed packet the Delivery seat produces after its roadmap is co-signed, carrying the ask as questions with ids, the six referenced artifacts by permanent id, constraints, and a return date across to Systemcraft. It never carries reasoning, and the artifacts travel beside it as frozen copies, never inside it.
+_Avoid_: spec, handoff doc, PRD
+
+**Crossing**:
+One movement of a typed packet between two studios: the brief going out, or the return coming back. Each crossing is logged on both sides with a typed state; a material change to what crossed is a new crossing.
+_Avoid_: transfer, sync, share
+
+**Frozen copy**:
+A referenced artifact's bytes at the moment of crossing, stamped with its source id and a content hash, so the receiving studio designs against a fixed version. Six travel with a brief, five with a return; raw evidence never freezes.
+_Avoid_: snapshot, attachment, export
+
+**Crossing state**:
+The one typed outcome a receiving seat issues for a crossing: accepted, input-required, rejected, returned, or returned-partial. Written into both studios' handoff folders; never prose-only, never silent.
+_Avoid_: status, acknowledgement
+
+**Intake check**:
+The receiving seat's fresh-context pass over a crossing at its own Open, asking only whether it can do its job from the packet and issuing the crossing state. A check, not an audit: it never judges the other studio's decision.
+_Avoid_: review, audit, acceptance test
+
+**Return note**:
+The typed packet Systemcraft sends back after its design-complete gate: one answer per ask id, the gate verdict, the assumptions it overturned by entry id, the implementation holds the build must close, and the state. Its mirror of the brief.
+_Avoid_: report, summary, deliverable
+
+**No-handoff verdict**:
+The ledger entry Delivery writes when a full train's first shipping slice has no Systemcraft-owned layer, so the absence of a brief is a recorded decision and never a silence.
+_Avoid_: skip, n/a
+
+**Systemcraft-owned layer**:
+An AI system, a platform, or a technical architecture inside the thing being designed. Its presence in the first shipping slice is the handoff trigger; its questions are never answered by a Productcraft seat.
+_Avoid_: tech, the backend, engineering
+
+**Ledger**:
+The private, accreting record of every material decision the studio makes, one entry per decision, each with its "from the canon" line.
+_Avoid_: log, changelog, history
+
+### People and parties
+
+**Stakeholder**:
+Anyone who can block, fund, use, or judge the thing being designed. Appears on the stakeholder map, one row per party, with Sean split by hat (decider, builder, funder) and absent classes stated.
+_Avoid_: user, teammate, audience
+
+**Teammate**:
+Whoever does the work, human or agent. Appears in the team topology, never on the stakeholder map; agents are their own entity type there and are never presented as people.
+_Avoid_: stakeholder, resource, collaborator
+
+**Gatekeeper**:
+A stakeholder that can block release without being a user: app-store review, a payment processor, a platform's terms.
+_Avoid_: blocker, dependency
+
+**Judge**:
+A stakeholder that assesses the outcome after the fact: hiring managers for portfolio work, customers or investors for a business.
+_Avoid_: audience, reviewer
+
+**Canon line**:
+The one-breath statement of which title and idea a seat leaned on for a material choice, in the seat's own words. Names the book and the idea; never quotes the book. Present on every ledger entry, including the ones where it reads "none".
+_Avoid_: citation, source, reference
+
+**Entry**:
+One material decision in the ledger, owned by one seat, carrying a permanent id that is never renamed or suffixed. A changed mind is a new entry that supersedes the old one.
+_Avoid_: log line, note, record
+
+**Grounding**:
+How much of the private corpus a seat could actually read for an entry: the corpus itself, only the tracked shelf label, or nothing. Declared on the entry so a reader knows whether the canon line was read this pass or named from the shelf.
+_Avoid_: confidence, coverage
+
+**Ratification**:
+Sean's dated sign-off on an entry. A fact recorded on the entry, not a state of it; a superseded entry keeps the fact that it was once signed.
+_Avoid_: approval, ratified state
+
+**Cross-reference**:
+An id from one studio's ledger written into the other studio's entry. Each studio writes only its own side; ids cross, reasoning never does.
+_Avoid_: link, backlink, shared index
+
+### The shelf
+
+**Lane manifest**:
+The one tracked file per lane that a seat reads first on every invocation: shelf labels into the private corpus for the seat, then a reading path for the owner. Never the books.
+_Avoid_: reading list, index, bibliography
+
+**Shelf label**:
+One manifest entry: a title, a pointer into the private corpus, and a one-line when-to-read. It names where knowledge sits and never paraphrases what the source says.
+_Avoid_: summary, note, excerpt
+
+**Reading path**:
+The owner's ordered route through a lane's books, held at the end of its manifest and never read by the seat. Its when-line describes the owner's situation, not the book's idea.
+_Avoid_: syllabus, curriculum, book list
+
+**Next shelf**:
+The titles a lane holds in reserve beyond its corpus, listed under the reading path with only a reason they wait. Rows move up into the path when bought; nothing on it is read or ingested.
+_Avoid_: wishlist, backlog, tier 2
+
+**Listen-only title**:
+A book the owner hears but the studio never ingests. It appears only on a reading path, never as a shelf label, so no seat can name it.
+_Avoid_: audiobook, reference, supplementary reading
+
+### Coordination
+
+**Coordinator**:
+The master skill's own session: it types, routes, dispatches, gates and closes an engagement and writes the Open, Route, gate and Close entries. It never drafts seat substance and never speaks for a seat.
+_Avoid_: orchestrator, the skill, the agent
+
+**Seat preamble**:
+The one tracked file of standing behavior every invocation carries, prepended verbatim by the coordinator: explain why, name the canon, declare grounding, loop back never rewrite, close with moves, meter yourself. Lives in one place; seat files never restate it.
+_Avoid_: system prompt, boilerplate, header
+
+**Return wait**:
+The gap between a full train's administrative Close and the execution breakdown's Open, while Systemcraft works the handoff. Tracked as one dated ticket line, never as an open engagement; the next Open finds the return and proposes the breakdown.
+_Avoid_: pause, hold, blocked
+
+### Models
+
+**Baseline**:
+The runtime a seat runs on unless a named trigger fires: vendor, model, and reasoning effort, declared in the seat file. It names what actually runs, never a nominal tier.
+_Avoid_: default model, preferred model, tier
+
+**Deviation**:
+A per-pass change from a seat's baseline, made against a named trigger and recorded with a one-line why. Never silent, never per-engagement.
+_Avoid_: override, swap, exception
+
+**Escalation**:
+A deviation one tier up, made only on evidence of failure: a gate FAIL, an audit that bounced substance, or the seat's own thin-corpus flag. Never at draft time, and never because the artifact feeds a gate.
+_Avoid_: upgrade, bump, boost
+
+**Escalation target**:
+The runtime an escalation lands on. The top of the ladder is a different vendor from the seat's baseline, so a redraft gets a different brain; the ceiling model is never entered without the owner's say-so.
+_Avoid_: fallback, backup model
+
+**Downshift**:
+A deviation one tier down, for mechanical work only: transforms of existing substance, single-source lookups, checklist application, clerical filing. The file-or-defer decision itself stays at baseline.
+_Avoid_: downgrade, cheap mode
+
+**Pass budget**:
+The integer count of funded invocations an engagement declares at Open: the base manifest plus two pre-authorized rounds per scheduled gate, the coordinator's own session included. Exhaustion is a stop and a question to the owner, never a silent overrun.
+_Avoid_: token budget, cost cap
+
+**Meter line**:
+What every invocation records about itself: runtime, runtime-reported tokens, and wall-clock, or UNMEASURED. A partial total is stated as a known subtotal plus the number of unmeasured passes, never as a precise figure.
+_Avoid_: cost line, usage
+
+**Substitution**:
+A dated, owner-approved change of vendor for a pass whose planned runtime is unavailable, preserving the seat's identity: same seat contract, lane, target, and audit duty, in a fresh invocation.
+_Avoid_: fallback, reroute
+
+**Deferral**:
+A dated stop of one seat's branch when its runtime is unavailable and no substitution is approved. The dependent work waits; lanes are never merged to keep moving.
+_Avoid_: skip, pause
+
+**Runtime registry**:
+The one tracked table every -craft team shares of the runtimes a pass may run on: one row per harness and provider route, carrying the launch form, sandbox, disk reach, meter source, tier steps and standing. Owned by the master skill; the seat file's `model:` line names a row's runtime string.
+_Avoid_: model list, provider config
+
+**Runtime row**:
+One route in the registry — a harness paired with who serves the model — not a model. The model and effort are parameters of a pass and ride in the record's runtime string.
+_Avoid_: model entry, backend
+
+**Standing**:
+What a runtime row has earned: ruled (placed by a ratified ruling), unmeasured (registered, no labeled pass on real work), substitution-eligible (one blind-labeled, rung-0-clean trial), or baseline-eligible (rung 1 applied plus the count floor the trials ticket sets). A runtime never skips a standing, and a standing changes only by an edit to the row that names its numbers.
+_Avoid_: status, tier, maturity
+
+**Registry numbers**:
+The counts the registry's Numbers section holds per runtime and per runtime × seat — labeled passes as "3 of 4", the rung-0 clean count, medians over measured passes, trials and promotions — regenerated from the records and labels at Close, never typed by hand, never a percentage.
+_Avoid_: leaderboard, benchmark, score
+
+**Meter source**:
+The registry's name for where a pass's token count came from — one value per row, mirrored in the trace kit and held equal by a test. It says where the number came from, never how good it is.
+_Avoid_: cost source, usage type
+
+**Alias probe**:
+The coordinator's one-line check at Route of which model each Agent-tool alias (`opus`, `sonnet`, `haiku`) actually launches today, written into the Route entry before the first Claude pass. An alias is not a pin: it resolves to whatever the harness ships, so a seat file's `model:` holds only if the probe agrees. Rung-0 line 11 checks the same thing after the fact, against each transcript's model stamps.
+_Avoid_: model check, version check
+
+**Promotion**:
+A trial output entering the train in place of the baseline it shadowed, by a dated owner-approved substitution once the blind label passes the trial and fails the baseline, recorded as one `promoted:` line in the trial record's notes.
+_Avoid_: swap-in, winner
+
+### The trace
+
+**Pass**:
+One invocation of one seat, the coordinator's session, or the red-team gate, numbered in launch order across the engagement. The unit the trace records, the viewer rows, and the labels key on.
+_Avoid_: run, call, step
+
+**Pass record**:
+The one immutable markdown file written per pass into the engagement's trace folder: runtime and launch form, instants, meter, hashed inputs and outputs, what was withheld, the checks that later touched it, and what the transcript shows the seat read. It indexes the transcript and never replaces it.
+_Avoid_: trace, log, span
+
+**Labels file**:
+The one file per engagement where Sean's verdicts live, apart from the records: one row per pass, pass or fail with the first failing stage and a critique a new hire could act on. The file is the record; the viewer only drafts rows for it.
+_Avoid_: scorecard, eval results
+
+**Move**:
+One line in an artifact's closing section stating what the pass did to an upstream item, from a vocabulary of five words: kept, added, split, merged, dropped. A claim until a replay confirms it.
+_Avoid_: change, edit, diff
+
+**Shadow pass**:
+A trial: the same inputs as a baseline pass, by hash, run on a different runtime beside the train and labeled blind, its runtime hidden on the page until both rows carry a verdict.
+_Avoid_: A/B, experiment, rerun
+
+**Rung**:
+One step of the earned evals ladder: rung 0 is the deterministic checker with no model; rung 1 the hand-built failure taxonomy after about thirty labels; rung 2 a judge per recurring failure mode, validated against Sean's labels before it gates anything.
+_Avoid_: level, tier, phase
+
+**Seat failure mode**:
+A named, coded shape of seat failure in the taxonomy's `seat` family, earned by reading labeled traces and counted two ways — coded fails (rows carrying the code) and distinct defects (every separate defect of that shape the critiques name, blemishes and check findings included). Proposed by whoever read the traces, ratified by Sean, and carrying the labels' provenance with every count.
+_Avoid_: bug class, error category, root cause
+
+**Sighted shape**:
+A recurring shape in the critiques that is not yet a mode: no fail is led by it, so it has no code and stays in the taxonomy's sighted list until a later engagement's labels confirm or dissolve it. A `failure_code` is never stretched onto a fail to make a sighted shape count.
+_Avoid_: candidate code, provisional mode
+
+**Unobservable measure**:
+The seat failure mode `unobservable-measure`: a measure, kill condition, trigger or safeguard defined on an event the pilot's own rules cannot produce or deliver — no channel, no record field, no authorised contact or app open. The first train's commonest fail shape, across four drafting seats.
+_Avoid_: unmeasurable, bad metric
+
+**Overclaimed pointer**:
+The seat failure mode `overclaimed-pointer`: a citation or status claim that says more than its source holds — a clause not in the cited file, an evidence rung above what the pointer supports, a ledger state the entry does not carry.
+_Avoid_: bad citation, hallucinated reference
+
+**First failing stage**:
+On a fail, the stage where the problem entered the train, which may be upstream of the pass being read. The one column that builds the transition-failure matrix.
+_Avoid_: root cause, blame
