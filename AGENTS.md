@@ -24,4 +24,5 @@ A live session Sean drives counts as Sean. No overnight agent works this repo.
 
 - **This repo is public; the private layer never enters it.** A team's corpus, ledger and books stay on disk, and book-derived text never lands in a tracked file or an issue.
 - **Run `bin/canary-check.sh` before every push.** It proves git would stage nothing private. A new team gets the same three private folders, and the check covers it without edits.
+- **A rule-8 ticket is a follow-up issue on the brain's private tracker**: one issue per item on `seanwinslow28/SWCB`, labelled `needs-triage`. Never an issue on this public repo, and never with book-derived text. (The name comes from the old brain's inbox rule.)
 - **Each team's law is its own `CLAUDE.md`**, on top of [`craftwork/law.md`](craftwork/law.md). Work inside a team follows both.
