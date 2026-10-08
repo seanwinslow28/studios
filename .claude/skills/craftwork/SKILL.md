@@ -20,7 +20,7 @@ Ask these before anything is charted. Both are decided in the partner session, b
 
 **1. Does the craft clear the floor?** The audit shape is shared law: every seat audits exactly one artifact and is audited by exactly one peer, fresh-context, in closed cycles ([§ The audit shape](../../../craftwork/law.md#the-audit-shape-and-the-three-seat-floor)). Below three seats a closed cycle cannot carry it. **Do not build a studio below three seats.** Build a skill, or a skill plus the red-team gate ([the protocol](../../../craftwork/templates/red-team-protocol.md)), and stop. A craft that wants a studio must name three seats whose lanes are distinct enough that each can audit a neighbour's work without owning it.
 
-**2. Does its output carry Sean's voice?** A team is **voice-bearing** when the thing it ships is read as Sean (prose, scripts, jokes, posts), and **not voice-bearing** when it ships designs, plans and models that are his decisions but not his voice. Systemcraft and Productcraft declared not voice-bearing. The declaration is made at scaffold and changes what the corpus holds and how an engagement opens (below).
+**2. Does its output carry Sean's voice?** A team is **voice-bearing** when the thing it ships is read as Sean (prose, scripts, jokes, posts), and **not voice-bearing** when it ships designs, plans and models that are his decisions but not his voice. Systemcraft and Productcraft declared not voice-bearing. A team whose output is only sometimes read as Sean declares voice-bearing and opens its other engagements in plain mode (below). The declaration is made at scaffold and changes what the corpus holds and how an engagement opens (below).
 
 ## The recipe
 
@@ -28,9 +28,9 @@ Seven steps, in order. Each is owned by a skill or a map ticket, never by this o
 
 **1. Partner session.** Run the `creative-partner` skill: Sean and the machine deliberate the team's shape until a set of locks is ratified — the craft, the first seats, the first engagement, the shelf, the audit layout, what the team must never do. The session sidecar is local-only and is **never quoted into a tracked file or an issue**; the locks are summarized as one issue on the brain's private tracker (an issue on `seanwinslow28/SWCB`, labelled `needs-triage`). Nothing after this step re-litigates a lock; new ideas may extend them.
 
-**2. Research passes, at $0.** Run the `research` skill (local Deep Researcher, or `gemini-deep-research` for a compound question), one brief per question, each filed in the brain's `raw/` once Sean ratifies it before the map is charted. The three every team needs: **bench composition** (which seats, which audit cycle, what each seat's artifact is), **book-to-seat** (the tier-1 shelf, which titles are DRM-free and ingestible, which are read-only), and **plugin routing** (which installed skills and plugins each seat's toolbelt lists). Add one domain question when the craft has a method of its own (Productcraft added how evals land in discovery). Standing practice: research before any design decision that has documented prior art.
+**2. Research passes, at $0.** Run the `research` skill (or `gemini-deep-research` for a compound question), one brief per question, each filed in the brain's `raw/` once Sean ratifies it before the map is charted. The three every team needs: **bench composition** (which seats, which audit cycle, what each seat's artifact is), **book-to-seat** (the tier-1 shelf, which titles are DRM-free and ingestible, which are read-only), and **plugin routing** (which installed skills and plugins each seat's toolbelt lists). Add one domain question when the craft has a method of its own (Productcraft added how evals land in discovery). Standing practice: research before any design decision that has documented prior art.
 
-**3. Chart the map.** Sean runs `/wayfinder` himself. The destination is the studio **live plus its first engagement complete**, in the Systemcraft form: root workspace `<x>craft/` holding public machinery and a private brain, blessed by `scripts/validate.py`, with the first full train closed and its findings in the ledger. The map's Notes carry the locks as binding inputs, the research briefs, the design doctrine, the model rule and the privacy law. **The map carries execution**: its tickets are build tasks and engagements, and it closes on delivered work, not a hand-off spec.
+**3. Chart the map.** Sean runs `/wayfinder` himself. The map lives on the brain's private tracker (`seanwinslow28/SWCB`), like every studios follow-up, never on this public repo. The destination is the studio **live plus its first engagement complete**, in the Systemcraft form: root workspace `<x>craft/` holding public machinery and a private brain, blessed by `bin/canary-check.sh`, with the first full train closed and its findings in the ledger. The map's Notes carry the locks as binding inputs, the research briefs, the design doctrine, the model rule and the privacy law. **The map carries execution**: its tickets are build tasks and engagements, and it closes on delivered work, not a hand-off spec.
 
 **4. Scaffold.** One map ticket, run on `main`:
 
@@ -38,7 +38,7 @@ Seven steps, in order. Each is owned by a skill or a map ticket, never by this o
 - **The trace profile**: `<x>craft/trace/studio.py` defining `STUDIO` (the numbered stages, the record kinds, which kinds own `## Moves`, the gate seats, the repo path prefixes, the item-id shape, the brief file, where check records sit, and the team's own rung-0 line 8) plus an empty `taxonomy.md`. The kit finds the profile by walking up from the engagement folder ([craftwork/trace/README.md](../../../craftwork/trace/README.md)); Systemcraft's is the smallest example. Seat failure modes are never inherited: the file stays empty until the team's own labels earn one.
 - **The private layer**: `corpus/`, `ledger/` and `books/` added to the `PRIVATE LAYER` block of the root `.gitignore` with a dated comment, each holding a local-only README. **Canary before the first commit**: drop a `.md` under each path and a stray `.epub` under `corpus/`, confirm every one with `git check-ignore`, and confirm `git ls-files <x>craft/` lists no private path after the push. `books/` is a guard only; ebooks live at `~/Books/<x>craft/`, outside the repo.
 - **The ledger is its own git repo** with a private remote, `seanwinslow28/<x>craft-ledger`, created by Sean. Every session that writes to it pushes there before ending, never to this repo.
-- **The blessing**: `<x>craft` added to `ADDITIONAL_WORKSPACES_TO_SCAN` in `scripts/validate.py` with a dated comment, and `python3 scripts/validate.py` passing with no new warning. Then the root README row, the root `CLAUDE.md` architecture line, and a CHANGELOG entry.
+- **The blessing**: `bin/canary-check.sh` passing with the new team's private folders in place. It covers a new team without edits. Then the root README row and the root `CLAUDE.md` architecture line.
 - **The master skill** at `.claude/skills/<x>craft/SKILL.md`, by the house rule, excluded from export groups. It owns only what happens when (engagement types, phases, the gate schedule, the Close checklist) and links to the law; it is designed on its own map ticket and written once the bench exists.
 - **The voice-bearing declaration**, one line in the team's `CLAUDE.md`, decided in step 1.
 
@@ -75,12 +75,13 @@ Decided in the partner session, written at scaffold, and deliberately not strict
 
 **`generic-drift` is sighted, not coded.** It goes in the team's `taxonomy.md` as a sighted shape from day one and earns a code only when labels show it leading a fail, the same rule every seat failure mode follows.
 
-**Every engagement declares its mode at Open.** Two modes:
+**Every engagement declares its mode at Open.** Three modes:
 
 - **Critique** — Sean brings a draft. Seats diagnose and offer labelled options beside his text; they never rewrite it in place.
 - **Draft from seed** — Sean brings an idea, a premise or a beat sheet. Seats write a draft for his pass.
+- **Plain** — the engagement ships nothing read as Sean (a plan, a design, a model). The own-work layer and the `generic-drift` watch do not apply. This is how a team whose output is only sometimes voice-bearing runs the rest of its work.
 
-Either way the loop is train → Sean's pass → back to the train, and a piece is finished when Sean calls it finished. Systemcraft and Productcraft declared not voice-bearing and change nothing.
+In critique and draft-from-seed the loop is train → Sean's pass → back to the train, and a piece is finished when Sean calls it finished. Systemcraft and Productcraft declared not voice-bearing and change nothing.
 
 ## The naming rule
 
@@ -100,7 +101,7 @@ Seat count above the floor of three; corpus shape, beyond the own-work layer for
 | The trace kit and its Close ritual | [craftwork/trace/README.md](../../../craftwork/trace/README.md) |
 | The two built teams, as worked examples | [systemcraft/](../../../systemcraft/README.md) · [productcraft/](../../../productcraft/README.md) |
 | The first scaffold, step by step | Productcraft's [Workspace scaffold](https://github.com/seanwinslow28/code-brain/issues/265) ticket |
-| Which crafts come next | the roster deep dive and the Designcraft and Devcraft exploration tickets in [the archived inbox](https://github.com/seanwinslow28/code-brain/blob/14096e6c/vault/00_inbox/tickets.md) |
+| Which crafts come next | the roster deep dive and the Designcraft and Devcraft exploration tickets on the brain's private tracker (`seanwinslow28/SWCB`, label `studios`) |
 
 ## Degradation
 
