@@ -11,11 +11,11 @@ Read the brain's rulebook first: [`SWCB/AGENTS.md`](https://github.com/seanwinsl
 | Folder | Holds | Owner |
 |---|---|---|
 | `craftwork/` | The law every team inherits, the shared templates, the handoff law and the trace kit | Sean |
-| `productcraft/`, `systemcraft/` | Each team's machinery: its own law (`CLAUDE.md`), bench, lanes, templates and trace profile | Sean |
+| `productcraft/`, `systemcraft/`, `devcraft/` | Each team's machinery: its own law (`CLAUDE.md`), bench, lanes, templates and trace profile | Sean |
 | `<team>/corpus/` | The team's canon: distillates and book ingests. **Private, gitignored** | Sean |
 | `<team>/ledger/` | A clone of the team's private `<team>-ledger` repo. **Private, gitignored**; commit and push it in its own repo | Sean |
 | `<team>/books/` | Guard only: ebooks live in `~/Books/<team>/`. **Gitignored** | Sean |
-| `.claude/skills/` | The doors: `craftwork`, `productcraft`, `systemcraft`. `.agents/skills/` links to them for Codex | Sean |
+| `.claude/skills/` | The doors: `craftwork`, `productcraft`, `systemcraft`, `devcraft`. `.agents/skills/` links to them for Codex | Sean |
 | `bin/` | Repo checks | Sean |
 
 A live session Sean drives counts as Sean. No overnight agent works this repo.

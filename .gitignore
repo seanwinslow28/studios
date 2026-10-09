@@ -3,6 +3,7 @@
 # own private ledger repo) and its books/ guard stay on this disk only. Never
 # `git add` them; book-derived text never lands in a tracked file or an issue.
 # `bin/canary-check.sh` proves these rules hold; run it before every push.
+# 2026-10-08: Devcraft's corpus/, ledger/ and books/ join under the same rules.
 /*/corpus/
 /*/ledger/
 /*/books/
