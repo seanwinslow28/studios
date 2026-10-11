@@ -10,10 +10,12 @@
 the source hash, the stripped copy's hash, and the names of what was stripped.
 `verify` re-hashes each copy without its stamp lines; given `=<source.md>` it also
 checks the source has not moved since the freeze. The binding's fenced `strip`
-block names every process part; a binding without one is refused.
+block names every process part; a binding without one is refused. A file that
+is already a frozen copy is refused too: it is forwarded byte for byte, never
+re-frozen (handoff contract § 10).
 
 Stdlib only. Exit 0 when every copy is written or verifies, 1 on hash drift or
-a moved source, 2 on a usage or binding error.
+a moved source, 2 on a usage or binding error or an already-frozen source.
 """
 from __future__ import annotations
 
@@ -25,8 +27,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from tracekit.freeze import (  # noqa: E402
     MANIFEST_HEADER,
+    AlreadyFrozen,
     BindingError,
     freeze,
+    is_frozen,
     read_rules,
     strip,
     verify,
@@ -100,6 +104,10 @@ def main(argv: list[str]) -> int:
         src, sep, sid = arg.partition("=")
         if not sep or not sid or not Path(src).is_file():
             print(f"expected <source.md>=<source-id> naming a file, got {arg!r}", file=sys.stderr)
+            return 2
+        if is_frozen(Path(src).read_text()):
+            print(AlreadyFrozen(f"{src} is already a frozen copy: forward it byte for byte, "
+                                "never re-freeze it (handoff contract § 10)"), file=sys.stderr)
             return 2
         pairs.append((Path(src), sid))
     print(MANIFEST_HEADER)

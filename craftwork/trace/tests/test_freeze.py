@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from tracekit.freeze import BindingError, freeze, read_rules, strip, unstamp, verify
+from tracekit.freeze import AlreadyFrozen, BindingError, freeze, read_rules, strip, unstamp, verify
 
 TRACE = Path(__file__).resolve().parents[1]
 REPO = TRACE.parents[1]
@@ -204,6 +204,23 @@ def test_a_source_without_frontmatter_gets_a_stamp_block(binding, tmp_path):
     assert verify(fc.copy, src).ok
 
 
+def test_a_forwarded_copy_verifies_byte_for_byte(binding, artifact, tmp_path):
+    """Contract § 10: a sender passes on a third team's copy unchanged, and it verifies wherever it lands."""
+    fc = freeze(artifact, "eng-005.adr", read_rules(binding), tmp_path / "inbound", AT)
+    forwarded = tmp_path / "outbound" / fc.copy.name
+    forwarded.parent.mkdir()
+    forwarded.write_bytes(fc.copy.read_bytes())
+    assert verify(forwarded).ok
+
+
+def test_a_frozen_copy_is_refused_not_refrozen(binding, artifact, tmp_path):
+    """Re-freezing would wrap the third team's stamps inside the sender's and break the hash."""
+    fc = freeze(artifact, "eng-005.adr", read_rules(binding), tmp_path / "inbound", AT)
+    with pytest.raises(AlreadyFrozen, match="byte for byte"):
+        freeze(fc.copy, "pc-eng-009.fwd", read_rules(binding), tmp_path / "outbound", AT)
+    assert not (tmp_path / "outbound").exists()
+
+
 def run(*args):
     return subprocess.run([sys.executable, "freeze.py", *map(str, args)], capture_output=True, text=True, cwd=TRACE)
 
@@ -226,6 +243,14 @@ def test_cli_copy_show_verify(binding, artifact, tmp_path):
 def test_cli_refuses_without_a_binding(artifact, tmp_path):
     r = run("copy", "--out", tmp_path, f"{artifact}=pc-eng-009.strategy")
     assert r.returncode == 2 and "--binding" in r.stderr
+
+
+def test_cli_refuses_a_frozen_copy_before_writing_anything(binding, artifact, tmp_path):
+    fc = freeze(artifact, "eng-005.adr", read_rules(binding), tmp_path / "inbound", AT)
+    out = tmp_path / "outbound"
+    r = run("copy", "--binding", binding, "--out", out, f"{artifact}=pc-eng-009.strategy", f"{fc.copy}=pc-eng-009.fwd")
+    assert r.returncode == 2 and "byte for byte" in r.stderr
+    assert r.stdout == "" and not out.exists()
 
 
 @pytest.mark.parametrize("binding_path", [

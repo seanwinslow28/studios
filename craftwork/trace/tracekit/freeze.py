@@ -28,6 +28,10 @@ frontmatter. `sha256` is the hash of the stripped text without those lines, so
 `verify` removes them and re-hashes. A copy frozen before this rule (three
 stamps, no `source_sha256`) is a verbatim copy and verifies the same way.
 
+A copy is never frozen twice. A sender that passes on a third team's copy
+forwards it byte for byte (handoff contract § 10), so `freeze` refuses any
+file that already carries a `frozen_from` stamp.
+
 Stdlib only, no model, no network.
 """
 from __future__ import annotations
@@ -39,11 +43,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 __all__ = [
+    "AlreadyFrozen",
     "BindingError",
     "FrozenCopy",
     "StripRules",
     "STAMP_KEYS",
     "freeze",
+    "is_frozen",
     "read_rules",
     "strip",
     "unstamp",
@@ -59,6 +65,10 @@ _DIRECTIVES = ("heading", "heading-ending", "heading-tag", "paragraph", "key")
 
 class BindingError(ValueError):
     """The binding names no process parts, or names them in a form this module does not read."""
+
+
+class AlreadyFrozen(ValueError):
+    """The source is itself a frozen copy: forward it byte for byte, never re-freeze it."""
 
 
 @dataclass(frozen=True)
@@ -276,6 +286,11 @@ def _stamp_value(text: str, key: str) -> str | None:
     return None
 
 
+def is_frozen(text: str) -> bool:
+    """True when the text already carries a `frozen_from` stamp."""
+    return _stamp_value(text, "frozen_from") is not None
+
+
 @dataclass
 class FrozenCopy:
     source_id: str
@@ -296,6 +311,9 @@ MANIFEST_HEADER = "| Source id | Frozen copy | source sha256 | copy sha256 (stri
 def freeze(source: Path, source_id: str, rules: StripRules, out_dir: Path, frozen_at: str) -> FrozenCopy:
     """Write `<out_dir>/<source_id>--<stem>.md`: the stripped text, stamped. Returns its record."""
     raw = source.read_text()
+    if is_frozen(raw):
+        raise AlreadyFrozen(f"{source} is already a frozen copy: forward it byte for byte, "
+                            "never re-freeze it (handoff contract § 10)")
     stripped, removed = strip(raw, rules)
     digest = _sha(stripped)
     source_digest = hashlib.sha256(source.read_bytes()).hexdigest()

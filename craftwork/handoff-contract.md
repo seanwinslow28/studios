@@ -95,7 +95,7 @@ A handoff is not a new engagement type. It is a **handoff modifier** on the rece
 
 A binding lives in the sending team's `templates/`, one per pair, and is short. It names:
 
-1. **The artifacts that cross**, by id and owning seat, and anything of its own that stays behind.
+1. **The artifacts that cross**, by id and owning seat, and anything of its own that stays behind. Copies it passes on from a third team are named here too (§ 10).
 2. **The trigger** (or triggers), the seat that files the handoff, and how the receiver takes it (which of its engagement types the modifier rides on).
 3. **The seats**: who drafts the brief, who issues the state on arrival, who reads the return.
 4. **The return's gate**: which receiver gate fires the return, and which later gate waits on the candidate note.
@@ -113,3 +113,14 @@ The `strip` block takes five directives, one per line:
 | `key: audit` | a frontmatter key, with its continuation lines |
 
 Headings and paragraphs inside fenced code are never matched. A binding with no `strip` block is refused: nothing is stripped by guess.
+
+## 10. Forwarded copies
+
+A sender may pass on frozen copies it received from a third team, when its binding names them. Added 2026-10-11 on the Devcraft build map's [forwarded-copies ticket](https://github.com/seanwinslow28/SWCB/issues/108), for the Productcraft → Devcraft binding, which forwards the Systemcraft return copies Productcraft holds. Until then this contract assumed a sender crosses only its own artifacts.
+
+- **The binding names them**, by the crossing they arrived on (the third team's return, by its engagement id) and their original ids, or as every copy in that return. The sender never picks them per crossing, and its own strip list does not apply to them.
+- **They go byte for byte, never re-frozen.** The copy moves from the sender's `handoff/inbound/artifacts/` to its `handoff/outbound/artifacts/` unchanged, name included. Its five stamps, the third team's strip and both hashes stand, so it verifies wherever it lands. This is the one copy a sender moves without the kit, because the kit already made it: `freeze.py` refuses a file that carries a `frozen_from` stamp, since re-freezing would wrap the third team's stamps inside the sender's and break the hash.
+- **The manifest repeats the inbound row.** The outbound `manifest.md` copies each forwarded copy's row from the inbound manifest unchanged, under a `Forwarded` heading that names the return it arrived on and the date.
+- **The receiver verifies the copy, never its source.** Its intake check runs `freeze.py verify <copy>` on a forwarded copy like any other, without the `=<artifact>` form, because the source sits in a third team's ledger it never reads. A copy that fails is `input-required` to the sender, never a repair the receiver makes.
+- **The receiver works from it and never overturns it.** A forwarded copy carries a third team's decisions, and the receiver has no crossing with that team, so it writes no `supersedes_external` against a third-team id. A conflict found at intake is `input-required`, naming the copy. One found mid-work is an open hold in the return, naming the copy's id; the sender carries it to the third team on its own binding, or to Sean where no binding exists.
+- **Only the latest crosses.** If the third team has since returned a newer copy of the same artifact, the sender forwards that one alone.
