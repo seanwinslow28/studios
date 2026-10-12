@@ -1,7 +1,7 @@
 """Devcraft's wall, as data: who may write where, what counts as a control, a
 credential or a record, and the machine-local lists. One copy, read by the
 PreToolUse guard (`guard.py`), the git hooks (`gitcheck.py`), the settings
-generator (`seat.py`) and, later, the diff check.
+generator (`seat.py`) and the diff check (`devcraft/diffcheck/`).
 
 Written on the Devcraft build map's "Build the never-do hooks and sandbox config"
 ticket (2026-10-11), from the never-do list (`devcraft/CLAUDE.md`, rule 9) and
@@ -54,7 +54,7 @@ CONTROLS = (
 NO_EXCEPTION = (".claude/skills/", ".agents/skills/", ".codex/skills/", "AGENTS.md", "CLAUDE.md", "AGENTS.override.md")
 # Extra controls when the target worktree is the studios repo itself.
 STUDIOS_CONTROLS = (
-    "devcraft/hooks/", "devcraft/CLAUDE.md", "craftwork/trace/check.py",
+    "devcraft/hooks/", "devcraft/diffcheck/", "devcraft/CLAUDE.md", "craftwork/trace/check.py",
     "craftwork/trace/tracekit/checker.py", "bin/canary-check.sh",
 )
 

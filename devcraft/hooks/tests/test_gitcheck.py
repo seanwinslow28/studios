@@ -51,6 +51,8 @@ def repo(tmp_path):
     sh("git", "worktree", "add", "-q", "-b", "devcraft/dc-eng-900", str(wt), cwd=main)
     eng = root / "eng"
     (eng / "trace" / "logs").mkdir(parents=True)
+    base = sh("git", "rev-parse", "HEAD", cwd=main).stdout.strip()
+    (eng / "brief.md").write_text(f"---\nid: dc-eng-900\nbase: {base}\nbranch: devcraft/dc-eng-900\n---\n")
     sh("python3", str(SEAT), "worktree", str(wt), "--engagement", str(eng), cwd=root, env=env)
     return {"root": root, "main": main, "wt": wt, "eng": eng, "env": env}
 
@@ -180,3 +182,30 @@ def test_name_in_pushed_commits_is_refused(repo):
     h = heads(repo)
     r = pre_push(repo, OURS, [f"refs/heads/devcraft/dc-eng-900 {h} refs/heads/devcraft/dc-eng-900 {base}"])
     assert r.returncode != 0 and "never-do 11" in r.stderr and NAME not in r.stderr
+
+
+def test_commit_msg_stamps_the_seat_trailer(repo):
+    """The diff check attributes commits by this trailer; a seat cannot claim another seat's."""
+    ctx = repo["eng"] / "trace" / "logs" / "pass-02.context.json"
+    sh("python3", str(SEAT), "context", "--seat", "verifier", "--worktree", str(repo["wt"]),
+       "--engagement", str(repo["eng"]), "--pass", "02", cwd=repo["root"], env=repo["env"])
+    env = dict(repo["env"], DEVCRAFT_CONTEXT=str(ctx))
+    assert commit(repo, "tests/test_t.py", "def test(): pass\n", env=env, msg="tests: t").returncode == 0
+    body = sh("git", "log", "-1", "--format=%B", cwd=repo["wt"]).stdout
+    assert body.rstrip().endswith("Devcraft-Seat: verifier")
+    r = commit(repo, "tests/test_u.py", "def test(): pass\n", env=env, msg="tests: u\n\nDevcraft-Seat: builder")
+    assert r.returncode != 0 and "names a seat other than" in r.stderr
+    r = commit(repo, "src/h.py", "x\n", msg="coordinator edit")  # no context: no trailer added, none required
+    assert r.returncode == 0 and "Devcraft-Seat" not in sh("git", "log", "-1", "--format=%B", cwd=repo["wt"]).stdout
+
+
+def test_pre_push_runs_the_diff_check(repo):
+    """The pre-push hook refuses a push whose range edits an unnamed control, and lets findings through."""
+    assert commit(repo, ".claude/settings.json", "{}\n").returncode == 0
+    r = pre_push(repo, OURS, [f"refs/heads/devcraft/dc-eng-900 {heads(repo)} refs/heads/devcraft/dc-eng-900 {ZERO}"])
+    assert r.returncode != 0 and "diff check refused" in r.stderr and "REFUSED" in r.stderr
+    sh("git", "reset", "-q", "--hard", "HEAD~1", cwd=repo["wt"])
+    assert commit(repo, "src/plain.py", "x = 1\n", msg="hand edit").returncode == 0  # no seat: a finding, not a refusal
+    r = pre_push(repo, OURS, [f"refs/heads/devcraft/dc-eng-900 {heads(repo)} refs/heads/devcraft/dc-eng-900 {ZERO}"])
+    assert r.returncode == 0 and "FINDINGS" in r.stderr
+    assert list((repo["eng"] / "evidence").glob("diff-check-*.txt"))

@@ -34,7 +34,7 @@ Outcomes are typed **PLAN** / **RELEASE** / **SECURITY**, each `PASS | PASS WITH
 
 | Check | Command (from the worktree) | What it covers |
 |---|---|---|
-| Diff check | the model-free diff check, `<base>..<candidate>` | never-do hits matched to the frozen exceptions |
+| Diff check | `python3 devcraft/diffcheck/diffcheck.py --worktree <wt> --engagement <eng>` ([its README](../diffcheck/README.md)); base and branch from the brief, the candidate at `HEAD` | never-do hits matched to the frozen exceptions, each commit's seat against its paths |
 | Secret scan | `/opt/homebrew/bin/gitleaks git --log-opts="<base>..<candidate>" --redact --no-banner` | credentials committed anywhere on the build's range |
 | Dependency check | `/opt/homebrew/bin/osv-scanner scan source -r .`, and `/opt/homebrew/bin/pip-audit` on a Python project | known vulnerabilities in what the build depends on |
 

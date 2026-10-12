@@ -94,7 +94,7 @@ Seats run in the type's order. Every invocation is fresh-context and carries wha
 4. `seat.py launch`, under the caps below. Codex writes its final message **straight to the artifact's path** with `-o` (the change note, the audit of the release plan, gate findings), never to a log the coordinator copies; its raw JSONL log is captured separately into `trace/logs/`.
 5. On return, the completion fields: outputs and their hashes, the meter or `UNMEASURED`, `## Corpus read` from the transcript's file reads, `runtime:` from the transcript's model stamp.
 6. **The frozen diff.** After every pass that touches the target repo (the red suite, the build, the final run), save `git diff <base>..<that point>` as a patch in `artifacts/` and record its hash as that pass's output. The patch outlives the worktree.
-7. **Commits.** The coordinator commits each slice as one commit group, named paths only, with the message the change note gives (`<eng> S<n>`), and runs the diff check before every push.
+7. **Commits.** The coordinator commits each slice as one commit group, named paths only, with the message the change note gives (`<eng> S<n>`, which is how [the diff check](../../../devcraft/diffcheck/README.md) knows a Builder slice; a seat's own commits carry the `Devcraft-Seat:` trailer the commit-msg hook stamps). The pre-push hook runs the diff check before every push: exit 2 refuses, findings are recorded in `evidence/` for the release gate.
 
 **The coordinator's own installs** run under the guard's `coordinator` role, scripts off.
 

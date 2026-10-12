@@ -2,11 +2,11 @@
 
 The machine layer of Devcraft's never-do list ([`devcraft/CLAUDE.md`](../CLAUDE.md), rule 9): the sandbox and permission settings every seat pass runs under, the guard hook on top of them, and the git hooks on every build worktree. Built on the Devcraft build map's **Build the never-do hooks and sandbox config** ticket (2026-10-11), from the never-do ticket's wall column and that day's probes of both vendors.
 
-The order of trust is fixed. **The OS sandbox is the wall**; the permission deny rules sit beside it; **the guard only adds sight** the first two lack (which seat is running, a path after `~` and links are resolved, a wrapped `sh -c`, a plan-named exception). A hook fails open on a timeout or a mistyped path, so nothing here relies on the guard alone, and every seat contract still states every item. The after-check is the diff check, on its own ticket.
+The order of trust is fixed. **The OS sandbox is the wall**; the permission deny rules sit beside it; **the guard only adds sight** the first two lack (which seat is running, a path after `~` and links are resolved, a wrapped `sh -c`, a plan-named exception). A hook fails open on a timeout or a mistyped path, so nothing here relies on the guard alone, and every seat contract still states every item. The after-check is [the diff check](../diffcheck/README.md), which the pre-push hook runs.
 
 | File | What it is |
 |---|---|
-| [`policy.py`](policy.py) | The rules as data: seats and their write zones, controls, credentials, records, snapshot flags, the machine-local lists. One copy, read by everything below and by the diff check |
+| [`policy.py`](policy.py) | The rules as data: seats and their write zones, controls, credentials, records, snapshot flags, the machine-local lists. One copy, read by everything below and by [the diff check](../diffcheck/README.md) |
 | [`guard.py`](guard.py) | The PreToolUse hook, one script for both vendors. Exit 2 with a reason refuses; every decision is appended to the pass's guard log |
 | [`shellparse.py`](shellparse.py) | Splits a command line into the simple commands the guard judges: `sh -c`, `$(…)`, `env`, `cd`, redirects, heredocs |
 | [`gitcheck.py`](gitcheck.py), [`git/`](git/) | pre-commit, commit-msg and pre-push for a build worktree |
@@ -44,7 +44,7 @@ Two files outside every repo, in `~/.config/devcraft/` (override with `$DEVCRAFT
 | 16 | No `sudo`, global installs or system settings | guard, settings denies |
 | 17 | Records, traces and logs never rewritten by a seat | sandbox and `Edit` denies, guard |
 
-Items 5, 9, 10 and 13 have no wall here: 5 and 12's scan side are the diff check's, 9 is the launcher's caps, 10 and 13 are contract only.
+Items 5, 9, 10 and 13 have no wall here: 5 and 12's scan side are [the diff check's](../diffcheck/README.md), 9 is the launcher's caps, 10 and 13 are contract only.
 
 ## What the guard cannot see
 

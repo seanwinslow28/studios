@@ -53,7 +53,7 @@ Run by the coordinator just before the gate, their outputs saved to `evidence/` 
 
 | Check | Command | Output | Exercises | Does not exercise |
 |---|---|---|---|---|
-| Diff check | | `evidence/diff-check.txt` | | |
+| Diff check | | `evidence/diff-check-<candidate>.txt` | | |
 | Secret scan | | `evidence/secrets.txt` | | |
 | Dependency check | | `evidence/deps.txt` | | |
 

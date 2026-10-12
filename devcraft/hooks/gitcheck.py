@@ -8,12 +8,14 @@ worktree only and never for Sean's own checkout. Every refusal names the rule.
 - **pre-commit:** the staged change has no secret (gitleaks, by full path), no
   name from the machine's list (never-do 11), and, when a seat is committing,
   only paths that seat may write (never-do 4, 14).
-- **commit-msg:** the message carries no name from the list.
+- **commit-msg:** the message carries no name from the list; a seat's commit gets a
+  `Devcraft-Seat: <seat>` trailer from its context, which the diff check reads.
 - **pre-push:** no seat pushes; only to Sean's own remotes (never-do 1); never to
   the default branch, whose merge runs in Sean's own checkout after his dated
   yes (never-do 3); no branch deletes; a force-push only to the build's own
   branch and never once a release-gate record exists (never-do 7); no name from
-  the list in anything pushed (never-do 11).
+  the list in anything pushed (never-do 11); then the diff check
+  (`devcraft/diffcheck/`) over the engagement's range, whose exit 2 refuses.
 
 Fails closed: a missing tool or list refuses the commit or push.
 """
@@ -32,6 +34,7 @@ import policy  # noqa: E402
 
 ZERO = "0" * 40
 GITLEAKS = [os.environ.get("DEVCRAFT_GITLEAKS", ""), "/opt/homebrew/bin/gitleaks", "/usr/local/bin/gitleaks"]
+DIFFCHECK = Path(__file__).resolve().parents[1] / "diffcheck" / "diffcheck.py"
 
 
 class Refuse(Exception):
@@ -98,11 +101,25 @@ def pre_commit() -> None:
                     raise Refuse(f"the {ctx.seat} may not commit {path}: {why}")
 
 
+SEAT_TRAILER = "Devcraft-Seat"
+
+
 def commit_msg(path: str) -> None:
     text = Path(path).read_text(encoding="utf-8", errors="replace")
     hits = name_hits("\n".join(l for l in text.splitlines() if not l.startswith("#")), "commit message line")
     if hits:
         raise Refuse("a name from the machine's list is in the commit message (never-do 11): " + ", ".join(hits))
+    # The seat trailer is what the diff check reads to attribute a commit after the fact. A seat
+    # gets its own seat stamped from the context it cannot edit; a trailer naming another seat
+    # is refused. The coordinator's commits carry none, or the one it writes for a Builder slice.
+    ctx = seat_context()
+    if ctx and ctx.seat != "coordinator":
+        claimed = re.findall(r"^" + SEAT_TRAILER + r":\s*(\S+)\s*$", text, re.M)
+        if any(c != ctx.seat for c in claimed):
+            raise Refuse(f"the commit message names a seat other than the one committing ({ctx.seat}) (never-do 4)")
+        if not claimed:
+            subprocess.run(["git", "interpret-trailers", "--in-place", "--if-exists", "addIfDifferent",
+                            "--trailer", f"{SEAT_TRAILER}: {ctx.seat}", path], check=True)
 
 
 def owner_of(url: str) -> str:
@@ -160,6 +177,26 @@ def pre_push(remote: str, url: str, lines: List[str]) -> None:
         hits += name_hits(remote_ref, "branch name")
         if hits:
             raise Refuse("a name from the machine's list is in what this push sends (never-do 11): " + ", ".join(hits[:10]))
+        diff_check(engagement, local_sha, remote_ref.rsplit("/", 1)[-1])
+
+
+def diff_check(engagement: str, candidate: str, branch: str) -> None:
+    """The check before every push: the diff check over the engagement's base..candidate, offline.
+
+    Exit 2 (a default branch, an unnamed control edit) refuses the push. Findings
+    are recorded in the engagement's evidence and the push proceeds; the release
+    gate reads them. No engagement on the worktree: nothing to check against.
+    """
+    if not engagement:
+        return
+    top = git("rev-parse", "--show-toplevel").strip()
+    r = subprocess.run([sys.executable, str(DIFFCHECK), "--worktree", top, "--engagement", engagement,
+                        "--candidate", candidate, "--branch", branch, "--offline"], capture_output=True, text=True)
+    sys.stderr.write(r.stdout)
+    if r.returncode == 2:
+        raise Refuse("the diff check refused this push: " + (r.stderr.strip() or r.stdout.strip().splitlines()[0] if r.stdout.strip() else ""))
+    if r.returncode not in (0, 1):
+        raise Refuse(f"the diff check could not run (exit {r.returncode}): {r.stderr.strip()[-300:]}")
 
 
 def main(argv: List[str]) -> int:
