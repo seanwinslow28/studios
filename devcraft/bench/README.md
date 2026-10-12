@@ -1,3 +1,39 @@
-# bench — placeholder
+# The bench
 
-Four seat definitions land here: Build Planner, Builder, Verifier, Release & Reliability. Filled by the Devcraft build map's **Author the four-seat bench** ticket, after **Seat contracts: the five open rulings** closes.
+Four specialist seats, run as a **sequential pipeline with full artifact context handed forward**, never a parallel panel and never a summary. Each seat owns one artifact contract, one template, one lane manifest, one audit duty, one write zone and a baseline runtime. The master skill owns the process (engagement types, phases, routing, gates, launcher caps); [`devcraft/CLAUDE.md`](../CLAUDE.md) owns the law (public/private split, how never what, the boundary rule, Claude plans and Codex codes, the never-do list); these files own the craft. Authored on the Devcraft build map's **Author the four-seat bench** ticket (2026-10-11) from the bench-composition and plugin-routing briefs (ratified 2026-10-08), the never-do list (rule 9), the seat-isolation probes (2026-10-10) and the five seat-contract rulings (2026-10-11).
+
+| # | Seat | Produces | Baseline | Write zone | Audits |
+|---|---|---|---|---|---|
+| 1 | [Build Planner](build-planner.md) | Build plan | Opus 5.5, Claude Code | the engagement folder only | Code change + change note (Builder) |
+| 2 | [Builder](builder.md) | Code change + change note | Codex GPT-5.6 Sol High | the worktree, minus test paths, Release's ops paths and controls | Release plan + runbook (Release) |
+| 3 | [Verifier](verifier.md) | Test suite, written first, + run record | Opus 5.5, Claude Code | test paths only, plus the run record | Build plan (Planner) |
+| 4 | [Release & Reliability](release-reliability.md) | Release plan + runbook, with the drill record | Opus 5.5, Claude Code | the plan's flagged ops paths, plus the release plan and runbook | Test suite + run record (Verifier) |
+
+**One closed audit cycle: Planner → Builder → Release → Verifier → Planner**, the arrow reading "audits". Every audit is a fresh-context invocation over artifacts only, on the auditor's own baseline. With the plan audit fixed to the Verifier and the code audit fixed to the Planner, this is the only four-seat cycle in which the Builder never audits the tests that judge its own code. No seat co-signs.
+
+**Running order on a full build:** Planner drafts → Verifier audits the plan → plan gate → Verifier writes the whole suite and records it failing → Builder builds, slice by slice → Planner audits the change while Release drafts on the stable diff → Builder audits the release plan → Verifier's final run → Release audits the test record → release gate → Sean's dated yes → merge, in a session Sean is driving. A small direct ask takes only the release gate, and only when it touches live data, a migration or anything that runs unattended. An ops-only direct ask runs Release → Builder's audit → release gate (see [Release & Reliability](release-reliability.md)).
+
+**The gates are not seats.** The plan gate (anchor: the build plan) and the release gate (anchor: the release plan; it attacks the change, the test record and the release plan together) run on Codex, pinned, read-only, because Claude writes both anchors. The extra security pass fires only on a plan that rates its surface high; its anchor is the code change, so it runs on a fresh-context Opus 5.5. A gate FAIL that moves an anchor's last writer to the other vendor moves the gate too, and the coordinator says so at the gate. All three run per the shared [protocol](../../craftwork/templates/red-team-protocol.md) and Devcraft's gate schedule ([../templates/gate-schedule.md](../templates/gate-schedule.md)). The trace kit files them as the gate seats `plan-gate`, `release-gate` and `security-pass` so their records have lanes; they hold no seat file.
+
+**What an invocation carries:** the seat file below, the [seat preamble](../templates/seat-preamble.md) verbatim, the lane manifest, the declared target (the build's worktree and branch), the upstream artifacts in full, and the target repo's `AGENTS.md`. Never the drafting conversation. The coordinator launches every pass; no seat launches another.
+
+## Launch forms
+
+Both forms were proven on 2026-10-10 and are recorded in [the runtime registry](../../craftwork/templates/runtime-registry.md) (rows 2 and 3, the isolation paragraphs). Values in angle brackets are per pass.
+
+- **Claude seats** (Planner, Verifier, Release; row 2): `claude -p --output-format json --model claude-opus-5-5 --permission-mode acceptEdits --setting-sources local --settings <seat settings> --strict-mcp-config --plugin-dir <seat plugin> --tools "Read,Write,Edit,Bash,Glob,Grep,Skill" --append-system-prompt-file <worktree>/AGENTS.md --add-dir <worktree> --add-dir <engagement folder> --add-dir devcraft/lanes --add-dir devcraft/corpus --max-budget-usd <n> "<prompt>"`. Never `--bare` (it drops the login) and never `--safe-mode` (it ignores the plugin). The **seat plugin** is a folder holding `.claude-plugin/plugin.json` and a `skills/` of links to exactly the skills the seat's toolbelt names, never a whole marketplace plugin, which brings its hooks. The **seat settings** file carries the seat's path denies and Devcraft's hooks. No Task tool, so no sub-agent can start.
+- **Codex seats and gates** (the Builder, the plan gate, the release gate; row 3): `CODEX_HOME=<codex seat home> codex exec --json --model gpt-5.6-sol -c model_reasoning_effort="high" --sandbox <workspace-write|read-only> --strict-config -c web_search="disabled" -C <worktree> -o <engagement folder>/trace/logs/pass-NN.last.md "<prompt>"`, never `--ignore-user-config`, which throws the seat config away. The **Codex seat home** holds its own sign-in (one `codex login` by Sean, never a link to the personal auth file) and the proven seat config: features `apps`, `plugins`, `remote_plugin`, `multi_agent`, `memories`, `browser_use`, `computer_use`, `in_app_browser`, `image_generation`, `goals` and `skill_mcp_dependency_install` off, and `[skills] include_instructions = false`, so a seat reads its skills by the paths its toolbelt gives. Sub-agent tools survive every switch, so a spawn is caught from the log, never prevented.
+
+Claude Code's built-in skills stay listed under every form. A seat's **Never** list covers them too.
+
+## Baselines, families and the ladder
+
+Every `model:` line names a ruled row of the runtime registry: three seats on `claude-opus-5-5` (judgment-heavy, and Release's work is the hard-to-undo actions), the Builder on `codex gpt-5.6-sol high` (Claude plans, Codex codes, so code and its tests always come from different vendors). GPT-6.1 Sol replaces the Builder's baseline only by the registry's own ruling, never by the Codex config default.
+
+Escalation follows [craftwork § Model delegation](../../craftwork/law.md#model-delegation), with one Devcraft brake: **the Verifier never escalates onto Codex.** Its ladder is Opus 5.5 → stop and ask Sean, so tests are never written by the vendor that writes the code (ruled by Sean, 2026-10-11). The Builder's ladder is the registry's: `high` → `xhigh` → stop and ask Sean, never `ultra`.
+
+The trace kit's registry numbers group seats by family, one family per seat so a model never earns one seat on another's work: `build-planner` → *build planning*, `builder` → *coding*, `verifier` → *test design*, `release-reliability` → *release engineering*, and the three gate seats → *gate* (`craftwork/trace/tracekit/registry.py`, `SEAT_FAMILIES`).
+
+## Exits every seat may take
+
+A seat that cannot finish stops with one typed reason in its artifact header, and the coordinator routes it. Every seat: **Blocked: budget** (90% of any budget), **Blocked: architecture call** (a product or architecture call found mid-build; never-do 10), **Blocked: instruction in content** (never-do 13). The Builder adds **Blocked: spec and tests conflict**; Release adds **Blocked: needs source**.

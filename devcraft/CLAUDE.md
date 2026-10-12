@@ -14,7 +14,7 @@ Scaffold only. The studio is being built along the [Devcraft build map](https://
 
 | Path | Lane | What lives here |
 |---|---|---|
-| `bench/` | public | Four seat definitions: Build Planner, Builder, Verifier, Release & Reliability. Placeholder until its map ticket closes |
+| `bench/` | public | Four seat definitions: Build Planner, Builder, Verifier, Release & Reliability, each with its contract, write zone, audit duty, launch form, toolbelt and never-do lines |
 | `templates/` | public | One artifact template per seat (build plan, test suite and run record, code change and change note, release plan and runbook), the gate schedule and its attack lists, and Devcraft's return templates. Placeholder until its map ticket closes |
 | `lanes/` | public | Four lane manifests: topic-organized tables of contents (title + pointer + one-line when-to-read) into the private corpus, doubling as reading paths. Shelf labels, never the books. Placeholder until its map ticket closes |
 | `trace/` | public | Devcraft's side of the shared trace kit ([craftwork/trace/](../craftwork/trace/README.md)): `studio.py`, the profile the kit reads, and `taxonomy.md`, empty until Devcraft's own labels earn a seat failure mode |

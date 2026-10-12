@@ -47,6 +47,15 @@ SEAT_FAMILIES = {
     "interaction-trust-designer": "trust design",
     "ops-economics-modeler": "quantitative",
     "red-team-gate": "gate",
+    # Devcraft (#110 on the Devcraft build map, 2026-10-11): four families of its own, one per seat, so a
+    # model never earns a seat on another's work; its three gates are separate seats in the shared gate family
+    "build-planner": "build planning",
+    "builder": "coding",
+    "verifier": "test design",
+    "release-reliability": "release engineering",
+    "plan-gate": "gate",
+    "release-gate": "gate",
+    "security-pass": "gate",
     "coordinator": "coordination",
 }
 

@@ -89,10 +89,10 @@ def test_rung0_clean_drops_a_pass_a_finding_names(eng_dir):
 
 
 def test_every_bench_seat_has_a_family():
-    """A seat file with no family reads `other` in the registry numbers (#287); both studios' benches are covered."""
+    """A seat file with no family reads `other` in the registry numbers (#287); every studio's bench is covered."""
     from tracekit.registry import family_of
     repo = TRACE.parents[1]
-    seats = [p.stem for studio in ("productcraft", "systemcraft")
+    seats = [p.stem for studio in ("productcraft", "systemcraft", "devcraft")
              for p in (repo / studio / "bench").glob("*.md") if p.name != "README.md"]
     assert seats, "no bench seat files found"
     assert {s: family_of(s) for s in seats if family_of(s) == "other"} == {}
