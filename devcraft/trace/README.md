@@ -4,7 +4,7 @@ The kit itself lives in [craftwork/trace/](../../craftwork/trace/README.md): the
 
 | File | What it holds |
 |---|---|
-| [studio.py](studio.py) | The profile the kit reads: the four seats as stages in a full build's running order (1 Plan, 2 Tests, 3 Code, 4 Release), the record kinds (`intake` for an arriving brief, `run` for the Verifier's final run), the closed audit cycle, the plan gate, the release gate and the security pass, and rung-0 line 8, which checks that a full build ran its own shape: tests and the plan gate before any code, and both gates on the record by Close |
+| [studio.py](studio.py) | The profile the kit reads: the four seats as stages in a full build's running order (1 Plan, 2 Tests, 3 Code, 4 Release), the record kinds (`intake` for an arriving brief, `run` for the Verifier's final run), the closed audit cycle, the plan gate, the release gate and the security pass, and rung-0 line 8, which checks that an engagement ran its type's shape from the master skill's table: on a full build, tests and the plan gate before any code and both gates on the record by Close; on a small ask, tests before code, the Build Planner's one audit reading both, the final run, and the release leg when it fired; on an ops-only ask, Release's draft, the Builder's audit and the release gate. A one-off is one pass and is not asserted |
 | [taxonomy.md](taxonomy.md) | Devcraft's own seat failure modes. It is empty until its own labels earn one; the shared process-waste family is the kit's |
 
 **Traced from dc-eng-001 on.** The kit finds this profile by walking up from the engagement folder, so the Close lines need no flag:

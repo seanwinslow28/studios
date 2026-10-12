@@ -259,3 +259,137 @@ def test_systemcraft_cli_finds_its_profile_by_the_walk(tmp_path, monkeypatch):
     r = subprocess.run([sys.executable, "check.py", str(eng)], capture_output=True, text=True, cwd=trace,
                        env={**__import__("os").environ, "PYTHONPATH": str(trace)})
     assert r.returncode == 0, r.stdout + r.stderr
+
+
+# --------------------------------------------------------------------------- #
+# Devcraft's profile: line 8 reads the engagement's type (the master skill's table)
+# --------------------------------------------------------------------------- #
+
+DC_PROFILE = REPO / "devcraft" / "trace" / "studio.py"
+DC_FILES = {
+    "artifacts/build-plan.md": "# Build plan\n\nAC1 holds.\n\n## Moves\n\norigin draft, no upstream — leaned on: the brief\n",
+    "artifacts/test-record.md": "# Test record\n\nASK1 is tested.\n\n## Moves\n\norigin draft, no upstream — leaned on: the brief\n",
+    "artifacts/change-note.md": "# Change note\n\nASK1 is built.\n\n## Moves\n\norigin draft, no upstream — leaned on: the brief\n",
+    "artifacts/release-plan.md": "# Release plan\n\nASK1 ships.\n\n## Moves\n\norigin draft, no upstream — leaned on: the brief\n",
+    "audits/audit-plan.md": "# Audit\n\nThe plan holds.\n",
+    "audits/audit-change.md": "# Audit\n\nThe change and its tests hold.\n",
+    "audits/audit-release.md": "# Audit\n\nThe release plan covers the diff.\n",
+    "audits/audit-tests.md": "# Audit\n\nThe test record holds.\n",
+    "audits/plan-gate.md": "# Plan gate\n\nPLAN PASS — QUALITY VERDICT ONLY\n",
+    "audits/release-gate.md": "# Release gate\n\nRELEASE PASS — QUALITY VERDICT ONLY\n",
+}
+
+
+def _dc_engagement(tmp_path: Path, etype: str, passes: list[tuple]) -> Path:
+    """A minimal Devcraft engagement: brief.md with the kit's header, every pass recorded in launch order."""
+    root = tmp_path / "dc-eng-900-toy"
+    (root / "trace").mkdir(parents=True)
+    (root / "brief.md").write_text(
+        f"---\nid: dc-eng-900\nname: Toy ask\ntype: {etype}\nopened: 2026-10-11\nclosed: null\npass_budget: 9\n---\n\nA toy.\n")
+    for rel, text in DC_FILES.items():
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_text(text)
+    rows = []
+    for i, (seat, kind, stage, ins, outs) in enumerate(passes, start=1):
+        if kind == "run":                                                   # the final run revises the test record
+            (root / outs[0]).write_text(DC_FILES[outs[0]].replace("is tested.", "is tested, final run green."))
+        _sc_record(root, i, seat, kind, stage, ["brief.md", *ins], outs)
+        rows.append(f"| pass-{i:02d} | pass | | fine | |")
+    (root / "trace" / "labels.md").write_text(
+        "| pass | verdict | first_failing_stage | critique | failure_code |\n|---|---|---|---|---|\n" + "\n".join(rows) + "\n")
+    return root
+
+
+TESTS, CHANGE, RELEASE = "artifacts/test-record.md", "artifacts/change-note.md", "artifacts/release-plan.md"
+DC_SMALL = [
+    ("verifier", "draft", 2, [], [TESTS]),
+    ("builder", "draft", 3, [TESTS], [CHANGE]),
+    ("build-planner", "audit", 3, [CHANGE, TESTS], ["audits/audit-change.md"]),
+    ("verifier", "run", 2, [CHANGE, TESTS], [TESTS]),
+]
+DC_RELEASE_LEG = [
+    ("release-reliability", "draft", 4, [CHANGE], [RELEASE]),
+    ("builder", "audit", 4, [RELEASE], ["audits/audit-release.md"]),
+    ("release-gate", "gate", 4, [RELEASE, CHANGE, TESTS], ["audits/release-gate.md"]),
+]
+DC_CLOSE = [("coordinator", "close", 0, [], [])]
+
+
+def _dc_line8(tmp_path: Path, etype: str, passes: list[tuple]):
+    eng = load_engagement(_dc_engagement(tmp_path, etype, passes), studio=load_profile(DC_PROFILE))
+    return eng, {c.name: c for c in run_checks(eng)}[eng.studio.structure_check_name]
+
+
+def test_devcraft_profile_lives_with_devcraft():
+    dc = load_profile(DC_PROFILE)
+    assert dc.key == "devcraft" and dc.brief_file == "brief.md" and dc.checks_dir == "audits"
+    assert STRUCTURE_CHECKS["devcraft"].__name__ == "_stages"
+    assert find_profile(REPO / "devcraft" / "ledger" / "engagements" / "dc-eng-001-anything") == DC_PROFILE
+
+
+def test_a_devcraft_small_ask_checks_clean(tmp_path):
+    eng, line8 = _dc_line8(tmp_path, "small-ask", DC_SMALL + DC_CLOSE)
+    by = {c.name: c for c in run_checks(eng)}
+    assert all(c.ok for c in by.values()), {n: c.findings for n, c in by.items() if c.findings}
+    assert line8.count == "2 of 2"
+
+
+def test_a_devcraft_small_ask_with_its_release_leg_checks_clean(tmp_path):
+    _, line8 = _dc_line8(tmp_path, "small-ask", DC_SMALL + DC_RELEASE_LEG + DC_CLOSE)
+    assert line8.ok, line8.findings
+
+
+def test_a_small_ask_in_progress_is_notes_not_findings(tmp_path):
+    _, line8 = _dc_line8(tmp_path, "small-ask", DC_SMALL[:2])
+    assert line8.ok, line8.findings
+    assert any("Build Planner's audit not yet run" in n for n in line8.notes)
+
+
+def test_devcraft_small_ask_line_8_holds_its_shape(tmp_path):
+    passes = [
+        ("build-planner", "draft", 1, [], ["artifacts/build-plan.md"]),        # a small ask has no plan
+        ("builder", "draft", 3, [], [CHANGE]),                                 # code before the tests
+        ("verifier", "draft", 2, [], [TESTS]),
+        ("build-planner", "audit", 3, [CHANGE], ["audits/audit-change.md"]),   # never read the tests
+        ("release-reliability", "draft", 4, [CHANGE], [RELEASE]),
+        ("builder", "audit", 4, [RELEASE], ["audits/audit-release.md"]),
+        *DC_CLOSE,                                                             # no final run, no release gate
+    ]
+    _, line8 = _dc_line8(tmp_path, "small-ask", passes)
+    f = line8.findings
+    assert any(x.startswith("pass-01: Planner draft on a small ask") for x in f)
+    assert any("drafted before the tests draft" in x for x in f)
+    assert any("pass-04 did not read the tests" in x for x in f)
+    assert "closed with no Verifier final run after the Planner's audit" in f
+    assert any(x.startswith("closed with no release gate pass") for x in f)
+
+
+def test_a_devcraft_ops_only_ask_checks_its_shape(tmp_path):
+    _, clean = _dc_line8(tmp_path / "a", "ops-only", DC_RELEASE_LEG + DC_CLOSE)
+    assert clean.ok and clean.count == "1 of 1", clean.findings
+    _, bad = _dc_line8(tmp_path / "b", "ops-only", [("builder", "draft", 3, [], [CHANGE]), *DC_RELEASE_LEG[:2], *DC_CLOSE])
+    assert any("builder draft at stage 3 on an ops-only ask" in x.lower() for x in bad.findings)
+    assert any(x.startswith("closed with no release gate pass") for x in bad.findings)
+
+
+def test_a_devcraft_one_off_is_not_asserted_and_says_so(tmp_path):
+    _, line8 = _dc_line8(tmp_path, "one-off", [("build-planner", "draft", 0, [], ["artifacts/build-plan.md"]), *DC_CLOSE])
+    assert line8.ok and any("one seat pass, no order to check" in n for n in line8.notes)
+
+
+def test_a_devcraft_full_build_still_checks_its_own_shape(tmp_path):
+    passes = [
+        ("build-planner", "draft", 1, [], ["artifacts/build-plan.md"]),
+        ("verifier", "audit", 1, ["artifacts/build-plan.md"], ["audits/audit-plan.md"]),
+        ("plan-gate", "gate", 1, ["artifacts/build-plan.md"], ["audits/plan-gate.md"]),
+        ("verifier", "draft", 2, ["artifacts/build-plan.md"], [TESTS]),
+        ("builder", "draft", 3, [TESTS], [CHANGE]),
+        ("build-planner", "audit", 3, [CHANGE], ["audits/audit-change.md"]),
+        *DC_RELEASE_LEG[:2],
+        ("verifier", "run", 2, [CHANGE, TESTS], [TESTS]),
+        ("release-reliability", "audit", 2, [TESTS], ["audits/audit-tests.md"]),
+        DC_RELEASE_LEG[2],
+        *DC_CLOSE,
+    ]
+    _, line8 = _dc_line8(tmp_path, "full-build", passes)
+    assert line8.ok and line8.count == "4 of 4", line8.findings

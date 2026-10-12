@@ -22,7 +22,7 @@ Scaffold only. The studio is being built along the [Devcraft build map](https://
 | `ledger/` | **private — gitignored** | The decision ledger, a clone of its own private repo, accreting per engagement. Engagements are `dc-eng-NNN`, entries `dc-eng-NNN.dNN` |
 | `books/` | **private — gitignored** | Guard directory only: purchased ebooks live at `~/Books/devcraft/`, outside the repo. Nothing should ever sit here |
 | shared law | public | [`../craftwork/`](../craftwork/README.md): what every -craft team inherits, one copy |
-| master skill | public | `.claude/skills/devcraft/`, per the house rule. A placeholder until the map's master-skill tickets write it |
+| master skill | public | [`.claude/skills/devcraft/SKILL.md`](../.claude/skills/devcraft/SKILL.md), per the house rule: user-invoked as `/devcraft`, excluded from export groups, linked for Codex at `.agents/skills/devcraft`. It owns the process: the four engagement types (`full-build`, `small-ask`, `ops-only`, `one-off`) and the handoff and self-targeted modifiers, the phases Open → Route → Run → Gate → Close, the pass budget and launcher caps, and the Close checklist |
 
 ## Inherited law
 
