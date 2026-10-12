@@ -128,7 +128,7 @@ Per slice, what undoes it. Then each step that cannot be undone, named as one, w
 
 ## Routed upstream
 
-Product and architecture calls this build met, sent on, never decided here. Where the call goes depends on its kind: a covering Systemcraft design wins; an AI-shaped call goes to a Systemcraft one-off; any other gets a decision memo below, and the plan waits for Sean's pick.
+Product and architecture calls this build met, sent on, never decided here. Where the call goes depends on its kind: a covering Systemcraft design wins; an AI-shaped call goes to a Systemcraft one-off, crossing under [Devcraft's binding for Systemcraft](handoff-binding-systemcraft.md); any other gets a decision memo below, and the plan waits for Sean's pick.
 
 | Id | The call | Kind | Sent to | Status |
 |---|---|---|---|---|

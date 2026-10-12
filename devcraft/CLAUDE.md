@@ -15,7 +15,7 @@ Scaffold only. The studio is being built along the [Devcraft build map](https://
 | Path | Lane | What lives here |
 |---|---|---|
 | `bench/` | public | Four seat definitions: Build Planner, Builder, Verifier, Release & Reliability, each with its contract, write zone, audit duty, launch form, toolbelt and never-do lines |
-| `templates/` | public | One artifact template per seat (build plan, test suite and run record, code change and change note, release plan and runbook), the shared header and seat preamble, the check record and gate findings, the gate schedule and its attack lists. Devcraft's return templates land on their own map ticket |
+| `templates/` | public | One artifact template per seat (build plan, test suite and run record, code change and change note, release plan and runbook), the shared header and seat preamble, the check record and gate findings, the gate schedule and its attack lists. Devcraft's binding for its one-off ask to Systemcraft, and its two return templates, to Productcraft and to Systemcraft |
 | `lanes/` | public | Four lane manifests: topic-organized tables of contents (title + pointer + one-line when-to-read) into the private corpus, doubling as reading paths. Shelf labels, never the books. Slugs `planning`, `building`, `verifying`, `releasing` |
 | `trace/` | public | Devcraft's side of the shared trace kit ([craftwork/trace/](../craftwork/trace/README.md)): `studio.py`, the profile the kit reads, and `taxonomy.md`, empty until Devcraft's own labels earn a seat failure mode |
 | `corpus/` | **private — gitignored** | Two-layer reference corpus: free-canon distillates + book-to-skill ingests |

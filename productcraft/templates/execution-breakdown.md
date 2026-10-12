@@ -72,7 +72,7 @@ Goal in one line, the key result it moves, capacity, the stories in, the stories
 
 ## Implementation candidate
 
-Which stories, once shipped, constitute the candidate Systemcraft's Gate 3 will fire on, and who writes its `candidate-note.md` per the contract.
+Which stories, once shipped, constitute the candidate Systemcraft's Gate 3 will fire on, and who writes its `candidate-note.md` per the contract. When Devcraft builds them, Delivery hands them over at this engagement's close ([handoff-binding-devcraft.md](handoff-binding-devcraft.md)) and drops the candidate note when Devcraft's return arrives.
 
 ## Moves
 

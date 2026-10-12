@@ -7,6 +7,7 @@ Public machinery; filled artifacts are private (`ledger/engagements/<eng-id>/art
 - [artifact-header.md](artifact-header.md) — the shared frontmatter (`status`, fixed `auditor`, `cosign`, `grounding`, `thin_lane`, `revision` / `stale_from`), who writes which field, the status lifecycle, the artifact-id table.
 - [seat-preamble.md](seat-preamble.md) — the standing behavior every seat invocation carries; prepended verbatim to every dispatch (#273).
 - [handoff-binding-systemcraft.md](handoff-binding-systemcraft.md) — Productcraft's binding for the Systemcraft handoff: what crosses, triggers, seats, the return's gate, and the strip list. The law itself is shared, at [craftwork/handoff-contract.md](../../craftwork/handoff-contract.md) (#271, split on #326).
+- [handoff-binding-devcraft.md](handoff-binding-devcraft.md) — Productcraft's binding for the Devcraft handoff: the execution breakdown crosses with any Systemcraft return copies forwarded unchanged, and Devcraft returns one line per story. Its mirror is Devcraft's [handoff-return-productcraft.md](../../devcraft/templates/handoff-return-productcraft.md) (SWCB #117, 2026-10-11).
 
 **The seven seat artifacts, in train order**
 

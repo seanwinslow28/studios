@@ -9,6 +9,9 @@ The law every crossing between two -craft teams shares. One team frames a questi
 | Pair | Binding (outbound) | Mirror (return) |
 |---|---|---|
 | Productcraft → Systemcraft | [productcraft/templates/handoff-binding-systemcraft.md](../productcraft/templates/handoff-binding-systemcraft.md) | [systemcraft/templates/handoff-return.md](../systemcraft/templates/handoff-return.md) |
+| Productcraft → Devcraft | [productcraft/templates/handoff-binding-devcraft.md](../productcraft/templates/handoff-binding-devcraft.md) | [devcraft/templates/handoff-return-productcraft.md](../devcraft/templates/handoff-return-productcraft.md) |
+| Systemcraft → Devcraft | [systemcraft/templates/handoff-binding-devcraft.md](../systemcraft/templates/handoff-binding-devcraft.md) | [devcraft/templates/handoff-return-systemcraft.md](../devcraft/templates/handoff-return-systemcraft.md) |
+| Devcraft → Systemcraft (one-off ask) | [devcraft/templates/handoff-binding-systemcraft.md](../devcraft/templates/handoff-binding-systemcraft.md) | [systemcraft/templates/handoff-return-one-off.md](../systemcraft/templates/handoff-return-one-off.md) |
 
 The reverse crossing, Systemcraft handing Productcraft a product-framing ask, is a second binding when an engagement first needs it, not a new contract.
 
@@ -49,6 +52,8 @@ The state is a typed record, not reasoning, so the issuing seat writes it into *
 ## 5. What comes back: the mirror
 
 The return fires at the receiver's gate the binding names. It is the last gate that can pass before an implementation exists, so any later gate stays the receiver's to fire once the sender's follow-on work creates something to gate.
+
+**A one-off receiver has no gate.** Its return fires at its Close and carries the note alone, because a one-off writes one decision entry and no artifact. Added 2026-10-11 on the Devcraft build map's [bindings ticket](https://github.com/seanwinslow28/SWCB/issues/117), for Devcraft's one-off ask to Systemcraft.
 
 The return packet mirrors the outbound: a typed **return note** (the binding's mirror template) plus frozen copies of the receiver's artifacts, stripped by the mirror's own strip list and hashed the same way. The note carries one answer per ask question, by id; the gate verdict and any acceptances; every receiver decision id that overturns a sender assumption, each naming the sender entry it supersedes; the open holds the follow-on work must close; and the state.
 

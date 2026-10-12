@@ -19,6 +19,8 @@ Systemcraft's Design Strategist writes the PRD's problem, users and assumptions 
 
 **Also stays behind** (beyond the contract's list): the Leadership packet, which is written after the brief and is about the org, not the system.
 
+**Forwarded later, with the candidate note:** when Devcraft builds the slice, every copy in its return's Gate 3 packet, byte for byte ([The return's gate](#the-returns-gate), contract § 10).
+
 ## When it fires, and who sends and receives
 
 | Engagement | Trigger | Files and drafts the brief | Systemcraft receives it as |
@@ -37,7 +39,9 @@ Systemcraft's Design Strategist writes the PRD's problem, users and assumptions 
 
 ## The return's gate
 
-Systemcraft's design engagement gates three times: PRD sign-off, design-complete, pre-launch. Pre-launch cannot fire until an implementation candidate exists, and Productcraft's execution breakdown is what creates one. So the return fires **after Gate 2 (design-complete)**, carrying Systemcraft's five artifacts: PRD, ADR, failure-UX spec and model card, eval plan, ops/economics model and incident runbook. **Gate 3** is recorded as `NOT FIRED — IMPLEMENTATION ABSENT` until Delivery drops `candidate-note.md` into Systemcraft's inbound folder, which it does when the breakdown files its first implementation issues. Gate 3 remains Systemcraft's.
+Systemcraft's design engagement gates three times: PRD sign-off, design-complete, pre-launch. Pre-launch cannot fire until an implementation candidate exists, and Productcraft's execution breakdown is what creates one. So the return fires **after Gate 2 (design-complete)**, carrying Systemcraft's five artifacts: PRD, ADR, failure-UX spec and model card, eval plan, ops/economics model and incident runbook. **Gate 3** is recorded as `NOT FIRED — IMPLEMENTATION ABSENT` until Delivery drops `candidate-note.md` into Systemcraft's inbound folder, which it does when an implementation candidate exists for Gate 3 to test: a built change in a named repo at a named commit, never a filed issue. Gate 3 remains Systemcraft's.
+
+**When Devcraft builds it, Delivery relays** (ruled by Sean, 2026-10-11, on the Devcraft build map's [bindings ticket](https://github.com/seanwinslow28/SWCB/issues/117); this replaces the earlier trigger, the breakdown filing its first implementation issues). Delivery's take-up of [Devcraft's return](../../devcraft/templates/handoff-return-productcraft.md) drops the candidate note and forwards with it, byte for byte, every copy in that return's Gate 3 packet: Devcraft's change note, test record and release plan, by the Devcraft engagement id they arrived on ([contract § 10](../../craftwork/handoff-contract.md#10-forwarded-copies)). The return's release-gate verdict and holds are copied into the note unchanged. Gate 3's verdict comes back to Delivery as `gate3-note.md`, one line (`<verdict, verbatim> · <date> · <Systemcraft entry id> · holds still open: <hold ids> | none`), and Delivery forwards it unchanged into Devcraft's `handoff/inbound/`, where Devcraft's go-live waits on it ([Productcraft's binding for Devcraft](handoff-binding-devcraft.md#the-returns-gate)).
 
 ## What counts at D+14
 
