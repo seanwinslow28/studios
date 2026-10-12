@@ -105,7 +105,7 @@ def cmd_context(a) -> None:
         "caps": context_caps(a),
     }
     ctx = policy.Context(data)  # validates: no exception for AGENTS.md, CLAUDE.md or skills
-    ctx.test_paths()  # a repo without the floor stops at Open
+    ctx.test_paths()  # a repo without the floor stops at Open, but for the Planner drafting it
     out = Path(eng) / "trace" / "logs" / f"pass-{a.pass_id}.context.json"
     if out.exists():
         die(f"{out} exists; a pass's context is written once (never-do 17)")

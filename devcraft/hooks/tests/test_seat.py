@@ -84,6 +84,15 @@ def test_repo_without_test_path_floor_stops(world, tmp_path):
     assert r.returncode != 0 and "test-paths" in r.stderr
 
 
+def test_planner_runs_without_a_floor(world, tmp_path):
+    # Open's first stop: the Planner drafts the floor on a repo that has none (master skill, Open 1)
+    bare = tmp_path / "bare"
+    bare.mkdir()
+    ctx = seat(world, "context", "--seat", "build-planner", "--worktree", str(bare), "--engagement", str(world["eng"]), "--pass", "93")
+    s = json.loads(Path(seat(world, "claude-settings", ctx)).read_text())
+    assert f"Edit(/{bare}/**)" in s["permissions"]["deny"]
+
+
 def test_context_is_written_once(world):
     context(world, "verifier", "92")
     r = subprocess.run(["python3", str(SEAT), "context", "--seat", "verifier", "--worktree", str(world["wt"]),

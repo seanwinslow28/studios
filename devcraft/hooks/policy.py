@@ -215,6 +215,10 @@ class Context:
     def test_paths(self) -> List[str]:
         floor = Path(self.worktree) / ".devcraft" / "test-paths"
         if not floor.is_file():
+            # The one exception: Open's one-off, where the Planner drafts the missing floor.
+            # It writes only in the engagement folder, so the floor never bears on its wall.
+            if self.seat == "build-planner":
+                return list(self.test_paths_add)
             raise ContextError(f"the repo has no .devcraft/test-paths floor ({floor})")
         return read_list(floor) + self.test_paths_add
 

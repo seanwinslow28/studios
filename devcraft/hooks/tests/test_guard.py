@@ -152,3 +152,26 @@ def test_every_decision_is_logged(world):
 @pytest.mark.parametrize("python", PYTHONS)
 def test_runs_on_each_interpreter(world, python):
     assert run(world, "builder", bash_events("sudo ls", world["wt"])[0][1], python=python)[0] == 2
+
+
+def test_no_floor_stops_every_seat_but_the_planner(world):
+    # The one-off that drafts a repo's floor runs the Build Planner on a repo
+    # without one; it writes only in the engagement folder, so the floor never
+    # bears on its wall. Every other seat still fails closed.
+    floor = world["wt"] / ".devcraft" / "test-paths"
+    saved = floor.read_text()
+    floor.unlink()
+    try:
+        start = {"hook_event_name": "SessionStart", "cwd": str(world["wt"])}
+        log = world["eng"] / "trace" / "logs" / "guard.jsonl"
+        run(world, "build-planner", start)
+        assert json.loads(log.read_text().splitlines()[-1])["decision"] == "session-start"
+        run(world, "builder", start)
+        assert "cannot run" in json.loads(log.read_text().splitlines()[-1])["decision"]
+        artifact = str(world["eng"] / "artifacts" / "test-paths.md")
+        assert run(world, "build-planner", tool_event("Write", artifact, world["wt"]))[0] == 0
+        assert run(world, "build-planner", tool_event("Write", str(world["wt"] / "src" / "app.py"), world["wt"]))[0] == 2
+        assert run(world, "build-planner", tool_event("Write", str(floor), world["wt"]))[0] == 2
+        assert run(world, "builder", tool_event("Write", str(world["wt"] / "src" / "app.py"), world["wt"]))[0] == 2
+    finally:
+        floor.write_text(saved)
