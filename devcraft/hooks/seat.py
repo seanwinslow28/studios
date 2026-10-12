@@ -3,19 +3,29 @@
 
     seat.py context   --seat S --worktree W --engagement E --pass NN [--branch B]
                       [--test-path P]... [--ops-path P]... [--grant-read F]...
-                      [--grant-control F]... [--host H]...      → <E>/trace/logs/pass-NN.context.json
-    seat.py claude-settings <context.json>                      → <E>/trace/logs/pass-NN.settings.json
+                      [--grant-control F]... [--host H]...
+                      [--cap-minutes N] [--cap-tool-calls N] [--cap-budget-usd N]
+                                                                → <E>/trace/logs/pass-NN.context.json
+    seat.py claude-settings <context.json>                      → <passes>/<eng>/pass-NN.settings.json
     seat.py codex-home [--home ~/.codex-devcraft]                → the Codex seat home, its hooks trusted
-    seat.py codex-pass <context.json> [--home ...]              → <home>/<eng>-pass-NN.config.toml
+    seat.py codex-pass <context.json> [--home ...]              → <passes>/<eng>/pass-NN.codex-layer.toml,
+                                                                  linked as <home>/<eng>-pass-NN.config.toml
     seat.py worktree <worktree> --engagement E                  → that worktree's own git hooks
-    seat.py launch <context.json> --prompt-file F [--budget USD] [--run]
+    seat.py launch <context.json> --prompt-file F [--output A] [--run]
+                                                                → <E>/trace/logs/pass-NN.{jsonl,stderr.log,launch.json}
+    seat.py freeze-diff <context.json> --base REV [--point REV] → <E>/artifacts/pass-NN.diff.patch, and its hash
+    seat.py probe [--home ...]                                  → the Route entry's model check
     seat.py check [--home ...]                                  → preflight; exit 1 on any gap
 
 The coordinator runs these; no seat does. Every plan-named exception reaches a
 pass only through `context`, whose flags the coordinator copies from the plan
 gate's frozen "Exceptions on the record" table. Written on the Devcraft build
 map's "Build the never-do hooks and sandbox config" ticket (2026-10-11), from
-the two vendors' probes that day (see README.md).
+the two vendors' probes that day (see README.md). The caps, the kill switch,
+the wall files' move to <passes> (~/.config/devcraft/passes/, outside every
+repo, because they hold the machine's employer paths), `-o` to the artifact,
+the frozen diff and the probe were added on "Launcher caps and pass-file moves
+in seat.py" (2026-10-12), from the master skill design's rulings.
 """
 from __future__ import annotations
 
@@ -24,11 +34,15 @@ import hashlib
 import json
 import os
 import re
-import shutil
+import signal
 import subprocess
 import sys
+import tempfile
+import threading
+import time
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import policy  # noqa: E402
@@ -39,7 +53,28 @@ PYTHON = "/usr/bin/python3"
 GUARD_COMMAND = f"{PYTHON} {GUARD}"
 DEFAULT_HOME = Path(os.path.expanduser("~/.codex-devcraft"))
 STUDIOS = HOOKS.parents[1]
+sys.path.insert(0, str(STUDIOS / "craftwork" / "trace"))
+from tracekit import codexlog  # noqa: E402
+
 KEEP_ENV = ("HOME", "USER", "LOGNAME", "PATH", "LANG", "LC_ALL", "TMPDIR", "TERM", "SHELL")
+
+# The pinned ids (bench README, "Baselines"; #99). The config default never picks a pass's model.
+CLAUDE_MODEL = "claude-opus-5-5"
+CODEX_MODELS = {"builder": "gpt-6.1-sol"}   # every other Codex pass takes the gate default
+CODEX_GATE_MODEL = "gpt-5.6-sol"
+CODEX_EFFORT = "high"
+# The security pass is filed as a gate seat but runs on a fresh-context Opus 5.5 (bench README).
+CLAUDE_LAUNCH = policy.CLAUDE_SEATS + ("security-pass",)
+# Per-pass caps, the master skill's day-one defaults; `context --cap-*` overrides them at Open.
+DEFAULT_CAPS = {
+    "builder": {"minutes": 60, "tool_calls": 200},
+    "plan-gate": {"minutes": 20, "tool_calls": 80},
+    "release-gate": {"minutes": 20, "tool_calls": 80},
+    **{s: {"minutes": 30, "budget_usd": 15} for s in CLAUDE_LAUNCH},
+}
+# The `codex exec --json` items that are tool calls; agent_message, reasoning and todo_list are not.
+CODEX_TOOL_ITEMS = ("command_execution", "file_change", "mcp_tool_call", "web_search", "collab_tool_call")
+KILL_GRACE_S = 10
 CODEX_FEATURES_OFF = (
     "apps", "plugins", "remote_plugin", "multi_agent", "memories", "browser_use", "computer_use",
     "in_app_browser", "image_generation", "goals", "skill_mcp_dependency_install", "shell_snapshot",
@@ -67,6 +102,7 @@ def cmd_context(a) -> None:
         "grants": {"read": [policy.real(p) for p in a.grant_read], "control": a.grant_control},
         "hosts": a.host, "read_only": a.seat in policy.GATES or a.read_only,
         "log": os.path.join(eng, "trace", "logs", "guard.jsonl"),
+        "caps": context_caps(a),
     }
     ctx = policy.Context(data)  # validates: no exception for AGENTS.md, CLAUDE.md or skills
     ctx.test_paths()  # a repo without the floor stops at Open
@@ -78,8 +114,61 @@ def cmd_context(a) -> None:
     print(out)
 
 
+def context_caps(a) -> Dict[str, float]:
+    """The seat's default caps, with any override the Open stated (it records the why in the brief)."""
+    caps = dict(DEFAULT_CAPS.get(a.seat, {}))
+    for key, val in (("minutes", a.cap_minutes), ("tool_calls", a.cap_tool_calls), ("budget_usd", a.cap_budget_usd)):
+        if val is None:
+            continue
+        if val <= 0:
+            die(f"--cap-{key.replace('_', '-')} must be positive")
+        if key == "budget_usd" and a.seat not in CLAUDE_LAUNCH:
+            die(f"{a.seat} runs on Codex, which has no budget flag; cap it by minutes and tool calls")
+        caps[key] = val
+    return caps
+
+
 def load(path: str) -> policy.Context:
     return policy.Context(json.loads(Path(path).read_text()), source=policy.real(path))
+
+
+def load_raw(path: str) -> Dict:
+    return json.loads(Path(path).read_text())
+
+
+def caps_of(path: str, seat: str) -> Dict[str, float]:
+    """A context written before the caps existed falls back to the seat's defaults."""
+    return load_raw(path).get("caps") or dict(DEFAULT_CAPS.get(seat, {}))
+
+
+def pass_id_of(context_path: str) -> str:
+    return Path(context_path).name.split(".")[0]  # pass-NN
+
+
+def passes_dir(ctx: policy.Context) -> Path:
+    """Where a pass's wall files live: outside every repo, since they hold the employer paths."""
+    root = Path(os.path.expanduser(os.environ.get("DEVCRAFT_PASSES", "~/.config/devcraft/passes")))
+    d = root / os.path.basename(ctx.engagement)
+    d.mkdir(parents=True, exist_ok=True)
+    for p in (root, d):
+        os.chmod(p, 0o700)
+    return d
+
+
+def wall_file(ctx: policy.Context) -> Path:
+    suffix = "settings.json" if ctx.seat in CLAUDE_LAUNCH else "codex-layer.toml"
+    return passes_dir(ctx) / f"{pass_id_of(ctx.source)}.{suffix}"
+
+
+def write_once(path: Path, text: str) -> None:
+    if path.exists() or path.is_symlink():
+        die(f"{path} exists; a pass's wall is written once, so a changed wall is a new pass (never-do 17)")
+    path.write_text(text)
+    os.chmod(path, 0o600)
+
+
+def sha256(path: Path) -> str:
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
 # --- shared path lists ------------------------------------------------------------
@@ -147,7 +236,7 @@ def worktree_git_dir(worktree: str) -> str:
 # --- Claude seats -----------------------------------------------------------------
 
 def claude_settings(ctx: policy.Context) -> Dict:
-    if ctx.seat not in policy.CLAUDE_SEATS:
+    if ctx.seat not in CLAUDE_LAUNCH:
         die(f"{ctx.seat} is not a Claude seat")
     emp = policy.employer_paths()
     creds = credential_denies(ctx)
@@ -162,8 +251,8 @@ def claude_settings(ctx: policy.Context) -> Dict:
     records += [str(p) for p in eng.glob("d[0-9]*.md")]
     records += [str(p) for p in (eng / "audits").glob("*")]
     refs = [str(STUDIOS / "devcraft" / "lanes"), str(STUDIOS / "devcraft" / "corpus")]
-    no_write = controls + git_controls + records + refs
-    if ctx.seat == "build-planner":
+    no_write = controls + git_controls + records + refs + [str(passes_dir(ctx).parent)]
+    if ctx.seat == "build-planner" or ctx.read_only:
         no_write.append(ctx.worktree)
     elif ctx.seat == "verifier":
         no_write += complement(ctx, ctx.test_paths())
@@ -210,8 +299,9 @@ def claude_settings(ctx: policy.Context) -> Dict:
 
 def cmd_claude_settings(a) -> None:
     ctx = load(a.context)
-    out = Path(a.context).with_name(Path(a.context).name.replace(".context.json", ".settings.json"))
-    out.write_text(json.dumps(claude_settings(ctx), indent=2) + "\n")
+    text = json.dumps(claude_settings(ctx), indent=2) + "\n"
+    out = wall_file(ctx)
+    write_once(out, text)
     print(out)
 
 
@@ -311,13 +401,20 @@ def cmd_codex_pass(a) -> None:
     if ctx.seat not in policy.CODEX_SEATS:
         die(f"{ctx.seat} is not a Codex seat")
     home = Path(os.path.expanduser(a.home))
-    eng_id = os.path.basename(ctx.engagement)
-    pass_id = Path(a.context).name.split(".")[0]
-    profile = f"{eng_id}-{pass_id}"
-    text = "\n".join(codex_layer(ctx)) + "\n"
-    (home / f"{profile}.config.toml").write_text(text)
-    Path(a.context).with_name(f"{pass_id}.codex-layer.toml").write_text(text)  # the record's copy
+    profile = codex_profile(ctx)
+    # Codex reads a profile only from $CODEX_HOME/<name>.config.toml, so the seat home
+    # links to the one copy; the record hashes that copy, and launch checks the link.
+    link = home / f"{profile}.config.toml"
+    if link.exists() or link.is_symlink():
+        die(f"{link} exists; a pass's wall is written once (never-do 17)")
+    out = wall_file(ctx)
+    write_once(out, "\n".join(codex_layer(ctx)) + "\n")
+    link.symlink_to(out)
     print(profile)
+
+
+def codex_profile(ctx: policy.Context) -> str:
+    return f"{os.path.basename(ctx.engagement)}-{pass_id_of(ctx.source)}"
 
 
 # --- git hooks per build worktree ---------------------------------------------------
@@ -335,13 +432,33 @@ def cmd_worktree(a) -> None:
 
 # --- launch -----------------------------------------------------------------------
 
-def launch_argv(ctx: policy.Context, prompt: str, budget: str, home: Path, profile: str = "") -> List[str]:
-    if ctx.seat in policy.CLAUDE_SEATS:
-        settings = ctx.source.replace(".context.json", ".settings.json")
+def vendor_of(seat: str) -> str:
+    return "claude" if seat in CLAUDE_LAUNCH else "codex"
+
+
+def codex_model(seat: str) -> str:
+    return CODEX_MODELS.get(seat, CODEX_GATE_MODEL)
+
+
+def files_final_message(ctx: policy.Context) -> bool:
+    """The launcher files the final message of every Codex pass (-o) and of a read-only Claude pass."""
+    return vendor_of(ctx.seat) == "codex" or ctx.read_only
+
+
+def number(v: float) -> str:
+    return str(int(v)) if float(v).is_integer() else str(v)
+
+
+def launch_argv(ctx: policy.Context, prompt: str, home: Path, profile: str = "", output: str = "",
+                caps: Optional[Dict[str, float]] = None) -> List[str]:
+    caps = caps if caps is not None else caps_of(ctx.source, ctx.seat)
+    if ctx.seat in CLAUDE_LAUNCH:
         plugin = str(STUDIOS / "devcraft" / "bench" / "plugins" / ctx.seat)
-        argv = ["claude", "-p", "--output-format", "json", "--model", "claude-opus-5-5",
-                "--permission-mode", "acceptEdits", "--setting-sources", "", "--settings", settings,
-                "--strict-mcp-config", "--tools", "Read,Write,Edit,Bash,Glob,Grep,Skill"]
+        tools = "Read,Bash,Glob,Grep,Skill" if ctx.read_only else "Read,Write,Edit,Bash,Glob,Grep,Skill"
+        # stream-json: the live log the caps watch, and the per-message model stamps rung-0 line 11 reads
+        argv = ["claude", "-p", "--output-format", "stream-json", "--verbose", "--model", CLAUDE_MODEL,
+                "--permission-mode", "acceptEdits", "--setting-sources", "", "--settings", str(wall_file(ctx)),
+                "--strict-mcp-config", "--tools", tools]
         if os.path.isdir(plugin):
             argv += ["--plugin-dir", plugin]
         agents = os.path.join(ctx.worktree, "AGENTS.md")
@@ -349,43 +466,346 @@ def launch_argv(ctx: policy.Context, prompt: str, budget: str, home: Path, profi
             argv += ["--append-system-prompt-file", agents]
         for d in (ctx.worktree, ctx.engagement, str(STUDIOS / "devcraft" / "lanes"), str(STUDIOS / "devcraft" / "corpus")):
             argv += ["--add-dir", d]
-        argv += ["--max-budget-usd", budget, prompt]
-        return argv
-    # #99: the Builder pin changes independently of the shared gate default.
-    model = "gpt-6.1-sol" if ctx.seat == "builder" else "gpt-5.6-sol"
-    effort = "high"
-    pass_id = Path(ctx.source).name.split(".")[0]
-    return ["codex", "exec", "--json", "--model", model, "-c", f'model_reasoning_effort="{effort}"',
+        if "budget_usd" in caps:
+            argv += ["--max-budget-usd", number(caps["budget_usd"])]
+        return argv + [prompt]
+    return ["codex", "exec", "--json", "--model", codex_model(ctx.seat), "-c", f'model_reasoning_effort="{CODEX_EFFORT}"',
             "-p", profile, "--strict-config", "-c", 'web_search="disabled"', "-C", ctx.worktree,
-            "-o", os.path.join(ctx.engagement, "trace", "logs", f"{pass_id}.last.md"), prompt]
+            "-o", output, prompt]
 
 
 def scrubbed_env(ctx: policy.Context, home: Path) -> Dict[str, str]:
     env = {k: os.environ[k] for k in KEEP_ENV if k in os.environ}
     env["DEVCRAFT_CONTEXT"] = ctx.source
     env["DEVCRAFT_SEAT"] = ctx.seat
-    if ctx.seat in policy.CODEX_SEATS:
+    if ctx.seat not in CLAUDE_LAUNCH:
         env["CODEX_HOME"] = str(home)
     return env
+
+
+def output_path(ctx: policy.Context, output: str) -> str:
+    """The artifact the launcher files the final message into: in artifacts/ or audits/, written once."""
+    if not output:
+        if files_final_message(ctx):
+            die("the launcher files this pass's final message; name its artifact with --output (artifacts/… or audits/…)")
+        return ""
+    if not files_final_message(ctx):
+        die(f"{ctx.seat} writes its own artifact; --output is for a Codex pass or a read-only Claude pass")
+    p = Path(output) if os.path.isabs(output) else Path(ctx.engagement) / output
+    p = Path(policy.real(str(p)))
+    rel = os.path.relpath(p, ctx.engagement)
+    if rel.startswith("..") or rel.split(os.sep)[0] not in ("artifacts", "audits") or rel.count(os.sep) < 1:
+        die(f"--output must sit in the engagement's artifacts/ or audits/, not {rel}")
+    if p.exists():
+        die(f"{rel} exists; an output is written once (never-do 17)")
+    p.parent.mkdir(parents=True, exist_ok=True)
+    return str(p)
+
+
+class Watch:
+    """Reads the live log line by line: the tool calls so far, and what the meter needs."""
+
+    def __init__(self, vendor: str):
+        self.vendor = vendor
+        self.tool_ids: set = set()
+        self.thread: Optional[str] = None
+        self.usage: Dict[str, int] = {}
+        self.result: Optional[Dict] = None
+
+    @property
+    def calls(self) -> int:
+        return len(self.tool_ids)
+
+    def feed(self, line: str) -> None:
+        try:
+            e = json.loads(line)
+        except ValueError:
+            return
+        if not isinstance(e, dict):
+            return
+        t = e.get("type")
+        if self.vendor == "codex":
+            item = e.get("item")
+            if t == "thread.started":
+                self.thread = e.get("thread_id")
+            elif t in ("item.started", "item.completed") and isinstance(item, dict) and item.get("type") in CODEX_TOOL_ITEMS:
+                self.tool_ids.add(item.get("id") or f"anon-{len(self.tool_ids)}")
+            elif t == "turn.completed" and isinstance(e.get("usage"), dict):
+                for k, v in e["usage"].items():
+                    if isinstance(v, int):
+                        self.usage[k] = self.usage.get(k, 0) + v
+        elif t == "assistant":
+            for block in (e.get("message") or {}).get("content") or []:
+                if isinstance(block, dict) and block.get("type") == "tool_use":
+                    self.tool_ids.add(block.get("id") or f"anon-{len(self.tool_ids)}")
+        elif t == "result":
+            self.result = e
+
+
+def now() -> str:
+    return datetime.now().astimezone().isoformat(timespec="seconds")
+
+
+def kill_group(proc: subprocess.Popen) -> None:
+    for sig, grace in ((signal.SIGTERM, KILL_GRACE_S), (signal.SIGKILL, 5)):
+        try:
+            os.killpg(proc.pid, sig)
+        except ProcessLookupError:
+            return
+        try:
+            proc.wait(timeout=grace)
+            return
+        except subprocess.TimeoutExpired:
+            continue
+
+
+def supervise(argv: List[str], env: Dict[str, str], cwd: str, log: Path, err: Path,
+              caps: Dict[str, float], vendor: str) -> Dict:
+    """Run one pass under its caps; kill its whole process group at 100% of any of them.
+
+    macOS has no `timeout` and Codex has no budget, turn or time flag, so this is
+    the only hard stop. What the pass wrote stays on disk for the coordinator to
+    file as Blocked: budget.
+    """
+    watch = Watch(vendor)
+    trip = threading.Event()
+    limit_calls = caps.get("tool_calls")
+    limit_s = caps["minutes"] * 60 if "minutes" in caps else None
+    launched, start = now(), time.monotonic()
+    with open(log, "x", encoding="utf-8") as logf, open(err, "xb") as errf:
+        proc = subprocess.Popen(argv, cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                                stderr=errf, start_new_session=True)
+
+        def pump() -> None:
+            for raw in proc.stdout:
+                line = raw.decode("utf-8", "replace")
+                logf.write(line)
+                logf.flush()
+                watch.feed(line)
+                if limit_calls is not None and watch.calls >= limit_calls:
+                    trip.set()
+
+        reader = threading.Thread(target=pump, daemon=True)
+        reader.start()
+        stopped = None
+        while proc.poll() is None:
+            if trip.wait(0.2):
+                stopped = "tool-calls"
+            elif limit_s is not None and time.monotonic() - start >= limit_s:
+                stopped = "wall-clock"
+            if stopped:
+                kill_group(proc)
+                break
+        proc.wait()
+        reader.join(timeout=10)
+    if stopped is None and watch.result and "budget" in str(watch.result.get("subtype", "")):
+        stopped = "budget-usd"  # Claude stopped itself at --max-budget-usd
+    return {"launched": launched, "completed": now(), "wall_clock_s": round(time.monotonic() - start),
+            "exit_code": proc.returncode, "tool_calls": watch.calls, "stopped": stopped, "watch": watch}
+
+
+def helper_agent(home: Path, log: Path, thread: Optional[str], rollouts: Path) -> Dict:
+    """Save the pass's session files beside its JSONL and look for a helper agent, as rung-0 line 11 does."""
+    found = [f"its raw log shows {t}" for t in codexlog.jsonl_helpers(log.read_text(encoding="utf-8"))]
+    files = codexlog.collect(home, thread, rollouts) if thread else []
+    sessions = codexlog.read_sessions(rollouts) if files else []
+    own = [s for s in sessions if not s.helper and not s.error]
+    for s in sessions:
+        if s.helper:
+            found.append(f"helper session {s.path}")
+        if s.spawn_calls:
+            found.append(f"{s.spawn_calls} spawn call(s) in {s.path}")
+        if s.helper_events and not s.spawn_calls:
+            found.append(f"{s.helper_events} helper event(s) in {s.path}")
+    stamps = sorted({f"{m} {e}".strip() for s in own for m, e in s.stamps})
+    return {"session_files": len(files), "stamps": stamps, "helper": found}
 
 
 def cmd_launch(a) -> None:
     ctx = load(a.context)
     home = Path(os.path.expanduser(a.home))
-    prompt = Path(a.prompt_file).read_text()
+    vendor = vendor_of(ctx.seat)
+    caps = caps_of(a.context, ctx.seat)
+    wall = wall_file(ctx)
+    if not wall.exists():
+        die(f"no wall file {wall}; run seat.py {'claude-settings' if vendor == 'claude' else 'codex-pass'} first")
     profile = ""
-    if ctx.seat in policy.CODEX_SEATS:
-        profile = f"{os.path.basename(ctx.engagement)}-{Path(a.context).name.split('.')[0]}"
-        if not (home / f"{profile}.config.toml").exists():
-            die(f"no Codex layer {profile}; run seat.py codex-pass first")
-    elif not Path(ctx.source.replace(".context.json", ".settings.json")).exists():
-        die("no seat settings; run seat.py claude-settings first")
-    argv = launch_argv(ctx, prompt, a.budget, home, profile)
+    if vendor == "codex":
+        profile = codex_profile(ctx)
+        link = home / f"{profile}.config.toml"
+        if not link.is_symlink() or link.resolve() != wall.resolve():
+            die(f"{link} does not link to {wall}; run seat.py codex-pass")
+    output = output_path(ctx, a.output)
+    argv = launch_argv(ctx, Path(a.prompt_file).read_text(), home, profile, output, caps)
     env = scrubbed_env(ctx, home)
-    print(json.dumps({"argv": argv[:-1] + ["<prompt>"], "env": sorted(env)}, indent=1), file=sys.stderr)
-    if a.run:
-        os.chdir(ctx.worktree)
-        os.execvpe(argv[0], argv, env)
+    shown = argv[:-1] + ["<prompt>"]
+    print(json.dumps({"argv": shown, "env": sorted(env), "caps": caps}, indent=1), file=sys.stderr)
+    if not a.run:
+        return
+    eng = Path(ctx.engagement)
+    pid = pass_id_of(ctx.source)
+    logs = eng / "trace" / "logs"
+    log, err, rec = logs / f"{pid}.jsonl", logs / f"{pid}.stderr.log", logs / f"{pid}.launch.json"
+    for p in (log, err, rec):
+        if p.exists():
+            die(f"{p} exists; a pass is launched once, so a re-run is a new pass (never-do 17)")
+    wall_sha = sha256(wall)  # taken at launch: the wall this pass actually ran under
+    run = supervise(argv, env, ctx.worktree, log, err, caps, vendor)
+    watch: Watch = run.pop("watch")
+    rel = lambda p: os.path.relpath(p, eng)  # noqa: E731
+    record = {
+        "pass": pid, "seat": ctx.seat, "vendor": vendor,
+        "model": CLAUDE_MODEL if vendor == "claude" else codex_model(ctx.seat),
+        "effort": "" if vendor == "claude" else CODEX_EFFORT,
+        "argv": shown, "caps": caps, **run,
+        "wall_files": [{"path": str(wall), "sha256": wall_sha}],
+        "raw_log": rel(log), "stderr_log": rel(err),
+    }
+    code = 0
+    if vendor == "claude":
+        res = watch.result or {}
+        record["usage"], record["meter_source"] = res.get("usage"), ("claude -p result.usage" if res.get("usage") else "UNMEASURED")
+        if output and res.get("subtype") == "success" and isinstance(res.get("result"), str):
+            Path(output).write_text(res["result"] + "\n")
+    else:
+        record["usage"] = watch.usage or None
+        record["meter_source"] = "codex turn.completed.usage" if watch.usage else "UNMEASURED"
+        rollouts = logs / f"{pid}.rollouts"
+        seen = helper_agent(home, log, watch.thread, rollouts)
+        record["rollouts"], record["runtime_stamps"] = {"path": rel(rollouts), "files": seen["session_files"]}, seen["stamps"]
+        if seen["helper"]:
+            record["helper_agent"] = seen["helper"]
+            if output and Path(output).exists():
+                moved = logs / f"{pid}.discarded{Path(output).suffix}"
+                os.replace(output, moved)
+                record["discarded_output"] = rel(moved)
+            record["outcome"] = "helper agent: output discarded; re-run once as a new pass, a second spawn stops Blocked (#123)"
+            code = 3
+    if output and Path(output).exists():
+        record["outputs"] = [{"path": rel(output), "sha256": sha256(Path(output))}]
+    if run["stopped"]:
+        record["outcome"] = f"Blocked: budget ({run['stopped']} cap reached)"
+        code = 2
+    elif run["exit_code"] != 0 and not code:
+        record["outcome"] = f"the vendor exited {run['exit_code']}; see {rel(err)}"
+        code = 1
+    rec.write_text(json.dumps(record, indent=2) + "\n")
+    print(f"{pid}: {record.get('outcome', 'returned')}; {run['tool_calls']} tool call(s), {run['wall_clock_s']}s → {rel(rec)}")
+    sys.exit(code)
+
+
+# --- the frozen diff ------------------------------------------------------------------
+
+def cmd_freeze_diff(a) -> None:
+    """Save `git diff <base>..<point>` from the target repo as this pass's output; it outlives the worktree."""
+    ctx = load(a.context)
+    env = dict(os.environ, GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1")  # no personal diff settings
+
+    def git(*x: str) -> subprocess.CompletedProcess:
+        return subprocess.run(["git", "-C", ctx.worktree, *x], capture_output=True, env=env)
+
+    def commit(rev: str) -> str:
+        r = git("rev-parse", "--verify", "--quiet", f"{rev}^{{commit}}")
+        if r.returncode != 0:
+            die(f"{rev} is not a commit in {ctx.worktree}")
+        return r.stdout.decode().strip()
+
+    base, point = commit(a.base), commit(a.point)
+    eng = Path(ctx.engagement)
+    out = eng / "artifacts" / f"{a.name or pass_id_of(ctx.source)}.diff.patch"
+    if out.exists():
+        die(f"{out} exists; a frozen diff is written once (never-do 17)")
+    r = git("diff", "--binary", "--full-index", "--no-color", "--no-ext-diff", "--no-textconv", f"{base}..{point}")
+    if r.returncode != 0:
+        die(f"git diff failed: {r.stderr.decode().strip()}")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_bytes(r.stdout)
+    print(json.dumps({"path": os.path.relpath(out, eng), "sha256": sha256(out), "base": base, "point": point,
+                      "bytes": len(r.stdout)}))
+
+
+# --- the model check at Route ---------------------------------------------------------
+
+PROBE_PROMPT = "Reply with your exact model id and nothing else."
+CLAUDE_STAMP = re.compile(r'"model"\s*:\s*"(claude-[A-Za-z0-9.\-]+)"')  # the trace checker's own stamp
+
+
+def one_line(s: str, n: int = 80) -> str:
+    s = " ".join((s or "").split())
+    return s if len(s) <= n else s[: n - 1] + "…"
+
+
+def run_probe(argv: List[str], cwd: str, env: Dict[str, str]) -> subprocess.CompletedProcess:
+    # stdin closed: `codex exec` otherwise waits for piped input to append to the prompt
+    try:
+        return subprocess.run(argv, cwd=cwd, env=env, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=300)
+    except subprocess.TimeoutExpired as e:
+        out = e.stdout.decode() if isinstance(e.stdout, bytes) else (e.stdout or "")
+        return subprocess.CompletedProcess(argv, 124, out, "no answer in 300 s")
+
+
+def probe_claude(env: Dict[str, str], cwd: str) -> Dict:
+    argv = ["claude", "-p", "--output-format", "stream-json", "--verbose", "--model", CLAUDE_MODEL,
+            "--setting-sources", "", "--strict-mcp-config", "--tools", "", "--max-budget-usd", "1", PROBE_PROMPT]
+    r = run_probe(argv, cwd, env)
+    answer = ""
+    for line in r.stdout.splitlines():
+        try:
+            e = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(e, dict) and e.get("type") == "result":
+            answer = str(e.get("result") or "")
+    stamps = sorted(set(CLAUDE_STAMP.findall(r.stdout)))
+    return {"id": CLAUDE_MODEL, "on": "claude -p", "answer": answer, "stamps": stamps, "exit": r.returncode,
+            "match": stamps == [CLAUDE_MODEL], "error": one_line(r.stderr) if r.returncode else ""}
+
+
+def probe_codex(model: str, home: Path, env: Dict[str, str], cwd: str) -> Dict:
+    argv = ["codex", "exec", "--json", "--model", model, "-c", f'model_reasoning_effort="{CODEX_EFFORT}"',
+            "--strict-config", "-c", 'web_search="disabled"', "--skip-git-repo-check", "-C", cwd, PROBE_PROMPT]
+    r = run_probe(argv, cwd, dict(env, CODEX_HOME=str(home)))
+    answer = ""
+    for line in r.stdout.splitlines():
+        try:
+            e = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(e, dict):
+            continue
+        item = e.get("item")
+        if e.get("type") == "item.completed" and isinstance(item, dict) and item.get("type") == "agent_message":
+            answer = str(item.get("text") or "")
+    thread = codexlog.jsonl_thread(r.stdout)
+    sessions = [codexlog.read_session(f.read_text(encoding="utf-8"), f.name)
+                for f in (codexlog.find_sessions(home, thread) if thread else [])]
+    stamps = sorted({f"{m} {e}" for s in sessions if not s.helper for m, e in s.stamps})
+    return {"id": model, "on": "codex exec", "effort": CODEX_EFFORT, "answer": answer, "stamps": stamps,
+            "exit": r.returncode, "match": stamps == [f"{model} {CODEX_EFFORT}"],
+            "error": one_line(r.stderr.strip().splitlines()[-1] if r.stderr.strip() else "") if r.returncode else ""}
+
+
+def route_entry(results: List[Dict], when: str) -> str:
+    lines = [f"**The model check** (`seat.py probe`, {when}; outside the budget). Each pinned id was asked for its own id; "
+             "the match is read from the log's model stamp, never the answer."]
+    for r in results:
+        what = f"`{r['id']}`" + (f" ({r['effort']})" if r.get("effort") else "") + f" on `{r['on']}`"
+        stamp = ", ".join(r["stamps"]) or "none"
+        verdict = "Match." if r["match"] else "**MISMATCH**: to Sean before any seat runs."
+        tail = f" Exit {r['exit']}: {r['error']}" if r["exit"] else ""
+        lines.append(f"- {what}: answered \"{one_line(r['answer'])}\"; stamped {stamp}. {verdict}{tail}")
+    return "\n".join(lines)
+
+
+def cmd_probe(a) -> None:
+    home = Path(os.path.expanduser(a.home))
+    env = {k: os.environ[k] for k in KEEP_ENV if k in os.environ}
+    with tempfile.TemporaryDirectory(prefix="devcraft-probe-") as cwd:
+        results = [probe_claude(env, cwd)]
+        for model in sorted(set(CODEX_MODELS.values()) | {CODEX_GATE_MODEL}):
+            results.append(probe_codex(model, home, env, cwd))
+    print(route_entry(results, now()))
+    sys.exit(0 if all(r["match"] for r in results) else 1)
 
 
 # --- preflight ----------------------------------------------------------------------
@@ -436,6 +856,9 @@ def main() -> None:
     for f in ("test-path", "ops-path", "grant-read", "grant-control", "host"):
         c.add_argument(f"--{f}", action="append", default=[])
     c.add_argument("--read-only", action="store_true")
+    c.add_argument("--cap-minutes", type=float)
+    c.add_argument("--cap-tool-calls", type=int)
+    c.add_argument("--cap-budget-usd", type=float)
     c.set_defaults(fn=cmd_context)
     s = sub.add_parser("claude-settings")
     s.add_argument("context")
@@ -454,10 +877,19 @@ def main() -> None:
     l = sub.add_parser("launch")  # noqa: E741
     l.add_argument("context")
     l.add_argument("--prompt-file", required=True)
-    l.add_argument("--budget", default="5")
+    l.add_argument("--output", default="", help="the artifact a Codex or read-only pass's final message is filed to")
     l.add_argument("--home", default=str(DEFAULT_HOME))
     l.add_argument("--run", action="store_true")
     l.set_defaults(fn=cmd_launch)
+    f = sub.add_parser("freeze-diff")
+    f.add_argument("context")
+    f.add_argument("--base", required=True)
+    f.add_argument("--point", default="HEAD")
+    f.add_argument("--name", default="", help="the patch's stem in artifacts/ (default pass-NN)")
+    f.set_defaults(fn=cmd_freeze_diff)
+    r = sub.add_parser("probe")
+    r.add_argument("--home", default=str(DEFAULT_HOME))
+    r.set_defaults(fn=cmd_probe)
     k = sub.add_parser("check")
     k.add_argument("--home", default=str(DEFAULT_HOME))
     k.set_defaults(fn=cmd_check)
