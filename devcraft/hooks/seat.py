@@ -351,9 +351,11 @@ def launch_argv(ctx: policy.Context, prompt: str, budget: str, home: Path, profi
             argv += ["--add-dir", d]
         argv += ["--max-budget-usd", budget, prompt]
         return argv
+    # #99: the Builder pin changes independently of the shared gate default.
+    model = "gpt-6.1-sol" if ctx.seat == "builder" else "gpt-5.6-sol"
     effort = "high"
     pass_id = Path(ctx.source).name.split(".")[0]
-    return ["codex", "exec", "--json", "--model", "gpt-5.6-sol", "-c", f'model_reasoning_effort="{effort}"',
+    return ["codex", "exec", "--json", "--model", model, "-c", f'model_reasoning_effort="{effort}"',
             "-p", profile, "--strict-config", "-c", 'web_search="disabled"', "-C", ctx.worktree,
             "-o", os.path.join(ctx.engagement, "trace", "logs", f"{pass_id}.last.md"), prompt]
 

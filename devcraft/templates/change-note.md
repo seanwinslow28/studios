@@ -13,7 +13,7 @@ engagement: dc-eng-001-<slug>
 date: 2026-10-16
 seat: builder
 stage: 3
-model: codex gpt-5.6-sol high
+model: codex gpt-6.1-sol high
 grounding: full
 thin_lane: []
 adjacent_lanes: []

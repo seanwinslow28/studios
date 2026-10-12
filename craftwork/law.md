@@ -84,7 +84,7 @@ No self-targeted engagement may implement or ratify its own expansion; it may on
 
 **A gate runs on the vendor that did not last write its anchor artifact.** That is Codex GPT-5.6 Sol High by default, or a fresh-context Opus 5.5 subagent when the anchor was last written on Codex. **A verification pass follows the same rule**: it runs on the vendor that did not write the repair. The checker changes vendor, not the repairer.
 
-**Pinned, always.** Codex passes always pass `--model gpt-5.6-sol`, never the plugin's or the config's unset default. Codex `ultra` effort is forbidden: it auto-delegates and breaks one invocation, one seat. Fable runs the interactive coordinator's session only, and a seat pass only on Sean's word for a named pass.
+**Pinned, always.** Codex passes always pass the exact ruled model from the seat file or gate default with `--model` (`gpt-5.6-sol` for the shared escalation target and default gates), never the plugin's or the config's unset default. Codex `ultra` effort is forbidden: it auto-delegates and breaks one invocation, one seat. Fable runs the interactive coordinator's session only, and a seat pass only on Sean's word for a named pass.
 
 ## The alias probe at Route
 
