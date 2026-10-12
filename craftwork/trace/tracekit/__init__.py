@@ -73,9 +73,14 @@ quantitative, and two new families, architecture and trust design, so that no mo
 earns one seat on another's work. A test fails when any bench seat file in either
 studio would read `other`.
 
+0.12.0 reads Codex passes on line 11 (SWCB #123): a pass's session files, saved
+beside its JSONL as `pass-NN.rollouts/` by `codexlog.collect`, are checked for their
+model and effort stamps and for any helper agent, which is a finding. The line is
+renamed to say so. A Codex pass with no session files is unverifiable, named.
+
 The content machine (#291) shares this code rather than forking it, through its
 own profile.
 """
 
 KIT_NAME = "craftwork/trace"
-KIT_VERSION = "0.11.0"
+KIT_VERSION = "0.12.0"

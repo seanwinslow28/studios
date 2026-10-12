@@ -73,7 +73,7 @@ DEVCRAFT_CHECK_IMPLICATIONS = (
     "A stage missing its draft or its audit, code drafted before its tests or its plan gate, or a closed build missing a gate, is a build that did not run its own shape.",
     "A blind pair whose runtime is already visible cannot produce an unbiased verdict.",
     "A failure code outside the taxonomy is free text, and free text does not count toward a mode.",
-    "A pass whose transcript names a different model ran on something the registry never ruled, so its row counts toward the wrong runtime.",
+    "A pass whose logs name a different model ran on something the registry never ruled, so its row counts toward the wrong runtime; a pass that started a helper agent did work no record shows and no meter counted.",
 )
 
 # the running order on a full build: stage → drafting seat

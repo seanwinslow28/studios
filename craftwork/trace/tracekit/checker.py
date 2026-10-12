@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .labels import decided
+from .codexlog import jsonl_helpers, jsonl_thread, parse_runtime, read_sessions, rollout_dir
 from .engagement import METER_SOURCES, Engagement, Record, normalize_meter, sha256_path
 from .moves import extract_ids
 from .studio import Studio
@@ -32,7 +33,7 @@ CHECK_NAMES = (
     "Each drafting stage has one draft, an audit, and its required co-signs",
     "Trials blind-labeled before their runtime is shown",
     "Every failure_code is in the taxonomy; a quote-required code quotes its text",
-    "Recorded runtime matches the raw log's model stamps",
+    "Recorded runtime matches the raw log: its model stamps, and no helper agent",
 )
 
 _STRUCTURE_INDEX = 7   # rung-0 line 8 is the one check a studio writes for itself
@@ -652,31 +653,44 @@ def _codes(eng: Engagement, tax: Taxonomy) -> Check:
 
 
 # --------------------------------------------------------------------------- #
-# 10 · runtime stamps (an alias is not a pin)
+# 10 · runtime stamps (an alias is not a pin), and no helper agent (#123)
 # --------------------------------------------------------------------------- #
+
 
 _MODEL_STAMP = re.compile(r'"model"\s*:\s*"(claude-[A-Za-z0-9.\-]+)"')
 _NO_LOG = ("", "—", "-", "null", "none")
 
 
 def _runtime_stamps(eng: Engagement) -> Check:
-    """A Claude pass's `runtime:` is the model its own transcript says answered.
+    """A pass's `runtime:` is what its own logs say ran, and nothing else ran beside it.
 
-    Ruled on #321 (2026-09-29): the Agent tool's `opus` / `sonnet` aliases moved
-    to the 5.5 generation after pc-eng-001 closed, and a record written from the
+    Claude (#321, 2026-09-29): the Agent tool's `opus` / `sonnet` aliases moved to
+    the 5.5 generation after pc-eng-001 closed, and a record written from the
     alias would have named a model that never ran. The transcript stamps every
     assistant message with its model, so the record is checked against the stamp,
-    never the alias. `<synthetic>` stamps are not models. A pass with no readable
-    JSONL log, or a log with no stamp, is unverifiable and named — never passed.
-    Codex and other rows are out of scope until their logs are read the same way;
-    so are the coordinator's own passes with no log, whose model is stated.
+    never the alias. `<synthetic>` stamps are not models.
+
+    Codex, row 3 (#123, 2026-10-12): the pass's session files, saved beside its
+    JSONL as `pass-NN.rollouts/`, stamp every turn with model and effort, both
+    checked against `codex <model> <effort>`. A pass that started a helper agent
+    is a finding: its sub-agent tools survive every config switch, the helper's
+    work has no record and its tokens reach no meter, and `codex review`, whose
+    reviewer is such a helper, is not a launch form. A helper seen in the JSONL
+    alone is a finding too; without session files nothing else is verifiable.
+
+    A pass with no readable log, or a log with no stamp, is unverifiable and
+    named — never passed. Provider routes (rows 4–8) are out of scope until their
+    logs are read the same way; so are the coordinator's own passes with no log,
+    whose model is stated.
     """
     c = Check(CHECK_NAMES[10])
     no_log: list[str] = []
     no_stamp: list[str] = []
+    no_sessions: list[str] = []
     out_of_scope = 0
     for r in eng.records:
-        if not r.runtime.startswith("claude-"):
+        codex = parse_runtime(r.runtime)
+        if not r.runtime.startswith("claude-") and codex is None:
             out_of_scope += 1
             continue
         log = r.raw_log.strip()
@@ -684,6 +698,17 @@ def _runtime_stamps(eng: Engagement) -> Check:
             out_of_scope += 1
             continue
         c.n_total += 1
+        if codex is not None:
+            verdict = _codex_pass(eng, r, codex, log, c)
+            if verdict == "ok":
+                c.n_ok += 1
+            elif verdict == "no-log":
+                no_log.append(r.pass_id)
+            elif verdict == "no-sessions":
+                no_sessions.append(r.pass_id)
+            elif verdict == "no-stamp":
+                no_stamp.append(r.pass_id)
+            continue
         text = eng.read_text(log) if log.endswith(".jsonl") else None
         if text is None:
             no_log.append(r.pass_id)
@@ -696,12 +721,66 @@ def _runtime_stamps(eng: Engagement) -> Check:
         else:
             c.findings.append(
                 f"{r.pass_id}: runtime {r.runtime} but its raw log is stamped {', '.join(sorted(stamps))}")
-    c.n_unverifiable = len(no_log) + len(no_stamp)
+    c.n_unverifiable = len(no_log) + len(no_stamp) + len(no_sessions)
     if no_log:
-        c.notes.append(f"{len(no_log)} Claude pass(es) with no readable JSONL raw log: {', '.join(no_log)}")
+        c.notes.append(f"{len(no_log)} pass(es) with no readable JSONL raw log: {', '.join(no_log)}")
+    if no_sessions:
+        c.notes.append(f"{len(no_sessions)} Codex pass(es) with no saved session files (`pass-NN.rollouts/`): "
+                       f"{', '.join(no_sessions)}")
     if no_stamp:
         c.notes.append(f"{len(no_stamp)} raw log(s) carry no model stamp: {', '.join(no_stamp)}")
     if out_of_scope:
         c.notes.append(
-            f"{out_of_scope} pass(es) not a Claude row, or the coordinator's own session with no log — out of scope")
+            f"{out_of_scope} pass(es) on a provider route or another row, or the coordinator's own session "
+            f"with no log — out of scope")
     return c
+
+
+def _codex_pass(eng: Engagement, r: Record, codex: tuple[str, str], log: str, c: Check) -> str:
+    """Line 11 for one Codex pass. Appends its findings; returns ok, found, no-log, no-sessions or no-stamp."""
+    text = eng.read_text(log) if log.endswith(".jsonl") else None
+    folder = eng.resolve(rollout_dir(log)) if log.lower() not in _NO_LOG else None
+    sessions = read_sessions(folder) if folder is not None and folder.is_dir() else []
+    found = False
+    tools = jsonl_helpers(text) if text is not None else []
+    if tools:
+        c.findings.append(f"{r.pass_id}: its raw log shows a helper agent at work ({', '.join(tools)}); "
+                          f"a seat pass never hands work to a sub-agent")
+        found = True
+    if not sessions:
+        if found:
+            return "found"
+        return "no-log" if text is None else "no-sessions"
+    for s in sessions:
+        if s.error:
+            c.findings.append(f"{r.pass_id}: session file {s.path}: {s.error}")
+            found = True
+    own = [s for s in sessions if not s.helper and not s.error]
+    helpers = [s for s in sessions if s.helper]
+    thread = jsonl_thread(text) if text is not None else None
+    if len(own) != 1:
+        c.findings.append(f"{r.pass_id}: its session files hold {len(own)} top-level threads; a pass is exactly one")
+        return "found"
+    me = own[0]
+    if thread and me.id != thread:
+        c.findings.append(f"{r.pass_id}: its session files are thread {me.id}, but its raw log is thread {thread}")
+        return "found"
+    if helpers or me.spawn_calls or me.helper_events:
+        what = []
+        if me.spawn_calls:
+            what.append(f"{me.spawn_calls} spawn call(s)")
+        if helpers:
+            what.append(f"{len(helpers)} helper session(s): {', '.join(h.path for h in helpers)}")
+        elif me.helper_events and not me.spawn_calls:
+            what.append(f"{me.helper_events} helper event(s)")
+        c.findings.append(f"{r.pass_id}: started a helper agent ({'; '.join(what)}); a seat pass never hands work "
+                          f"to a sub-agent, and the helper's tokens are on no meter")
+        found = True
+    if not me.stamps:
+        return "found" if found else "no-stamp"
+    model, effort = codex
+    stamped = {f"codex {m} {e}".strip() for m, e in me.stamps}
+    if {m for m, _ in me.stamps} != {model} or (effort and {e for _, e in me.stamps} != {effort}):
+        c.findings.append(f"{r.pass_id}: runtime {r.runtime} but its session files are stamped {', '.join(sorted(stamped))}")
+        found = True
+    return "found" if found else "ok"
