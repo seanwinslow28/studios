@@ -27,7 +27,7 @@ The order of trust is fixed. **The OS sandbox is the wall**; the permission deny
 
 ## The machine-local lists
 
-Two files outside every repo, in `~/.config/devcraft/` (override with `$DEVCRAFT_LOCAL` for tests), one entry per line, `#` for comments: **`employer-paths`**, folders denied at the OS level (never-do 2), and **`names`**, the employer, client and startup names the git hooks refuse (never-do 11). Sean writes both by hand on each Mac. Neither is ever tracked, quoted or shown to a seat: the folder is in every pass's read deny, and a hit is reported by file and line, never by the name. A missing or empty list refuses every call: the wall fails closed.
+Two files outside every repo, in `~/.config/devcraft/` (override with `$DEVCRAFT_LOCAL` for tests), one entry per line, `#` for comments: **`employer-paths`**, folders denied at the OS level (never-do 2), and **`names`**, the employer, client and startup names the git hooks refuse (never-do 11). Sean writes both by hand on each Mac. Neither is ever tracked, quoted or shown to a seat: the folder is in every pass's read deny, and a hit is reported by file and line, never by the name. A missing or empty list refuses every call: the wall fails closed. That includes a `git commit` run inside a seat's sandbox, so seats never commit: the coordinator commits a seat's staged paths under the seat's context (`DEVCRAFT_CONTEXT` and `DEVCRAFT_SEAT` set), where the hook can read the list and still applies the seat's zone ([the bench](../bench/README.md), SWCB #133).
 
 ## Item by item
 
@@ -36,7 +36,7 @@ Two files outside every repo, in `~/.config/devcraft/` (override with `$DEVCRAFT
 | 1 | Seats never push or post; pushes only to `seanwinslow28` remotes | guard (`git push`, `gh` writes), sandbox network, pre-push |
 | 2 | Employer paths unreadable | Claude `denyRead` + `Read` deny, Codex profile `deny`, guard |
 | 3 | Nothing reaches a default branch from a build worktree; the merge runs in Sean's own checkout after his dated yes; no credential in a seat's environment | pre-push, scrubbed launch env, credential read denies |
-| 4 | Boundary rule by seat; snapshot regeneration refused to Builder and Release; a seat commits only its own paths | Codex profile `read` entries, Claude `Edit` denies, guard, pre-commit |
+| 4 | Boundary rule by seat; snapshot regeneration refused to Builder and Release; a seat's commit, made by the coordinator under that seat's context, holds only that seat's paths | Codex profile `read` entries, Claude `Edit` denies, guard, pre-commit |
 | 6 | Credential files unreadable unless the plan opened that file to that seat; no credential variable printed | sandbox denies, guard, Codex env policy, pre-commit secret scan (gitleaks) |
 | 7 | Writes resolve inside the worktree; no stash, branch, worktree or git-config changes; force-push only the build's own branch and never after the release gate | sandbox write limits, guard path resolution, pre-push |
 | 8 | No `launchctl` load, `crontab`, workflow enable, publish or deploy commands | guard, settings denies |

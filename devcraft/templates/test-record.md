@@ -2,7 +2,7 @@
 
 Owned by the **Verifier** ([seat file](../bench/verifier.md)). Stage 2 of a full build. The suite itself lives in the target repo's test paths; this record is what the suite promises and what happened when it ran. Two passes write it: the **draft**, after the plan gate and before any code, writes the map, the security tests and the **red record**; the **`run`** pass, against the merge candidate, bumps `revision:` and fills the **final record**. A test that guessed wrong is fixed by the Verifier's own `repair` pass and listed under Repairs. Audited by **Release & Reliability**. Header fields per [artifact-header.md](artifact-header.md); written to `artifacts/test-record.md`, long output to `evidence/`.
 
-The Builder receives this record with the red record filled. So the **held-out slice** (tests the Builder never sees, which catch code written to pass only the visible tests) appears here only as a count and a hash. The tests and their own red record live in the engagement folder's `held-out/`, which the coordinator never hands to a Builder pass: no Builder pass record lists it as an input. The slice is spent at the final run, when the Verifier commits it to the build branch; a Builder repair after that runs against a suite that includes it, and the run record says so.
+The Builder receives this record with the red record filled. So the **held-out slice** (tests the Builder never sees, which catch code written to pass only the visible tests) appears here only as a count and a hash. The tests and their own red record live in the engagement folder's `held-out/`, which the coordinator never hands to a Builder pass: no Builder pass record lists it as an input. The slice is spent at the final run, when the Verifier stages it and the coordinator commits it to the build branch under the Verifier's context; a Builder repair after that runs against a suite that includes it, and the run record says so.
 
 **The test-files hash** is one recipe, so the Builder and Release reproduce it exactly:
 
@@ -33,7 +33,7 @@ stale_from: null
 status: draft
 auditor: release-reliability
 audit: pending
-red_commit: <commit>               # the suite committed, no build code yet
+red_commit: <commit>               # the suite committed by the coordinator under this pass's context, no build code yet
 candidate: pending                 # the merge candidate the final run ran against; filled by the run pass
 tests_hash_red: <sha256>           # the recipe above, at red_commit
 tests_hash_final: pending          # the recipe above, at candidate

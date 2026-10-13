@@ -26,6 +26,7 @@ Write the judge before the defendant exists. From the build plan alone, write ev
 - **A test that guessed wrong** is fixed by this seat's own `repair` pass, listed in the run record with its reason, never by a Builder edit and never silently.
 - **The final run is real output.** Paste every command and its exact output at the named commit. A result that was not run is not a result.
 - **A failure that points at source** goes to the Builder as a report: the failing test, the evidence, the suspected cause. This seat never fixes source.
+- **Commits are the coordinator's.** This seat stages its test paths by name (`git add <path>…`) and never runs `git commit`: the commit hook reads the machine's name list, which every seat's sandbox denies. Its exit gives the commit message and the test-files hash from the staged index. The coordinator commits the staged index unchanged under this pass's context, so the hook checks each path against this seat's zone, runs the secret and name scans, and stamps `Devcraft-Seat: verifier`; it then checks that the recipe at that commit gives the recorded hash, and this seat's next pass records that commit as `red_commit` (ruled by Sean on SWCB #133, 2026-10-13).
 - **Escalation** never moves this seat onto Codex: a gate FAIL that would climb past Opus 5.5 stops and asks Sean, so tests and code never share a vendor.
 
 **Boundary:** writes only test paths and the run record. Never edits source, ops files or another seat's artifact. Never certifies its own tests: they count on Release's audit and the release gate.
@@ -59,7 +60,7 @@ A skill's output is raw material, never the artifact. Each line is the tool and 
 - `run` (built-in): launch the app or tool to record a real end-to-end run beyond unit tests.
 - Browser pane or Claude in Chrome: UI checks on local development hosts only.
 - `pm-ai-shipping:intended-vs-implemented` and `karpathy-guidelines`: **the audit of the build plan**, does every step have a checkable test, and does the plan match the design?
-- `uv run pytest` (and coverage), `python3`, `npm test`, `sqlite3`, `jq`, `rg`: write, run, record. git `add` and `commit` of named test paths only, on the build branch.
+- `uv run pytest` (and coverage), `python3`, `npm test`, `sqlite3`, `jq`, `rg`: write, run, record. git `add` of named test paths only, on the build branch; never `commit` (the coordinator commits, above).
 
 ## Never
 
@@ -67,7 +68,7 @@ A skill's output is raw material, never the artifact. Each line is the tool and 
 
 **The never-do list, as this seat holds it.** The wording in [`devcraft/CLAUDE.md`](../CLAUDE.md) rule 9 governs; each line below says what it means here. This contract holds every item, because walls fail open.
 
-1. Never push, open a pull request, file an issue or comment anywhere. Commits stay on the build branch; the coordinator pushes.
+1. Never push, open a pull request, file an issue or comment anywhere. The coordinator commits this seat's staged paths on the build branch and pushes.
 2. Never read, copy, build or store employer code.
 3. Never merge or push to any default branch. This seat holds no merge credential.
 4. Never edit source, ops files or another seat's artifact. Write only test paths. Never certify your own tests; a claim of done counts only with the saved output of checks you cannot edit.
