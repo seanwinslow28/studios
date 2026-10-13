@@ -1,6 +1,6 @@
 # Red-team protocol
 
-Every -craft team's adversarial gate. A **protocol, not a person** (Systemcraft bench ratification 2026-08-22): no standing seat. Every red-team pass runs **stateless**, receiving only the artifacts and this protocol, never the drafting conversation, and on **the vendor that did not last write its anchor artifact** ([law.md § Model delegation](../law.md#model-delegation)). By default that is Codex GPT-5.6 Sol High, with the model pinned. Cross-vendor by design: a different model lineage hunts with different blind spots.
+Every -craft team's adversarial gate. A **protocol, not a person** (Systemcraft bench ratification 2026-08-22): no standing seat. Every red-team pass runs **stateless**, receiving only the artifacts and this protocol, never the drafting conversation, and on **the vendor that did not last write its anchor artifact** ([law.md § Model delegation](../law.md#model-delegation)). By default that is Codex GPT-6.1 Sol High, with the model pinned (GPT-5.6 Sol High until 2026-10-12). Cross-vendor by design: a different model lineage hunts with different blind spots.
 
 *Shared law since 2026-10-01 ([craftwork build 1](https://github.com/seanwinslow28/code-brain/issues/324)): moved from `systemcraft/templates/`. Each team keeps its own **gate schedule** and **per-artifact attack checklists**: Systemcraft in [systemcraft/templates/gate-schedule.md](../../systemcraft/templates/gate-schedule.md), Productcraft in its master skill's Gate phase and in the red-team checklist that ends each of its artifact templates.*
 

@@ -19,7 +19,7 @@ anchor: dc-eng-001.plan            # the anchor artifact and its revision
 anchor_revision: 1
 anchor_sha256: <sha256>            # the anchor as this gate read it; the plan gate's freezes the exceptions
 anchor_last_written_on: claude     # claude | codex, read from the anchor's model: line; decides the vendor
-vendor: codex gpt-5.6-sol high     # the runtime that ran the gate
+vendor: codex gpt-6.1-sol high     # the runtime that ran the gate
 vendor_switch: none                # none | "<why the gate left its default vendor>"
 fallback: none                     # none | same-vendor → re-run ticket <link>
 inputs: [dc-eng-001.plan, dc-eng-001.audit-plan, brief.md]

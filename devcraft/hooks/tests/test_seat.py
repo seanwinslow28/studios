@@ -318,7 +318,7 @@ def test_output_rules(world, codex_home):
     r = launch(world, ctx, "--output", "artifacts/release-gate-findings.md")
     argv = json.loads(r.stderr)["argv"]
     assert r.returncode == 0 and argv[argv.index("-o") + 1] == str(world["eng"] / "artifacts" / "release-gate-findings.md")
-    assert argv[argv.index("--model") + 1] == "gpt-5.6-sol"
+    assert argv[argv.index("--model") + 1] == "gpt-6.1-sol"
     v = context(world, "verifier", "38")
     seat(world, "claude-settings", v)
     r = launch(world, v, "--output", "artifacts/x.md")
@@ -416,9 +416,10 @@ def test_probe_reads_the_stamp_not_the_answer(world, codex_home, fake):
     behave(fake, answer="I am some model")
     r = subprocess.run(["python3", str(SEAT), "probe", "--home", str(codex_home)], env=world["env"], capture_output=True, text=True, timeout=60)
     assert r.returncode == 0, r.stdout + r.stderr
-    for line in ("`claude-opus-5-5` on `claude -p`", "`gpt-6.1-sol` (high) on `codex exec`", "`gpt-5.6-sol` (high) on `codex exec`"):
+    for line in ("`claude-opus-5-5` on `claude -p`", "`gpt-6.1-sol` (high) on `codex exec`"):
         assert line in r.stdout
-    assert r.stdout.count("Match.") == 3
+    assert "gpt-5.6-sol" not in r.stdout, "the gate default is gpt-6.1-sol since 2026-10-12, so the probe has two ids"
+    assert r.stdout.count("Match.") == 2
     behave(fake, stamp="gpt-5.4")
     r = subprocess.run(["python3", str(SEAT), "probe", "--home", str(codex_home)], env=world["env"], capture_output=True, text=True, timeout=60)
     assert r.returncode == 1 and "MISMATCH" in r.stdout

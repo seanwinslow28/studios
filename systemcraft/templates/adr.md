@@ -10,7 +10,7 @@ id: eng-001.adr-01                   # one ADR per decision; number them
 engagement: eng-001-fleet-knowledge-loop-audit
 date: 2026-08-24
 seat: architecture-advisor
-model: claude-opus-5-5                # the runtime that actually ran, plus any deviation: "claude-opus-5-5 → codex gpt-5.6-sol high: gate FAIL"
+model: claude-opus-5-5                # the runtime that actually ran, plus any deviation: "claude-opus-5-5 → codex gpt-6.1-sol high: gate FAIL"
 status: draft                        # draft | audited | final
 auditor: ops-economics-modeler       # fixed by the audit cycle
 ---

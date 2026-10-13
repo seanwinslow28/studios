@@ -1,6 +1,6 @@
 # Gate findings template — the red-team gate's artifact
 
-The findings file a **red-team gate** writes: stateless, on the vendor that did not last write the anchor artifact (Codex GPT-5.6 Sol High by default; a fresh-context Opus 5.5 subagent when the anchor was last written on Codex), receiving only the artifacts and the shared [red-team protocol](../../craftwork/templates/red-team-protocol.md), never the drafting conversation. Productcraft's schedule: **Gate 1 — strategy sign-off** (`<eng>.gate-1`, anchor the Strategy & POV doc, after stage 3), **Gate 2 — pre-handoff** (`<eng>.gate-2`, anchor the handoff brief, only when a brief exists), the **close gate** (`<eng>.gate-close`, the whole train), and an audit engagement's single **audit-close gate**. Every gate also writes its ledger entry (`seat: red-team-gate`) naming its vendor and why; this file is the authoritative record of the verdict and the entry is derived from it.
+The findings file a **red-team gate** writes: stateless, on the vendor that did not last write the anchor artifact (Codex GPT-6.1 Sol High by default; a fresh-context Opus 5.5 subagent when the anchor was last written on Codex), receiving only the artifacts and the shared [red-team protocol](../../craftwork/templates/red-team-protocol.md), never the drafting conversation. Productcraft's schedule: **Gate 1 — strategy sign-off** (`<eng>.gate-1`, anchor the Strategy & POV doc, after stage 3), **Gate 2 — pre-handoff** (`<eng>.gate-2`, anchor the handoff brief, only when a brief exists), the **close gate** (`<eng>.gate-close`, the whole train), and an audit engagement's single **audit-close gate**. Every gate also writes its ledger entry (`seat: red-team-gate`) naming its vendor and why; this file is the authoritative record of the verdict and the entry is derived from it.
 
 Posture is inherited: *find the strongest case that this fails; being unable to find a material flaw is a finding — state what you attacked and why it held*; propose the steel-man alternative.
 
@@ -16,7 +16,7 @@ gate: strategy-sign-off            # strategy-sign-off | pre-handoff | close | a
 anchor: pc-eng-001.strategy        # the anchor artifact and revision
 anchor_revision: 1
 anchor_last_written_on: claude     # claude | codex — decides the vendor below
-vendor: codex gpt-5.6-sol high     # the runtime that ran the gate; "fallback: same-vendor" when the other was unavailable
+vendor: codex gpt-6.1-sol high     # the runtime that ran the gate; "fallback: same-vendor" when the other was unavailable
 fallback: none                     # none | same-vendor → re-run ticket <link>
 inputs: [pc-eng-001.strategy, pc-eng-001.discovery, pc-eng-001.insights, pc-eng-001.cosign-discovery, pc-eng-001.audit-strategy]
 verdict: STRATEGY PASS WITH ACCEPTANCES   # see Verdict lines

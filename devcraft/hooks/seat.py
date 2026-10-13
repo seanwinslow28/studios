@@ -61,7 +61,7 @@ KEEP_ENV = ("HOME", "USER", "LOGNAME", "PATH", "LANG", "LC_ALL", "TMPDIR", "TERM
 # The pinned ids (bench README, "Baselines"; #99). The config default never picks a pass's model.
 CLAUDE_MODEL = "claude-opus-5-5"
 CODEX_MODELS = {"builder": "gpt-6.1-sol"}   # every other Codex pass takes the gate default
-CODEX_GATE_MODEL = "gpt-5.6-sol"
+CODEX_GATE_MODEL = "gpt-6.1-sol"   # every studio's default gate since 2026-10-12 (Sean, SWCB #118); gpt-5.6-sol before
 CODEX_EFFORT = "high"
 # The security pass is filed as a gate seat but runs on a fresh-context Opus 5.5 (bench README).
 CLAUDE_LAUNCH = policy.CLAUDE_SEATS + ("security-pass",)

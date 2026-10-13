@@ -69,7 +69,7 @@ No self-targeted engagement may implement or ratify its own expansion; it may on
 
 **A seat's `model:` line names the runtime that actually runs**, as a row of [the runtime registry](templates/runtime-registry.md). A baseline comes only from a row whose standing is **ruled** or **baseline-eligible**. The Route entry states each seat's runtime from its own seat file and never inherits the session model silently. **A normal pass is the baseline**; only a real change is a deviation, and every deviation carries a one-line why against a named trigger. Deviations are per pass, never per engagement. No silent deviations, ever.
 
-**Escalate one tier**: Sonnet 5.5 → Opus 5.5 → Codex GPT-5.6 Sol High → Codex Sol xhigh → stop and ask Sean. It fires only on:
+**Escalate one tier**: Sonnet 5.5 → Opus 5.5 → Codex GPT-6.1 Sol High → Codex GPT-6.1 Sol xhigh → stop and ask Sean. It fires only on:
 
 1. **Gate FAIL.** The owning seat redrafts one tier up.
 2. **Audit bounced substance, at severity.** A MATERIAL finding that loops back is redrafted one tier up **only** when it meets the engagement's P0-equivalent bar, or when it is the second material round on the same artifact. Count is not severity.
@@ -82,9 +82,9 @@ No self-targeted engagement may implement or ratify its own expansion; it may on
 
 **Downshift** (Opus → Sonnet; Sonnet → Haiku 4.5, mechanical work only) on a mechanical transform of existing substance, a single-source corpus lookup, objective checklist application, or clerical filing (the file-or-defer *decision* stays at baseline). Audits never run below the auditor seat's baseline.
 
-**A gate runs on the vendor that did not last write its anchor artifact.** That is Codex GPT-5.6 Sol High by default, or a fresh-context Opus 5.5 subagent when the anchor was last written on Codex. **A verification pass follows the same rule**: it runs on the vendor that did not write the repair. The checker changes vendor, not the repairer.
+**A gate runs on the vendor that did not last write its anchor artifact.** That is Codex GPT-6.1 Sol High by default, or a fresh-context Opus 5.5 subagent when the anchor was last written on Codex. **A verification pass follows the same rule**: it runs on the vendor that did not write the repair. The checker changes vendor, not the repairer.
 
-**Pinned, always.** Codex passes always pass the exact ruled model from the seat file or gate default with `--model` (`gpt-5.6-sol` for the shared escalation target and default gates), never the plugin's or the config's unset default. Codex `ultra` effort is forbidden: it auto-delegates and breaks one invocation, one seat. Fable runs the interactive coordinator's session only, and a seat pass only on Sean's word for a named pass.
+**Pinned, always.** Codex passes always pass the exact ruled model from the seat file or gate default with `--model` (`gpt-6.1-sol` for the shared escalation target and default gates since 2026-10-12, [#118](https://github.com/seanwinslow28/SWCB/issues/118); `gpt-5.6-sol` before), never the plugin's or the config's unset default. Codex `ultra` effort is forbidden: it auto-delegates and breaks one invocation, one seat. Fable runs the interactive coordinator's session only, and a seat pass only on Sean's word for a named pass.
 
 ## The alias probe at Route
 

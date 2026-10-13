@@ -10,7 +10,7 @@ id: eng-001.ops
 engagement: eng-001-fleet-knowledge-loop-audit
 date: 2026-08-24
 seat: ops-economics-modeler
-model: claude-sonnet-5-5                # the runtime that actually ran, plus any deviation: "claude-sonnet-5-5 → codex gpt-5.6-sol high: gate FAIL"
+model: claude-sonnet-5-5                # the runtime that actually ran, plus any deviation: "claude-sonnet-5-5 → codex gpt-6.1-sol high: gate FAIL"
 status: draft                        # draft | audited | final
 auditor: architecture-advisor        # fixed by the audit cycle
 ---

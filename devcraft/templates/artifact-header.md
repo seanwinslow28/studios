@@ -11,7 +11,7 @@ engagement: dc-eng-001-<slug>
 date: 2026-10-14
 seat: build-planner                # the one seat that may write this file
 stage: 1                           # running order on a full build: 1 Plan, 2 Tests, 3 Code, 4 Release; 0 for a one-off
-model: claude-opus-5-5             # the runtime that actually ran, plus any deviation: "claude-opus-5-5 → codex gpt-5.6-sol high: plan gate FAIL"
+model: claude-opus-5-5             # the runtime that actually ran, plus any deviation: "claude-opus-5-5 → codex gpt-6.1-sol high: plan gate FAIL"
 grounding: full                    # full | manifest-only | none, per the seat preamble
 thin_lane: []                      # topics the lane manifest had no pointer for, found mid-pass
 adjacent_lanes: []                 # lanes noticed and not drafted: named, never written
