@@ -38,10 +38,11 @@ def world(tmp_path_factory):
                GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
     env.pop("DEVCRAFT_CONTEXT", None)
     main = root / "main"
-    for d in ("src", "tests", "deploy", ".devcraft", ".github/workflows"):
+    for d in ("src/pkg/tests", "tests", "deploy", ".devcraft", ".github/workflows"):
         (main / d).mkdir(parents=True)
-    (main / ".devcraft" / "test-paths").write_text("tests/\n")
-    for f, t in (("src/app.py", "a"), ("tests/test_a.py", "t"), ("deploy/job.plist", "j"), (".github/workflows/ci.yml", "c"),
+    (main / ".devcraft" / "test-paths").write_text("tests/\ntest_*.py\nfixtures/\n")
+    for f, t in (("src/app.py", "a"), ("src/test_c.py", "t"), ("src/pkg/tests/test_b.py", "t"),
+                 ("tests/test_a.py", "t"), ("deploy/job.plist", "j"), (".github/workflows/ci.yml", "c"),
                  ("AGENTS.md", "rules"), (".env", "SECRET=1"), (".env.example", "SECRET=")):
         (main / f).write_text(t)
     run = lambda *a, cwd=main: subprocess.run(list(a), cwd=cwd, env=env, check=True, capture_output=True)  # noqa: E731
@@ -119,6 +120,21 @@ def test_claude_settings(world):
     assert s["env"]["DEVCRAFT_CONTEXT"] == ctx
 
 
+def test_release_cannot_write_a_nested_test(world):
+    # src/ is Release's ops path here, but the tests inside it stay out of reach
+    s = json.loads(Path(seat(world, "claude-settings", context(world, "release-reliability", "12", "--ops-path", "src/"))).read_text())
+    deny, wt = s["permissions"]["deny"], str(world["wt"])
+    assert f"Edit(/{wt}/src/pkg/tests/**)" in deny and f"Edit(/{wt}/src/test_c.py)" in deny
+    assert f"Edit(/{wt}/src/app.py)" not in deny
+
+
+def test_covered_lists_every_match_at_any_depth(world):
+    ctx = seatmod.load(context(world, "builder", "13"))
+    got = seatmod.covered(ctx, ctx.test_paths())
+    # a matched folder is listed whole; an absent glob-free pattern is listed at the top
+    assert got == ["fixtures", "src/pkg/tests", "src/test_c.py", "tests"]
+
+
 def test_planner_cannot_write_the_worktree(world):
     s = json.loads(Path(seat(world, "claude-settings", context(world, "build-planner", "11"))).read_text())
     assert f"Edit(/{world['wt']}/**)" in s["permissions"]["deny"]
@@ -152,6 +168,13 @@ def test_preflight_catches_an_untrusted_hook(world, codex_home):
 BUILDER_MATRIX = [
     ("echo a > src/new.py && echo WROTE", True),
     ("echo a > tests/x.py && echo WROTE", False),
+    # "tests/" and "test_*.py" match at any depth, not just the top (SWCB #134)
+    ("echo a > src/pkg/tests/test_b.py && echo WROTE", False),
+    ("echo a > src/pkg/tests/new.py && echo WROTE", False),
+    ("echo a > src/test_c.py && echo WROTE", False),
+    ("echo a > src/pkg/helper.py && echo WROTE", True),
+    # a glob-free pattern is held even before it exists
+    ("mkdir -p fixtures && echo a > fixtures/x.json && echo WROTE", False),
     ("echo a > deploy/x && echo WROTE", False),
     ("echo a > .github/workflows/x.yml && echo WROTE", False),
     ("echo a >> AGENTS.md && echo WROTE", False),

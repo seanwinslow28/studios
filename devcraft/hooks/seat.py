@@ -221,6 +221,39 @@ def complement(ctx: policy.Context, allowed: List[str], depth: int = 4) -> List[
     return out
 
 
+def covered(ctx: policy.Context, patterns: List[str]) -> List[str]:
+    """Repo-relative paths the floor `patterns` cover, as coarsely as possible.
+
+    Every existing match at any depth, globs included, as the worktree stands
+    now (a matched folder is listed whole), plus each glob-free pattern's
+    top-level path even when absent, so it cannot be created either. A match
+    created later anywhere else (a new nested `tests/`, a new `test_x.py`) is
+    outside the sandbox's list; the guard, the commit hook and the diff check
+    still catch it.
+    """
+    out = set()
+    for pat in patterns:
+        p = pat.strip()
+        p = (p[2:] if p.startswith("./") else p).strip("/")
+        if p and not any(c in p for c in "*?["):
+            out.add(p)
+    for root, dirs, files in os.walk(ctx.worktree):
+        rel = os.path.relpath(root, ctx.worktree)
+        rel = "" if rel == "." else rel
+        keep = []
+        for name in sorted(dirs):
+            r = os.path.join(rel, name)
+            if name in (".git", "node_modules", ".venv"):
+                continue
+            if policy.any_match(r, patterns):
+                out.add(r)
+            else:
+                keep.append(name)
+        dirs[:] = keep
+        out.update(r for r in (os.path.join(rel, f) for f in files) if policy.any_match(r, patterns))
+    return sorted(out)
+
+
 def common_git_dir(worktree: str) -> str:
     r = subprocess.run(["git", "-C", worktree, "rev-parse", "--path-format=absolute", "--git-common-dir"],
                        capture_output=True, text=True)
@@ -257,9 +290,8 @@ def claude_settings(ctx: policy.Context) -> Dict:
     elif ctx.seat == "verifier":
         no_write += complement(ctx, ctx.test_paths())
     elif ctx.seat == "release-reliability":
-        tests = ctx.test_paths()
         no_write += complement(ctx, ctx.ops_paths)
-        no_write += [os.path.join(ctx.worktree, t.rstrip("/")) for t in tests if not any(c in t for c in "*?[")]
+        no_write += [os.path.join(ctx.worktree, t) for t in covered(ctx, ctx.test_paths())]
 
     def rule(tool: str, p: str) -> List[str]:
         return [f"{tool}(/{p})", f"{tool}(/{p}/**)"] if os.path.isdir(p) or not os.path.exists(p) else [f"{tool}(/{p})"]
@@ -375,10 +407,7 @@ def codex_layer(ctx: policy.Context) -> List[str]:
             # listed even when absent, so the Builder cannot create one either
             if not any(policy.matches(c, g) for g in ctx.grant_control):
                 rel_read.append(c.rstrip("/"))
-        for t in ctx.test_paths() + ctx.ops_paths:
-            t = t.strip().lstrip("./").rstrip("/")
-            if t and not any(ch in t for ch in "*?[") and os.path.exists(os.path.join(ctx.worktree, t)):
-                rel_read.append(t)
+        rel_read += covered(ctx, ctx.test_paths() + ctx.ops_paths)
         for must in (".git", ".codex"):
             if must not in rel_read and os.path.exists(os.path.join(ctx.worktree, must)):
                 rel_read.append(must)
