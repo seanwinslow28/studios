@@ -40,9 +40,9 @@ Outcomes are typed **PLAN** / **RELEASE** / **SECURITY**, each `PASS | PASS WITH
 
 ## Vendors, and when a gate switches
 
-A gate runs on the vendor that did not last write its anchor. Before each gate, the coordinator reads the anchor's `model:` line. When a FAIL's redraft moved the anchor's last writer to the other vendor (Release escalated to Codex, or the Planner did), the gate moves with it, to a fresh-context Opus 5.5 or to Codex, and the findings file says why in `vendor_switch:`. The coordinator says so at the gate. The security pass's anchor is always Codex-written, so it always runs on Claude.
+A gate runs on the vendor that did not last write its anchor. Before each gate, the launcher reads the anchor's `model:` line: every gate names its anchor (`seat.py context --anchor <anchor>`) and runs on the vendor that did not last write it, so a gate cannot launch on its writer's vendor by mistake (SWCB #126). When a FAIL's redraft moved the anchor's last writer to the other vendor (Release escalated to Codex, or the Planner did), the gate moves with it, to a fresh-context Opus 5.5 or to Codex, and the findings file says why in `vendor_switch:`. The coordinator says so at the gate. The security pass's anchor is always Codex-written, so it always runs on Claude.
 
-If the planned vendor is unavailable, the protocol's fallback holds: the gate runs fresh on the other vendor, labelled `fallback: same-vendor`, and a re-run ticket is filed.
+If the planned vendor is unavailable, the protocol's fallback holds: the gate runs fresh on the other vendor, labelled `fallback: same-vendor`, and a re-run ticket is filed; the context names it (`--fallback <the ticket>`) and the launch record carries it.
 
 ## FAIL, re-runs and the security seat question
 

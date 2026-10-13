@@ -55,6 +55,9 @@ def world(tmp_path_factory):
     for d in ("artifacts", "audits", "trace/logs", "held-out"):
         (eng / d).mkdir(parents=True)
     (eng / "held-out" / "h.py").write_text("hidden")
+    # Anchors and repaired artifacts, by who last wrote them (their header's model: line)
+    (eng / "artifacts" / "by-claude.md").write_text("---\nid: x\nmodel: claude-opus-5-5             # the runtime\n---\n\nplan\n")
+    (eng / "artifacts" / "by-codex.md").write_text("---\nmodel: codex gpt-6.1-sol high\n---\n\nnote\n")
     home = root / "home"
     yield {"root": root, "wt": wt, "eng": eng, "emp": emp, "home": home, "env": env}
     shutil.rmtree(root)
@@ -62,6 +65,10 @@ def world(tmp_path_factory):
 
 def seat(w, *args):
     return subprocess.run(["python3", str(SEAT), *args], env=w["env"], capture_output=True, text=True, check=True).stdout.strip()
+
+
+CLAUDE_ANCHOR = ("--anchor", "artifacts/by-claude.md")
+CODEX_ANCHOR = ("--anchor", "artifacts/by-codex.md")
 
 
 def context(w, s, n, *extra):
@@ -193,7 +200,8 @@ BUILDER_MATRIX = [
 
 def sandboxed(world, home, profile, perm, cmd):
     env = dict(world["env"], CODEX_HOME=str(home))
-    r = subprocess.run(["codex", "sandbox", "-p", profile, "-P", perm, "-C", str(world["wt"]), "--", "bash", "-c", cmd],
+    # the real codex by its path: the launcher tests put a fake one first on PATH
+    r = subprocess.run([CODEX, "sandbox", "-p", profile, "-P", perm, "-C", str(world["wt"]), "--", "bash", "-c", cmd],
                        env=env, capture_output=True, text=True, timeout=60)
     return "WROTE" in r.stdout
 
@@ -210,7 +218,7 @@ def test_builder_layer_in_the_real_sandbox(world, codex_home, cmd, allowed):
 
 @pytest.mark.skipif(not CODEX, reason="codex not installed")
 def test_gate_layer_is_read_only(world, codex_home):
-    seat(world, "codex-pass", context(world, "release-gate", "21"), "--home", str(codex_home))
+    seat(world, "codex-pass", context(world, "release-gate", "21", *CLAUDE_ANCHOR), "--home", str(codex_home))
     profile = f"{world['eng'].name}-pass-21"
     assert sandboxed(world, codex_home, profile, "pass-21", "cat src/app.py && echo WROTE")
     assert not sandboxed(world, codex_home, profile, "pass-21", "echo a > src/app.py && echo WROTE")
@@ -301,7 +309,7 @@ def test_caps_default_by_seat_and_override(world):
     assert b == {"minutes": 60, "tool_calls": 200}
     v = json.loads(Path(context(world, "verifier", "31", "--cap-minutes", "45")).read_text())["caps"]
     assert v == {"minutes": 45, "budget_usd": 15}
-    g = json.loads(Path(context(world, "release-gate", "32")).read_text())["caps"]
+    g = json.loads(Path(context(world, "release-gate", "32", *CLAUDE_ANCHOR)).read_text())["caps"]
     assert g == {"minutes": 20, "tool_calls": 80}
     r = subprocess.run(["python3", str(SEAT), "context", "--seat", "builder", "--worktree", str(world["wt"]), "--engagement",
                         str(world["eng"]), "--pass", "33", "--cap-budget-usd", "5"], env=world["env"], capture_output=True, text=True)
@@ -326,13 +334,13 @@ def test_wall_files_live_outside_the_engagement(world, codex_home):
 
 
 def test_security_pass_runs_on_claude_read_only(world):
-    s = json.loads(Path(seat(world, "claude-settings", context(world, "security-pass", "36"))).read_text())
+    s = json.loads(Path(seat(world, "claude-settings", context(world, "security-pass", "36", *CODEX_ANCHOR))).read_text())
     assert f"Edit(/{world['wt']}/**)" in s["permissions"]["deny"]
     assert str(world["eng"] / "held-out") in s["sandbox"]["filesystem"]["denyRead"]
 
 
 def test_output_rules(world, codex_home):
-    ctx = context(world, "release-gate", "37")
+    ctx = context(world, "release-gate", "37", *CLAUDE_ANCHOR)
     seat(world, "codex-pass", ctx, "--home", str(codex_home))
     r = launch(world, ctx)
     assert r.returncode != 0 and "--output" in r.stderr, "a Codex pass names its artifact"
@@ -403,7 +411,7 @@ def test_launch_catches_a_helper_agent(world, codex_home, fake):
 
 def test_launch_files_a_read_only_claude_pass(world, fake):
     behave(fake, calls=2, answer="SECURITY PASS FINDINGS")
-    ctx = context(world, "security-pass", "44")
+    ctx = context(world, "security-pass", "44", *CODEX_ANCHOR)
     seat(world, "claude-settings", ctx)
     r = launch(world, ctx, "--output", "artifacts/security-findings.md", "--run")
     rec = record(world, "44")
@@ -520,10 +528,11 @@ def test_the_record_must_be_a_failed_gate_or_a_ledger_entry_naming_it(world):
     assert data["escalation"]["path"] == named.name
 
 
-def test_only_the_builder_climbs_an_effort_step(world):
+def test_a_gate_never_climbs_and_a_claude_seat_climbs_one_step_at_a_time(world):
     rec_path = failed_gate(world, "plan-gate-r8.md", verdict="PLAN FAIL — QUALITY VERDICT ONLY")
-    assert "gate" in context_fails(world, "plan-gate", "55", "--effort", "xhigh", "--escalation", rec_path)
-    assert "Claude" in context_fails(world, "build-planner", "55", "--effort", "xhigh", "--escalation", rec_path)
+    assert "gate" in context_fails(world, "plan-gate", "55", "--effort", "xhigh", "--escalation", rec_path, *CLAUDE_ANCHOR)
+    # Opus 5.5 → Codex high on a gate FAIL; the step on to xhigh takes a ledger entry naming it (SWCB #126)
+    assert "ledger entry that names it" in context_fails(world, "build-planner", "55", "--effort", "xhigh", "--escalation", rec_path)
 
 
 def test_a_record_changed_after_the_context_stops_the_launch(world, codex_home):
@@ -533,3 +542,231 @@ def test_a_record_changed_after_the_context_stops_the_launch(world, codex_home):
     (world["eng"] / rec_path).write_text("---\nverdict: SECURITY FAIL, rewritten\n---\n")
     r = launch(world, ctx, "--output", "artifacts/change-note-56.md")
     assert r.returncode != 0 and "changed since the context" in r.stderr
+
+
+# --- a pass on the other vendor, read from the record that calls for it (SWCB #126) ----------
+
+def ctx_data(path):
+    return json.loads(Path(path).read_text())
+
+
+@pytest.mark.parametrize("line,writer", [
+    ("claude-opus-5-5", "claude"),
+    ("claude-opus-5-5             # the runtime that actually ran", "claude"),
+    ("codex gpt-6.1-sol high", "codex"),
+    ('"codex gpt-6.1-sol high (substitute for xhigh on the security pass FAIL; Sean, d18)"', "codex"),
+    ('"claude-opus-5-5 (substitute for the tier-up escalation on plan-gate-r5 FAIL; d07)"', "claude"),
+    ('"claude-opus-5-5 → codex gpt-6.1-sol high: plan gate FAIL"', "codex"),
+    ('"codex gpt-6.1-sol high -> claude-opus-5-5: fallback"', "claude"),
+    ("gpt-6.1-sol", "codex"),
+    ("opus", None),
+    ("", None),
+])
+def test_last_writer_reads_the_model_line(line, writer):
+    assert seatmod.last_writer(f"---\nid: x\nmodel: {line}\n---\n\nbody\n") == writer
+
+
+def test_last_writer_needs_a_header():
+    assert seatmod.last_writer("model: claude-opus-5-5\n") is None
+    assert seatmod.last_writer("---\nid: x\n---\nmodel: claude-opus-5-5\n") is None
+
+
+def test_the_verifiers_verification_pass_runs_on_codex(world, codex_home, fake):
+    # a Planner repair written on Claude is verified on Codex; the brake covers only test-writing passes
+    ctx = context(world, "verifier", "60", "--verify", "artifacts/by-claude.md")
+    data = ctx_data(ctx)
+    assert data["vendor"] == "codex" and data["read_only"] and data["effort"] == "high"
+    assert data["vendor_basis"] == {"by": "verify", "path": "artifacts/by-claude.md", "last_writer": "claude",
+                                    "sha256": seatmod.sha256(world["eng"] / "artifacts" / "by-claude.md")}
+    assert data["caps"] == {"minutes": 20, "tool_calls": 80}, "a read-only Codex pass takes the gates' caps"
+    r = subprocess.run(["python3", str(SEAT), "claude-settings", ctx], env=world["env"], capture_output=True, text=True)
+    assert r.returncode != 0 and "codex-pass" in r.stderr
+    profile = seat(world, "codex-pass", ctx, "--home", str(codex_home))
+    layer = (codex_home / f"{profile}.config.toml").read_text()
+    assert 'extends = ":read-only"' in layer
+    assert f'"{world["eng"] / "held-out"}" = "deny"' not in layer, "held-out is the Verifier's own slice"
+    assert "--output" in launch(world, ctx).stderr, "its check record is the final message, filed by -o"
+    behave(fake, calls=1, answer="VERIFY RECORD")
+    r = launch(world, ctx, "--output", "audits/audit-plan-verify.md", "--run")
+    rec = record(world, "60")
+    assert r.returncode == 0, r.stderr
+    assert rec["vendor"] == "codex" and rec["model"] == "gpt-6.1-sol" and rec["vendor_basis"]["by"] == "verify"
+    assert rec["argv"][:2] == ["codex", "exec"] and rec["runtime_stamps"] == ["gpt-6.1-sol high"]
+    assert (world["eng"] / "audits" / "audit-plan-verify.md").read_text() == "VERIFY RECORD\n"
+
+
+def test_releases_verification_pass_never_reads_held_out(world, codex_home):
+    ctx = context(world, "release-reliability", "61", "--verify", "artifacts/by-claude.md")
+    assert ctx_data(ctx)["vendor"] == "codex"
+    profile = seat(world, "codex-pass", ctx, "--home", str(codex_home))
+    layer = (codex_home / f"{profile}.config.toml").read_text()
+    assert f'"{world["eng"] / "held-out"}" = "deny"' in layer and 'extends = ":read-only"' in layer
+
+
+def test_a_verification_of_a_codex_repair_runs_on_claude(world):
+    # the Builder verifying a Release repair that was written on Codex
+    ctx = context(world, "builder", "62", "--verify", "artifacts/by-codex.md")
+    data = ctx_data(ctx)
+    assert data["vendor"] == "claude" and data["read_only"] and data["effort"] == ""
+    assert data["caps"] == {"minutes": 30, "budget_usd": 15}, "a Claude pass takes the Claude seats' caps"
+    s = json.loads(Path(seat(world, "claude-settings", ctx)).read_text())
+    assert f"Edit(/{world['wt']}/**)" in s["permissions"]["deny"]
+    assert str(world["eng"] / "held-out") in s["sandbox"]["filesystem"]["denyRead"]
+    argv = json.loads(launch(world, ctx, "--output", "audits/audit-release-verify.md").stderr)["argv"]
+    assert argv[0] == "claude" and argv[argv.index("--tools") + 1] == "Read,Bash,Glob,Grep,Skill"
+    assert argv[argv.index("--model") + 1] == "claude-opus-5-5" and argv[argv.index("--max-budget-usd") + 1] == "15"
+
+
+def test_a_verification_on_its_own_vendor_stays_put(world):
+    data = ctx_data(context(world, "build-planner", "63", "--verify", "artifacts/by-codex.md"))
+    assert data["vendor"] == "claude" and data["read_only"] and data["caps"] == {"minutes": 30, "budget_usd": 15}
+
+
+def test_every_gate_names_its_anchor(world):
+    for g in ("plan-gate", "release-gate", "security-pass"):
+        assert "--anchor" in context_fails(world, g, "64")
+    assert "--anchor" in context_fails(world, "plan-gate", "64", "--verify", "artifacts/by-claude.md")
+    assert "--anchor is a gate's" in context_fails(world, "verifier", "64", *CLAUDE_ANCHOR)
+
+
+def test_a_gate_runs_on_the_vendor_that_did_not_last_write_its_anchor(world):
+    g = ctx_data(context(world, "release-gate", "65", *CLAUDE_ANCHOR))
+    assert g["vendor"] == "codex" and g["vendor_basis"]["last_writer"] == "claude" and g["caps"] == {"minutes": 20, "tool_calls": 80}
+    s = ctx_data(context(world, "security-pass", "66", *CODEX_ANCHOR))
+    assert s["vendor"] == "claude" and s["caps"] == {"minutes": 30, "budget_usd": 15}
+    moved = ctx_data(context(world, "security-pass", "67", *CLAUDE_ANCHOR))
+    assert moved["vendor"] == "codex" and moved["effort"] == "high" and moved["caps"] == {"minutes": 20, "tool_calls": 80}
+
+
+def test_a_moved_plan_gate_runs_on_opus_read_only(world, fake):
+    # the Planner redrafted on Codex after a FAIL, so the plan gate moves to Claude
+    (world["eng"] / "artifacts" / "plan-r2.md").write_text(
+        '---\nmodel: "claude-opus-5-5 → codex gpt-6.1-sol high: plan gate FAIL"\n---\n\nplan\n')
+    ctx = context(world, "plan-gate", "68", "--anchor", "artifacts/plan-r2.md")
+    data = ctx_data(ctx)
+    assert data["vendor"] == "claude" and data["read_only"] and data["caps"] == {"minutes": 30, "budget_usd": 15}
+    s = json.loads(Path(seat(world, "claude-settings", ctx)).read_text())
+    assert f"Edit(/{world['wt']}/**)" in s["permissions"]["deny"]
+    behave(fake, calls=1, answer="PLAN GATE FINDINGS")
+    r = launch(world, ctx, "--output", "audits/plan-gate-r2.md", "--run")
+    rec = record(world, "68")
+    assert r.returncode == 0, r.stderr
+    assert rec["vendor"] == "claude" and rec["model"] == "claude-opus-5-5" and rec["argv"][0] == "claude"
+    assert rec["vendor_basis"]["last_writer"] == "codex" and rec["effort"] == ""
+    assert (world["eng"] / "audits" / "plan-gate-r2.md").read_text() == "PLAN GATE FINDINGS\n"
+
+
+def test_a_fallback_keeps_the_writers_vendor_and_names_its_ticket(world):
+    link = "https://github.com/seanwinslow28/SWCB/issues/999"
+    data = ctx_data(context(world, "plan-gate", "69", *CLAUDE_ANCHOR, "--fallback", link))
+    assert data["vendor"] == "claude" and data["vendor_basis"]["fallback"] == link
+    v = ctx_data(context(world, "verifier", "70", "--verify", "artifacts/by-claude.md", "--fallback", link))
+    assert v["vendor"] == "claude" and v["read_only"]
+    assert "issue link" in context_fails(world, "plan-gate", "71", *CLAUDE_ANCHOR, "--fallback", "Codex is down")
+    assert "--fallback is for" in context_fails(world, "build-planner", "71", "--fallback", link)
+
+
+def test_the_record_must_be_an_artifact_whose_writer_can_be_read(world):
+    assert "artifacts/ or inherited/" in context_fails(world, "plan-gate", "72", "--anchor", failed_gate(world, "plan-gate-r6.md"))
+    assert "no record" in context_fails(world, "verifier", "72", "--verify", "artifacts/missing.md")
+    (world["eng"] / "artifacts" / "unsigned.md").write_text("---\nid: x\nmodel: some model\n---\n")
+    assert "cannot tell who last wrote" in context_fails(world, "plan-gate", "72", "--anchor", "artifacts/unsigned.md")
+    inherited = world["eng"] / "inherited"
+    inherited.mkdir(exist_ok=True)
+    (inherited / "plan.md").write_text("---\nmodel: claude-opus-5-5\n---\n")
+    assert ctx_data(context(world, "plan-gate", "73", "--anchor", "inherited/plan.md"))["vendor"] == "codex"
+
+
+def test_a_changed_anchor_stops_the_launch(world, codex_home):
+    anchor = world["eng"] / "artifacts" / "release-plan-74.md"
+    anchor.write_text("---\nmodel: claude-opus-5-5\n---\n\nplan\n")
+    ctx = context(world, "release-gate", "74", "--anchor", "artifacts/release-plan-74.md")
+    seat(world, "codex-pass", ctx, "--home", str(codex_home))
+    anchor.write_text("---\nmodel: claude-opus-5-5\n---\n\nplan, edited\n")
+    r = launch(world, ctx, "--output", "audits/release-gate-74.md")
+    assert r.returncode != 0 and "changed since the context" in r.stderr
+
+
+def test_a_planner_redraft_one_tier_up_runs_on_codex(world, codex_home, fake):
+    fail = failed_gate(world, "plan-gate-r5.md", verdict="PLAN FAIL — QUALITY VERDICT ONLY")
+    ctx = context(world, "build-planner", "75", "--escalation", fail)
+    data = ctx_data(ctx)
+    assert data["vendor"] == "codex" and data["effort"] == "high" and not data["read_only"]
+    assert data["vendor_basis"]["by"] == "escalation" and data["escalation"]["path"] == fail
+    assert data["caps"] == {"minutes": 60, "tool_calls": 200}, "a redraft on Codex takes the Builder's caps"
+    profile = seat(world, "codex-pass", ctx, "--home", str(codex_home))
+    assert 'extends = ":read-only"' in (codex_home / f"{profile}.config.toml").read_text(), "the Planner never writes the worktree"
+    behave(fake, calls=1, answer="PLAN r2")
+    r = launch(world, ctx, "--output", "artifacts/build-plan-r2.md", "--run")
+    rec = record(world, "75")
+    assert r.returncode == 0, r.stderr
+    assert rec["model"] == "gpt-6.1-sol" and 'model_reasoning_effort="high"' in rec["argv"]
+    assert (world["eng"] / "artifacts" / "build-plan-r2.md").read_text() == "PLAN r2\n"
+
+
+def test_a_claude_seats_second_step_takes_a_ledger_entry_naming_xhigh(world):
+    vague = world["eng"] / "d92-planner-up-again.md"
+    vague.write_text("Sean: the Planner goes up one more tier.\n")
+    assert "does not name the xhigh step" in context_fails(world, "build-planner", "76", "--effort", "xhigh", "--escalation", vague.name)
+    assert "does not name the Codex step" in context_fails(world, "build-planner", "76", "--escalation", vague.name)
+    named = world["eng"] / "d93-planner-xhigh.md"
+    named.write_text("Sean: the Planner's next redraft runs on Codex at xhigh.\n")
+    data = ctx_data(context(world, "build-planner", "76", "--effort", "xhigh", "--escalation", named.name))
+    assert data["vendor"] == "codex" and data["effort"] == "xhigh"
+
+
+def test_the_verifier_never_escalates_onto_codex(world):
+    fail = failed_gate(world, "release-gate-r6.md")
+    assert "never escalates onto Codex" in context_fails(world, "verifier", "77", "--escalation", fail)
+    assert "do not go together" in context_fails(world, "release-reliability", "77", "--escalation", fail,
+                                                  "--verify", "artifacts/by-claude.md")
+    assert "no budget flag" in context_fails(world, "build-planner", "77", "--escalation", fail, "--cap-budget-usd", "5")
+
+
+def test_the_guard_reads_the_vendor_the_pass_runs_on(world):
+    fail = failed_gate(world, "release-gate-r5.md")
+    rel = seatmod.load(context(world, "release-reliability", "78", "--escalation", fail, "--ops-path", "deploy/"))
+    art = str(world["eng"] / "artifacts" / "release-plan.md")
+    assert "filed by -o" in rel.write_verdict(art, creating=True), "a Codex pass never writes the engagement folder"
+    assert rel.write_verdict(str(world["wt"] / "deploy" / "x")) is None
+    assert "not one of Release's" in rel.write_verdict(str(world["wt"] / "src" / "app.py"))
+    own = seatmod.load(context(world, "release-reliability", "79", "--ops-path", "deploy/"))
+    assert own.vendor == "claude" and own.write_verdict(art, creating=True) is None
+    old = dict(ctx_data(context(world, "builder", "80")))
+    old.pop("vendor")
+    assert seatmod.policy.Context(old).vendor == "codex", "a context from before #126 runs on its seat's vendor"
+
+
+RELEASE_MATRIX = [
+    ("echo a > deploy/x && echo WROTE", True),
+    ("echo a > src/app.py && echo WROTE", False),
+    ("echo a > src/new.py && echo WROTE", False),
+    ("echo a > tests/x.py && echo WROTE", False),
+    ("echo a > .github/workflows/x.yml && echo WROTE", False),
+    ("echo a > {ENG}/artifacts/x && echo WROTE", False),
+    ("cat {ENG}/held-out/h.py && echo WROTE", False),
+    ("cat src/app.py && echo WROTE", True),
+]
+
+
+@pytest.mark.skipif(not CODEX, reason="codex not installed")
+@pytest.mark.parametrize("cmd,allowed", RELEASE_MATRIX, ids=[c for c, _ in RELEASE_MATRIX])
+def test_releases_redraft_on_codex_writes_only_its_ops_paths(world, codex_home, cmd, allowed):
+    profile_file = codex_home / f"{world['eng'].name}-pass-81.config.toml"
+    if not profile_file.exists():
+        fail = failed_gate(world, "release-gate-r4.md")
+        seat(world, "codex-pass", context(world, "release-reliability", "81", "--escalation", fail, "--ops-path", "deploy/"),
+             "--home", str(codex_home))
+    cmd = cmd.replace("{ENG}", str(world["eng"]))
+    assert sandboxed(world, codex_home, profile_file.stem.replace(".config", ""), "pass-81", cmd) is allowed
+
+
+@pytest.mark.skipif(not CODEX, reason="codex not installed")
+def test_the_verifiers_codex_layer_in_the_real_sandbox(world, codex_home):
+    ctx = context(world, "verifier", "82", "--verify", "artifacts/by-claude.md")
+    seat(world, "codex-pass", ctx, "--home", str(codex_home))
+    profile = f"{world['eng'].name}-pass-82"
+    assert not sandboxed(world, codex_home, profile, "pass-82", "echo a > tests/test_a.py && echo WROTE"), "it changes no test"
+    assert not sandboxed(world, codex_home, profile, "pass-82", "echo a > {}/audits/x.md && echo WROTE".format(world["eng"]))
+    assert sandboxed(world, codex_home, profile, "pass-82", "cat {}/held-out/h.py && echo WROTE".format(world["eng"]))
+    assert not sandboxed(world, codex_home, profile, "pass-82", "cat {}/src/x.py && echo WROTE".format(world["emp"]))

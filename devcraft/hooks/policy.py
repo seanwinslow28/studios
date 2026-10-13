@@ -28,6 +28,12 @@ CLAUDE_SEATS = ("build-planner", "verifier", "release-reliability")
 CODEX_SEATS = ("builder", "plan-gate", "release-gate")
 GATES = ("plan-gate", "release-gate", "security-pass")
 ALL_ROLES = SEATS + GATES + ("coordinator",)
+VENDORS = ("claude", "codex")
+
+
+def default_vendor(seat: str) -> str:
+    """The vendor a seat runs on unless its context names a record that moves it (SWCB #126)."""
+    return "codex" if seat in CODEX_SEATS else "claude"
 
 HOME = Path(os.path.expanduser("~"))
 
@@ -197,6 +203,10 @@ class Context:
             raise ContextError(f"no exception exists for {bad[0]} (never-do 14)")
         self.hosts = list(data.get("hosts", []))
         self.read_only = bool(data.get("read_only", False))
+        # A context written before a pass could move vendor runs on its seat's own.
+        self.vendor = data.get("vendor") or default_vendor(self.seat)
+        if self.vendor not in VENDORS:
+            raise ContextError(f"unknown vendor {self.vendor!r}")
         self.log = data.get("log") or os.path.join(self.engagement, "trace", "logs", "guard.jsonl")
         self.extra_read = [real(p) for p in data.get("read_dirs", [])]
 
@@ -236,8 +246,8 @@ class Context:
             return f"{self.seat} runs read-only"
         if under(p, self.engagement):
             rel = os.path.relpath(p, self.engagement)
-            if self.seat in CODEX_SEATS:
-                return "the engagement folder is the coordinator's; the pass's final message is filed by -o (never-do 17)"
+            if self.vendor == "codex":
+                return "the engagement folder is the coordinator's; a Codex pass's final message is filed by -o (never-do 17)"
             if any_match(rel, SEAT_ENGAGEMENT_WRITES):
                 return None
             if self.seat == "verifier" and any_match(rel, VERIFIER_ENGAGEMENT_WRITES):

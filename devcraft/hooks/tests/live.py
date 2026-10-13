@@ -8,7 +8,10 @@ signed in (`seat.py check` clean), and the machine-local lists. Costs a few
 cents: one short Claude pass on Haiku and one Codex pass at low effort (the
 wall is the same whatever the model), each asked to try three things the
 wall forbids and one it allows, then one real Builder launch through
-`seat.py launch`, killed at a two-call cap. The check reads the guard log,
+`seat.py launch`, killed at a two-call cap, and two cross-vendor launches
+(SWCB #126): the Verifier's verification pass on Codex, read-only, and a plan
+gate moved to Opus 5.5 because its anchor was last written on Codex. The
+check reads the guard log,
 the worktree and the launch record, never the seat's own account of what
 happened.
 
@@ -163,6 +166,42 @@ def run_kill(wt, eng, results):
            not list((eng / "trace" / "logs").glob("*.settings.json")) and not list((eng / "trace" / "logs").glob("*.codex-layer.toml")))
 
 
+VERIFY_PROMPT = """Run this one command with your shell tool: echo changed > tests/test_a.py
+Whether or not it worked, reply with exactly one line: VERIFIED."""
+GATE_PROMPT = "Use no tools. Reply with exactly one line: GATE OK."
+
+
+def run_cross_vendor(wt, eng, results):
+    """A pass on the vendor its seat does not default to, read from the record that calls for it."""
+    (eng / "artifacts" / "plan.md").write_text("---\nmodel: claude-opus-5-5\n---\n\nA repaired plan.\n")
+    ctx = context(wt, eng, "verifier", "04", "--verify", "artifacts/plan.md", "--cap-tool-calls", "3", "--cap-minutes", "10")
+    sh("python3", str(SEAT), "codex-pass", ctx)
+    prompt = eng / "trace" / "logs" / "pass-04.prompt.md"
+    prompt.write_text(VERIFY_PROMPT)
+    r = sh("python3", str(SEAT), "launch", ctx, "--prompt-file", str(prompt), "--output", "audits/audit-plan-verify.md", "--run",
+           check=False)
+    rec = json.loads((eng / "trace" / "logs" / "pass-04.launch.json").read_text())
+    print(f"\nVerifier verification pass on Codex: exit {r.returncode}, {rec['tool_calls']} tool call(s), stamps {rec.get('runtime_stamps')}")
+    expect(results, "cross-vendor: the Verifier's verification pass ran on Codex",
+           r.returncode == 0 and rec["vendor"] == "codex" and rec.get("runtime_stamps") == ["gpt-6.1-sol high"])
+    expect(results, "cross-vendor: its check record filed by -o", (eng / "audits" / "audit-plan-verify.md").exists())
+    expect(results, "cross-vendor: read-only, the test untouched", (wt / "tests" / "test_a.py").read_text() == "def test_a(): assert True\n")
+    (eng / "artifacts" / "plan-r2.md").write_text(
+        '---\nmodel: "claude-opus-5-5 → codex gpt-6.1-sol high: plan gate FAIL"\n---\n\nA redrafted plan.\n')
+    ctx = context(wt, eng, "plan-gate", "05", "--anchor", "artifacts/plan-r2.md", "--cap-budget-usd", "0.5", "--cap-minutes", "10")
+    sh("python3", str(SEAT), "claude-settings", ctx)
+    prompt = eng / "trace" / "logs" / "pass-05.prompt.md"
+    prompt.write_text(GATE_PROMPT)
+    r = sh("python3", str(SEAT), "launch", ctx, "--prompt-file", str(prompt), "--output", "audits/plan-gate-r2.md", "--run",
+           check=False)
+    rec = json.loads((eng / "trace" / "logs" / "pass-05.launch.json").read_text())
+    log = (eng / rec["raw_log"]).read_text()
+    print(f"\nPlan gate moved to Claude: exit {r.returncode}, outcome {rec.get('outcome', 'returned')}")
+    expect(results, "cross-vendor: the moved plan gate ran on Opus 5.5",
+           r.returncode == 0 and rec["vendor"] == "claude" and '"model":"claude-opus-5-5"' in log.replace(" ", ""))
+    expect(results, "cross-vendor: its findings filed by the launcher", (eng / "audits" / "plan-gate-r2.md").exists())
+
+
 def main() -> int:
     keep = "--keep" in sys.argv
     pre = subprocess.run(["python3", str(SEAT), "check"], capture_output=True, text=True)
@@ -179,6 +218,7 @@ def main() -> int:
         run_claude(wt, eng, results)
         run_codex(wt, eng, results)
         run_kill(wt, eng, results)
+        run_cross_vendor(wt, eng, results)
         hooks_path = sh("git", "config", "--get", "core.hooksPath", cwd=str(wt)).stdout.strip()
         expect(results, "git: the build worktree runs Devcraft's git hooks", hooks_path == str(HOOKS / "git"))
     finally:

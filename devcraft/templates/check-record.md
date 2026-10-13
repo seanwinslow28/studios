@@ -63,7 +63,7 @@ The one message to the drafting seat: which rows, what evidence, what would pass
 
 ## Verification (`stance: verify` only; omit the section entirely on a first-sight check)
 
-Round two is a verification pass, not a fresh audit. It runs on the vendor that did not write the repair. Exactly three duties:
+Round two is a verification pass, not a fresh audit. It runs on the vendor that did not write the repair. The coordinator names the repaired artifact (`seat.py context --verify <it>`), and the launcher reads who wrote the repair and runs the pass on the other vendor, read-only, so its record is the pass's final message. Exactly three duties:
 
 1. **Rule each repair** `holds` or `residual`, one row per first-sight finding, in its original numbering.
 2. **Attack the text the repair changed**, and that text only. A defect found outside it is a **gate residual**, carried to the next gate as a candidate acceptance, never a loopback.

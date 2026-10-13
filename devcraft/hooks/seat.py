@@ -5,7 +5,8 @@
                       [--test-path P]... [--ops-path P]... [--grant-read F]...
                       [--grant-control F]... [--host H]...
                       [--cap-minutes N] [--cap-tool-calls N] [--cap-budget-usd N]
-                      [--effort xhigh --escalation R]           → <E>/trace/logs/pass-NN.context.json
+                      [--effort xhigh] [--escalation R]
+                      [--verify A | --anchor A [--fallback ISSUE]]   → <E>/trace/logs/pass-NN.context.json
     seat.py claude-settings <context.json>                      → <passes>/<eng>/pass-NN.settings.json
     seat.py codex-home [--home ~/.codex-devcraft]                → the Codex seat home, its hooks trusted
     seat.py codex-pass <context.json> [--home ...]              → <passes>/<eng>/pass-NN.codex-layer.toml,
@@ -28,6 +29,10 @@ the frozen diff and the probe were added on "Launcher caps and pass-file moves
 in seat.py" (2026-10-12), from the master skill design's rulings. The Builder's
 one effort step, for an escalation the record names, was added on SWCB #135
 (2026-10-13), after dc-eng-002 ran both of its escalations as substitutions.
+A pass on the vendor its seat does not default to (a verification pass, a
+Claude seat's redraft one tier up onto Codex, a gate whose anchor changed
+vendor) was added on SWCB #126 (2026-10-13): the vendor is read from the record
+that calls for it, never chosen, and the record's hash goes in the context.
 """
 from __future__ import annotations
 
@@ -79,6 +84,15 @@ DEFAULT_CAPS = {
     "release-gate": {"minutes": 20, "tool_calls": 80},
     **{s: {"minutes": 30, "budget_usd": 15} for s in CLAUDE_LAUNCH},
 }
+# A pass that moves vendor takes the caps of the vendor and kind of pass it becomes (Sean, SWCB #126).
+MOVED_CAPS = {
+    "claude": DEFAULT_CAPS["verifier"],
+    "codex-redraft": DEFAULT_CAPS["builder"],
+    "codex-read-only": DEFAULT_CAPS["plan-gate"],
+}
+# Where a verification pass's repaired artifact or a gate's anchor may sit in the engagement folder.
+VENDOR_RECORD_DIRS = ("artifacts", "inherited")
+ISSUE_LINK = re.compile(r"https://github\.com/[\w.-]+/[\w.-]+/issues/\d+")
 # The `codex exec --json` items that are tool calls; agent_message, reasoning and todo_list are not.
 CODEX_TOOL_ITEMS = ("command_execution", "file_change", "mcp_tool_call", "web_search", "collab_tool_call")
 KILL_GRACE_S = 10
@@ -103,15 +117,19 @@ def cmd_context(a) -> None:
     if a.seat not in policy.ALL_ROLES:
         die(f"unknown seat {a.seat}")
     eng = policy.real(a.engagement)
+    # A verification pass changes nothing (craftwork § Checks converge), so it runs read-only on either vendor.
+    read_only = a.seat in policy.GATES or a.read_only or bool(a.verify)
+    escalation = context_escalation(a, eng)
+    vendor, basis = context_vendor(a, eng, escalation)
     data = {
         "seat": a.seat, "worktree": policy.real(a.worktree), "engagement": eng, "branch": a.branch or "",
         "pass": a.pass_id, "test_paths_add": a.test_path, "ops_paths": a.ops_path,
         "grants": {"read": [policy.real(p) for p in a.grant_read], "control": a.grant_control},
-        "hosts": a.host, "read_only": a.seat in policy.GATES or a.read_only,
+        "hosts": a.host, "read_only": read_only, "vendor": vendor, "vendor_basis": basis,
         "log": os.path.join(eng, "trace", "logs", "guard.jsonl"),
-        "caps": context_caps(a),
+        "caps": context_caps(a, vendor, read_only),
+        "effort": a.effort or (CODEX_EFFORT if vendor == "codex" else ""), "escalation": escalation,
     }
-    data["effort"], data["escalation"] = context_effort(a, eng)
     ctx = policy.Context(data)  # validates: no exception for AGENTS.md, CLAUDE.md or skills
     ctx.test_paths()  # a repo without the floor stops at Open, but for the Planner drafting it
     out = Path(eng) / "trace" / "logs" / f"pass-{a.pass_id}.context.json"
@@ -122,57 +140,141 @@ def cmd_context(a) -> None:
     print(out)
 
 
-def context_caps(a) -> Dict[str, float]:
-    """The seat's default caps, with any override the Open stated (it records the why in the brief)."""
-    caps = dict(DEFAULT_CAPS.get(a.seat, {}))
+def context_caps(a, vendor: str, read_only: bool) -> Dict[str, float]:
+    """The pass's default caps, with any override the Open stated (it records the why in the brief).
+
+    On its own vendor a pass takes its seat's caps; moved, it takes the caps of
+    the vendor and kind of pass it becomes.
+    """
+    if vendor == policy.default_vendor(a.seat):
+        caps = dict(DEFAULT_CAPS.get(a.seat, {}))
+    elif vendor == "claude":
+        caps = dict(MOVED_CAPS["claude"])
+    else:
+        caps = dict(MOVED_CAPS["codex-read-only" if read_only else "codex-redraft"])
     for key, val in (("minutes", a.cap_minutes), ("tool_calls", a.cap_tool_calls), ("budget_usd", a.cap_budget_usd)):
         if val is None:
             continue
         if val <= 0:
             die(f"--cap-{key.replace('_', '-')} must be positive")
-        if key == "budget_usd" and a.seat not in CLAUDE_LAUNCH:
-            die(f"{a.seat} runs on Codex, which has no budget flag; cap it by minutes and tool calls")
+        if key == "budget_usd" and vendor != "claude":
+            die(f"{a.seat} runs on Codex in this pass, which has no budget flag; cap it by minutes and tool calls")
         caps[key] = val
     return caps
 
 
-def context_effort(a, eng: str) -> Tuple[str, Optional[Dict[str, str]]]:
-    """The seat's effort: the default, or one step up for an escalation the record names.
-
-    The record is the gate FAIL that sent the redraft up (audits/<gate>[-rN].md,
-    its verdict a FAIL), or the ledger entry where the coordinator or Sean called
-    the step for another trigger, which must name it. Its hash goes in the context,
-    so the launch can tell the record has not moved since.
-    """
-    default = "" if a.seat in CLAUDE_LAUNCH else CODEX_EFFORT
-    if not a.effort and not a.escalation:
-        return default, None
-    if not a.effort or not a.escalation:
-        die("an effort step and its record go together: --effort xhigh --escalation <gate FAIL or ledger entry>")
-    if a.seat in CLAUDE_LAUNCH:
-        die(f"{a.seat} runs on Claude, where a tier is a model step, not an effort; it has no --effort")
-    if a.seat in policy.GATES:
-        die(f"{a.seat} is a gate: a FAIL sends the owning seat's redraft one tier up, and the gate re-runs at its default")
-    if a.effort != CODEX_ESCALATED_EFFORT:
-        die(f"--effort {a.effort}: the only step above {CODEX_EFFORT} is {CODEX_ESCALATED_EFFORT}; past it, stop and ask Sean")
-    rec = Path(policy.real(os.path.join(eng, a.escalation)))
+def engagement_record(eng: str, path: str, flag: str) -> Tuple[Path, str, str]:
+    """A record a flag names: a file inside the engagement folder, with its relative path and text."""
+    rec = Path(policy.real(os.path.join(eng, path)))
     rel = os.path.relpath(rec, eng)
     if rel.startswith(".."):
-        die(f"--escalation names a record in the engagement folder, not {rec}")
+        die(f"{flag} names a record in the engagement folder, not {rec}")
     if not rec.is_file():
         die(f"no record at {rel}")
-    text = rec.read_text(encoding="utf-8")
+    return rec, rel, rec.read_text(encoding="utf-8")
+
+
+def context_escalation(a, eng: str) -> Optional[Dict[str, str]]:
+    """The record that sends a redraft one tier up, or None.
+
+    The ladder (craftwork § Model delegation) is Opus 5.5 → Codex high → Codex
+    xhigh → stop and ask Sean. The Builder starts at Codex high, so its step is
+    `--effort xhigh`; a Claude seat's step is onto Codex at high, and the one
+    after that, at xhigh, only on a ledger entry that names it. The Verifier never
+    escalates onto Codex. The record is the gate FAIL that sent the redraft up
+    (audits/<gate>[-rN].md, its verdict a FAIL), or the ledger entry where the
+    coordinator or Sean called the step for another trigger, which must name it.
+    Its hash goes in the context, so the launch can tell the record has not moved since.
+    """
+    if not a.escalation:
+        if a.effort:
+            die("an effort step and its record go together: --effort xhigh --escalation <gate FAIL or ledger entry>")
+        return None
+    if a.seat in policy.GATES:
+        die(f"{a.seat} is a gate: a FAIL sends the owning seat's redraft one tier up, and the gate re-runs at its default")
+    if a.seat == "verifier":
+        die("the Verifier never escalates onto Codex: its ladder is Opus 5.5 → stop and ask Sean (bench README)")
+    if a.verify:
+        die("a verification pass judges a repair and is never one; --verify and --escalation do not go together")
+    if a.seat == "builder" and not a.effort:
+        die("an effort step and its record go together: --effort xhigh --escalation <gate FAIL or ledger entry>")
+    if a.effort and a.effort != CODEX_ESCALATED_EFFORT:
+        die(f"--effort {a.effort}: the only step above {CODEX_EFFORT} is {CODEX_ESCALATED_EFFORT}; past it, stop and ask Sean")
+    rec, rel, text = engagement_record(eng, a.escalation, "--escalation")
+    step = CODEX_ESCALATED_EFFORT if a.effort else "Codex"
     if GATE_FINDINGS.fullmatch(rel):
         m = re.search(r'^verdict:\s*"?(.*?)"?\s*$', text, re.M)
         verdict = m.group(1) if m else ""
         if not re.search(r"\bFAIL\b", verdict):
             die(f"{rel} is not a gate FAIL (verdict: {verdict or 'none'}), so it sends no redraft up")
+        if a.effort and a.seat != "builder":
+            die(f"a gate FAIL sends {a.seat} one tier up, onto Codex {codex_model(a.seat)} {CODEX_EFFORT}; "
+                f"the step past it, to {CODEX_ESCALATED_EFFORT}, takes a ledger entry that names it")
     elif LEDGER_ENTRY.fullmatch(rel):
-        if CODEX_ESCALATED_EFFORT not in text:
-            die(f"{rel} does not name the {CODEX_ESCALATED_EFFORT} step; the entry that calls an escalation says which")
+        if step.lower() not in text.lower():
+            die(f"{rel} does not name the {step} step; the entry that calls an escalation says which")
     else:
         die(f"--escalation names gate findings (audits/<gate>[-rN].md) or a ledger entry (dNN-<slug>.md), not {rel}")
-    return a.effort, {"path": rel, "sha256": sha256(rec)}
+    return {"path": rel, "sha256": sha256(rec)}
+
+
+def last_writer(text: str) -> Optional[str]:
+    """The vendor that last wrote an artifact, from its header's `model:` line, or None.
+
+    The line names the runtime that ran, plus any deviation (artifact header):
+    `claude-opus-5-5`, `codex gpt-6.1-sol high`, or `claude-opus-5-5 → codex
+    gpt-6.1-sol high: plan gate FAIL`, where the runtime after the last arrow wrote it.
+    """
+    m = re.match(r"---\n(.*?)\n---", text, re.S)
+    line = re.search(r"^model:\s*(.*)$", m.group(1), re.M) if m else None
+    if not line:
+        return None
+    value = re.sub(r"\s+#.*$", "", line.group(1)).strip().strip("\"'")
+    value = re.sub(r"\([^)]*\)", "", value)
+    runtime = re.split(r"→|->", value)[-1].split(":")[0].strip().lower()
+    if runtime.startswith("claude-"):
+        return "claude"
+    if runtime.startswith(("codex", "gpt-")):
+        return "codex"
+    return None
+
+
+def context_vendor(a, eng: str, escalation: Optional[Dict[str, str]]) -> Tuple[str, Dict]:
+    """The vendor this pass runs on, and the record that says so (SWCB #126).
+
+    A gate names its anchor and runs on the vendor that did not last write it; a
+    verification pass names the repaired artifact and runs on the vendor that did
+    not write the repair (craftwork § Model delegation). `--fallback` keeps either
+    on the writer's vendor when the planned one is unavailable, naming the re-run
+    ticket the protocol files. A redraft one tier up runs on Codex. Anything else
+    runs on its seat's own vendor.
+    """
+    if a.anchor and a.seat not in policy.GATES:
+        die(f"--anchor is a gate's; {a.seat} names a repaired artifact with --verify, or a redraft's record with --escalation")
+    if a.verify and a.seat in policy.GATES:
+        die(f"{a.seat} is a gate: it names the file it reviews with --anchor, not --verify")
+    if a.seat in policy.GATES and not a.anchor:
+        die(f"{a.seat} names the file it reviews with --anchor (artifacts/…), so it runs on the vendor that did not last write it")
+    if a.fallback and not (a.anchor or a.verify):
+        die("--fallback is for a gate or a verification pass whose planned vendor is unavailable")
+    if escalation:
+        return "codex", {"by": "escalation", **escalation}
+    if not (a.anchor or a.verify):
+        return policy.default_vendor(a.seat), {"by": "seat"}
+    flag, path = ("--anchor", a.anchor) if a.anchor else ("--verify", a.verify)
+    rec, rel, text = engagement_record(eng, path, flag)
+    if rel.split(os.sep)[0] not in VENDOR_RECORD_DIRS or rel.count(os.sep) < 1:
+        die(f"{flag} names an artifact in artifacts/ or inherited/, not {rel}")
+    writer = last_writer(text)
+    if writer is None:
+        die(f"cannot tell who last wrote {rel}: its header has no model: line naming a claude-… or codex … runtime")
+    basis = {"by": flag[2:], "path": rel, "sha256": sha256(rec), "last_writer": writer}
+    if not a.fallback:
+        return ("codex" if writer == "claude" else "claude"), basis
+    if not ISSUE_LINK.fullmatch(a.fallback):
+        die("--fallback names the re-run ticket filed for it, as a GitHub issue link")
+    basis["fallback"] = a.fallback
+    return writer, basis
 
 
 def load(path: str) -> policy.Context:
@@ -188,9 +290,9 @@ def caps_of(path: str, seat: str) -> Dict[str, float]:
     return load_raw(path).get("caps") or dict(DEFAULT_CAPS.get(seat, {}))
 
 
-def effort_of(path: str, seat: str) -> str:
+def effort_of(ctx: policy.Context) -> str:
     """A context written before the effort step existed runs at the default."""
-    return load_raw(path).get("effort") or ("" if seat in CLAUDE_LAUNCH else CODEX_EFFORT)
+    return load_raw(ctx.source).get("effort") or (CODEX_EFFORT if ctx.vendor == "codex" else "")
 
 
 def pass_id_of(context_path: str) -> str:
@@ -208,7 +310,7 @@ def passes_dir(ctx: policy.Context) -> Path:
 
 
 def wall_file(ctx: policy.Context) -> Path:
-    suffix = "settings.json" if ctx.seat in CLAUDE_LAUNCH else "codex-layer.toml"
+    suffix = "settings.json" if ctx.vendor == "claude" else "codex-layer.toml"
     return passes_dir(ctx) / f"{pass_id_of(ctx.source)}.{suffix}"
 
 
@@ -321,8 +423,8 @@ def worktree_git_dir(worktree: str) -> str:
 # --- Claude seats -----------------------------------------------------------------
 
 def claude_settings(ctx: policy.Context) -> Dict:
-    if ctx.seat not in CLAUDE_LAUNCH:
-        die(f"{ctx.seat} is not a Claude seat")
+    if ctx.vendor != "claude":
+        die(f"{ctx.seat} runs on Codex in this pass (its context); write its layer with codex-pass")
     emp = policy.employer_paths()
     creds = credential_denies(ctx)
     no_read = creds + emp + [str(Path(ctx.engagement) / "held-out")] * (ctx.seat != "verifier")
@@ -452,18 +554,26 @@ def cmd_codex_home(a) -> None:
 
 def codex_layer(ctx: policy.Context) -> List[str]:
     name = f"pass-{Path(ctx.source).name.split('.')[0].split('pass-')[-1]}"
-    deny = credential_denies(ctx) + policy.employer_paths() + [os.path.join(ctx.engagement, "held-out")]
+    held_out = [os.path.join(ctx.engagement, "held-out")] * (ctx.seat != "verifier")  # the Verifier's own slice
+    deny = credential_denies(ctx) + policy.employer_paths() + held_out
     rel_read: List[str] = []
-    if ctx.seat == "builder":
+    # Only the Builder and Release write the worktree; every other Codex pass, a
+    # Planner's redraft included, files its one output by -o and reads the rest.
+    writes = not ctx.read_only and ctx.seat in ("builder", "release-reliability")
+    if writes:
         for c in ctx.controls():
-            # listed even when absent, so the Builder cannot create one either
+            # listed even when absent, so the seat cannot create one either
             if not any(policy.matches(c, g) for g in ctx.grant_control):
                 rel_read.append(c.rstrip("/"))
-        rel_read += covered(ctx, ctx.test_paths() + ctx.ops_paths)
+        if ctx.seat == "builder":
+            rel_read += covered(ctx, ctx.test_paths() + ctx.ops_paths)
+        else:  # Release's escalated redraft: its flagged ops paths and nothing else, never a test
+            rel_read += covered(ctx, ctx.test_paths())
+            rel_read += [os.path.relpath(p, ctx.worktree) for p in complement(ctx, ctx.ops_paths)]
         for must in (".git", ".codex"):
             if must not in rel_read and os.path.exists(os.path.join(ctx.worktree, must)):
                 rel_read.append(must)
-    extends = ":workspace" if ctx.seat == "builder" and not ctx.read_only else ":read-only"
+    extends = ":workspace" if writes else ":read-only"
     lines = [f"# Devcraft pass layer for {ctx.source}. Written by seat.py codex-pass; rewrite it, never hand-edit.",
              f'default_permissions = "{name}"', "",
              f"[projects.{toml_str(ctx.worktree)}]", 'trust_level = "untrusted"', ""]
@@ -479,8 +589,8 @@ def codex_layer(ctx: policy.Context) -> List[str]:
 
 def cmd_codex_pass(a) -> None:
     ctx = load(a.context)
-    if ctx.seat not in policy.CODEX_SEATS:
-        die(f"{ctx.seat} is not a Codex seat")
+    if ctx.vendor != "codex":
+        die(f"{ctx.seat} runs on Claude in this pass (its context); write its settings with claude-settings")
     home = Path(os.path.expanduser(a.home))
     profile = codex_profile(ctx)
     # Codex reads a profile only from $CODEX_HOME/<name>.config.toml, so the seat home
@@ -513,17 +623,14 @@ def cmd_worktree(a) -> None:
 
 # --- launch -----------------------------------------------------------------------
 
-def vendor_of(seat: str) -> str:
-    return "claude" if seat in CLAUDE_LAUNCH else "codex"
-
-
 def codex_model(seat: str) -> str:
+    """The Builder's ruled model; every other pass on Codex, moved or not, takes the gate default."""
     return CODEX_MODELS.get(seat, CODEX_GATE_MODEL)
 
 
 def files_final_message(ctx: policy.Context) -> bool:
     """The launcher files the final message of every Codex pass (-o) and of a read-only Claude pass."""
-    return vendor_of(ctx.seat) == "codex" or ctx.read_only
+    return ctx.vendor == "codex" or ctx.read_only
 
 
 def number(v: float) -> str:
@@ -533,7 +640,7 @@ def number(v: float) -> str:
 def launch_argv(ctx: policy.Context, prompt: str, home: Path, profile: str = "", output: str = "",
                 caps: Optional[Dict[str, float]] = None) -> List[str]:
     caps = caps if caps is not None else caps_of(ctx.source, ctx.seat)
-    if ctx.seat in CLAUDE_LAUNCH:
+    if ctx.vendor == "claude":
         plugin = str(STUDIOS / "devcraft" / "bench" / "plugins" / ctx.seat)
         tools = "Read,Bash,Glob,Grep,Skill" if ctx.read_only else "Read,Write,Edit,Bash,Glob,Grep,Skill"
         # stream-json: the live log the caps watch, and the per-message model stamps rung-0 line 11 reads
@@ -550,7 +657,7 @@ def launch_argv(ctx: policy.Context, prompt: str, home: Path, profile: str = "",
         if "budget_usd" in caps:
             argv += ["--max-budget-usd", number(caps["budget_usd"])]
         return argv + [prompt]
-    effort = effort_of(ctx.source, ctx.seat)
+    effort = effort_of(ctx)
     return ["codex", "exec", "--json", "--model", codex_model(ctx.seat), "-c", f'model_reasoning_effort="{effort}"',
             "-p", profile, "--strict-config", "-c", 'web_search="disabled"', "-C", ctx.worktree,
             "-o", output, prompt]
@@ -560,7 +667,7 @@ def scrubbed_env(ctx: policy.Context, home: Path) -> Dict[str, str]:
     env = {k: os.environ[k] for k in KEEP_ENV if k in os.environ}
     env["DEVCRAFT_CONTEXT"] = ctx.source
     env["DEVCRAFT_SEAT"] = ctx.seat
-    if ctx.seat not in CLAUDE_LAUNCH:
+    if ctx.vendor == "codex":
         env["CODEX_HOME"] = str(home)
     return env
 
@@ -706,7 +813,7 @@ def helper_agent(home: Path, log: Path, thread: Optional[str], rollouts: Path) -
 def cmd_launch(a) -> None:
     ctx = load(a.context)
     home = Path(os.path.expanduser(a.home))
-    vendor = vendor_of(ctx.seat)
+    vendor = ctx.vendor
     caps = caps_of(a.context, ctx.seat)
     wall = wall_file(ctx)
     if not wall.exists():
@@ -717,11 +824,13 @@ def cmd_launch(a) -> None:
         link = home / f"{profile}.config.toml"
         if not link.is_symlink() or link.resolve() != wall.resolve():
             die(f"{link} does not link to {wall}; run seat.py codex-pass")
-    escalation = load_raw(a.context).get("escalation")
-    if escalation:
-        rec = Path(ctx.engagement) / escalation["path"]
-        if not rec.is_file() or sha256(rec) != escalation["sha256"]:
-            die(f"{escalation['path']} changed since the context named it; a changed record is a new pass (never-do 17)")
+    raw = load_raw(a.context)
+    escalation, basis = raw.get("escalation"), raw.get("vendor_basis") or {"by": "seat"}
+    for named in (escalation, basis):
+        if named and named.get("path"):
+            rec = Path(ctx.engagement) / named["path"]
+            if not rec.is_file() or sha256(rec) != named["sha256"]:
+                die(f"{named['path']} changed since the context named it; a changed record is a new pass (never-do 17)")
     output = output_path(ctx, a.output)
     argv = launch_argv(ctx, Path(a.prompt_file).read_text(), home, profile, output, caps)
     env = scrubbed_env(ctx, home)
@@ -741,9 +850,9 @@ def cmd_launch(a) -> None:
     watch: Watch = run.pop("watch")
     rel = lambda p: os.path.relpath(p, eng)  # noqa: E731
     record = {
-        "pass": pid, "seat": ctx.seat, "vendor": vendor,
+        "pass": pid, "seat": ctx.seat, "vendor": vendor, "vendor_basis": basis,
         "model": CLAUDE_MODEL if vendor == "claude" else codex_model(ctx.seat),
-        "effort": effort_of(a.context, ctx.seat), "escalation": escalation,
+        "effort": effort_of(ctx), "escalation": escalation,
         "argv": shown, "caps": caps, **run,
         "wall_files": [{"path": str(wall), "sha256": wall_sha}],
         "raw_log": rel(log), "stderr_log": rel(err),
@@ -946,8 +1055,12 @@ def main() -> None:
     c.add_argument("--cap-minutes", type=float)
     c.add_argument("--cap-tool-calls", type=int)
     c.add_argument("--cap-budget-usd", type=float)
-    c.add_argument("--effort", default="", help=f"{CODEX_ESCALATED_EFFORT} only, for the Builder's escalated repair")
-    c.add_argument("--escalation", default="", help="the record that calls it: a gate FAIL in audits/, or a dNN ledger entry")
+    c.add_argument("--effort", default="", help=f"{CODEX_ESCALATED_EFFORT} only: the Builder's step up, or a Claude seat's second step on Codex")
+    c.add_argument("--escalation", default="",
+                   help="the record that sends a redraft one tier up: a gate FAIL in audits/, or a dNN ledger entry")
+    c.add_argument("--verify", default="", help="a verification pass: the repaired artifact; it runs read-only, on the other vendor")
+    c.add_argument("--anchor", default="", help="a gate's anchor; the gate runs on the vendor that did not last write it")
+    c.add_argument("--fallback", default="", help="the re-run ticket, when the planned vendor is unavailable")
     c.set_defaults(fn=cmd_context)
     s = sub.add_parser("claude-settings")
     s.add_argument("context")
