@@ -455,3 +455,81 @@ def test_seat_files_name_the_launcher_pins():
     for s, line in lines.items():
         want = seatmod.CLAUDE_MODEL if s in seatmod.CLAUDE_LAUNCH else f"codex {seatmod.codex_model(s)} {seatmod.CODEX_EFFORT}"
         assert line.split("#")[0].split(":", 1)[1].strip() == want, s
+
+
+# --- an escalated Builder repair: one effort step up, only on the record (SWCB #135) ---------
+
+def failed_gate(w, name, verdict="RELEASE FAIL — QUALITY VERDICT ONLY"):
+    (w["eng"] / "audits" / name).write_text(f"---\nseat: release-gate\nverdict: {verdict}\n---\n\n## Findings\n")
+    return f"audits/{name}"
+
+
+def context_fails(w, s, n, *extra):
+    r = subprocess.run(["python3", str(SEAT), "context", "--seat", s, "--worktree", str(w["wt"]), "--engagement", str(w["eng"]),
+                        "--pass", n, *extra], env=w["env"], capture_output=True, text=True)
+    assert r.returncode != 0
+    return r.stderr
+
+
+def test_builder_escalates_to_xhigh_on_a_gate_fail(world, codex_home, fake):
+    rec_path = failed_gate(world, "release-gate.md")
+    ctx = context(world, "builder", "50", "--effort", "xhigh", "--escalation", rec_path)
+    data = json.loads(Path(ctx).read_text())
+    assert data["effort"] == "xhigh"
+    assert data["escalation"] == {"path": rec_path, "sha256": seatmod.sha256(world["eng"] / rec_path)}
+    seat(world, "codex-pass", ctx, "--home", str(codex_home))
+    behave(fake, calls=1)
+    r = launch(world, ctx, "--output", "artifacts/change-note-50.md", "--run")
+    rec = record(world, "50")
+    assert r.returncode == 0 and 'model_reasoning_effort="xhigh"' in rec["argv"]
+    assert rec["effort"] == "xhigh" and rec["escalation"] == data["escalation"]
+    assert rec["runtime_stamps"] == ["gpt-6.1-sol xhigh"]
+
+
+def test_a_plain_pass_stays_at_high(world):
+    data = json.loads(Path(context(world, "builder", "51")).read_text())
+    assert data["effort"] == "high" and data["escalation"] is None
+
+
+def test_an_effort_override_needs_a_record(world):
+    assert "--escalation" in context_fails(world, "builder", "52", "--effort", "xhigh")
+    assert "--effort" in context_fails(world, "builder", "52", "--escalation", failed_gate(world, "release-gate-r9.md"))
+
+
+def test_never_ultra_and_never_a_skipped_step(world):
+    rec_path = failed_gate(world, "release-gate-r8.md")
+    for effort in ("ultra", "max", "high", "low"):
+        assert "xhigh" in context_fails(world, "builder", "53", "--effort", effort, "--escalation", rec_path), effort
+
+
+def test_the_record_must_be_a_failed_gate_or_a_ledger_entry_naming_it(world):
+    passed = failed_gate(world, "plan-gate-r9.md", verdict="PLAN PASS — QUALITY VERDICT ONLY")
+    assert "FAIL" in context_fails(world, "builder", "54", "--effort", "xhigh", "--escalation", passed)
+    loop = failed_gate(world, "audit-change.md", verdict="AUDIT LOOPBACK — 2 material")
+    assert "gate findings" in context_fails(world, "builder", "54", "--effort", "xhigh", "--escalation", loop)
+    assert "no record" in context_fails(world, "builder", "54", "--effort", "xhigh", "--escalation", "audits/release-gate-r7.md")
+    outside = world["root"] / "release-gate.md"
+    outside.write_text("---\nverdict: RELEASE FAIL\n---\n")
+    assert "engagement" in context_fails(world, "builder", "54", "--effort", "xhigh", "--escalation", str(outside))
+    silent = world["eng"] / "d90-one-more-round.md"
+    silent.write_text("Sean: one more Builder round.\n")
+    assert "does not name" in context_fails(world, "builder", "54", "--effort", "xhigh", "--escalation", silent.name)
+    named = world["eng"] / "d91-builder-at-xhigh.md"
+    named.write_text("Sean: one more Builder round, one tier up at xhigh.\n")
+    data = json.loads(Path(context(world, "builder", "54", "--effort", "xhigh", "--escalation", named.name)).read_text())
+    assert data["escalation"]["path"] == named.name
+
+
+def test_only_the_builder_climbs_an_effort_step(world):
+    rec_path = failed_gate(world, "plan-gate-r8.md", verdict="PLAN FAIL — QUALITY VERDICT ONLY")
+    assert "gate" in context_fails(world, "plan-gate", "55", "--effort", "xhigh", "--escalation", rec_path)
+    assert "Claude" in context_fails(world, "build-planner", "55", "--effort", "xhigh", "--escalation", rec_path)
+
+
+def test_a_record_changed_after_the_context_stops_the_launch(world, codex_home):
+    rec_path = failed_gate(world, "security-pass-r9.md", verdict="SECURITY FAIL — QUALITY VERDICT ONLY")
+    ctx = context(world, "builder", "56", "--effort", "xhigh", "--escalation", rec_path)
+    seat(world, "codex-pass", ctx, "--home", str(codex_home))
+    (world["eng"] / rec_path).write_text("---\nverdict: SECURITY FAIL, rewritten\n---\n")
+    r = launch(world, ctx, "--output", "artifacts/change-note-56.md")
+    assert r.returncode != 0 and "changed since the context" in r.stderr

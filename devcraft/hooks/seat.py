@@ -5,7 +5,7 @@
                       [--test-path P]... [--ops-path P]... [--grant-read F]...
                       [--grant-control F]... [--host H]...
                       [--cap-minutes N] [--cap-tool-calls N] [--cap-budget-usd N]
-                                                                → <E>/trace/logs/pass-NN.context.json
+                      [--effort xhigh --escalation R]           → <E>/trace/logs/pass-NN.context.json
     seat.py claude-settings <context.json>                      → <passes>/<eng>/pass-NN.settings.json
     seat.py codex-home [--home ~/.codex-devcraft]                → the Codex seat home, its hooks trusted
     seat.py codex-pass <context.json> [--home ...]              → <passes>/<eng>/pass-NN.codex-layer.toml,
@@ -25,7 +25,9 @@ the two vendors' probes that day (see README.md). The caps, the kill switch,
 the wall files' move to <passes> (~/.config/devcraft/passes/, outside every
 repo, because they hold the machine's employer paths), `-o` to the artifact,
 the frozen diff and the probe were added on "Launcher caps and pass-file moves
-in seat.py" (2026-10-12), from the master skill design's rulings.
+in seat.py" (2026-10-12), from the master skill design's rulings. The Builder's
+one effort step, for an escalation the record names, was added on SWCB #135
+(2026-10-13), after dc-eng-002 ran both of its escalations as substitutions.
 """
 from __future__ import annotations
 
@@ -42,7 +44,7 @@ import threading
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import policy  # noqa: E402
@@ -63,6 +65,11 @@ CLAUDE_MODEL = "claude-opus-5-5"
 CODEX_MODELS = {"builder": "gpt-6.1-sol"}   # every other Codex pass takes the gate default
 CODEX_GATE_MODEL = "gpt-6.1-sol"   # every studio's default gate since 2026-10-12 (Sean, SWCB #118); gpt-5.6-sol before
 CODEX_EFFORT = "high"
+# The one step above it on the ruled ladder (craftwork § Model delegation); past it, stop and ask Sean.
+# Never `ultra` (it auto-delegates) and never `max`.
+CODEX_ESCALATED_EFFORT = "xhigh"
+GATE_FINDINGS = re.compile(r"audits/(plan-gate|release-gate|security-pass)(-r\d+)?\.md")
+LEDGER_ENTRY = re.compile(r"d\d+-[^/]+\.md")
 # The security pass is filed as a gate seat but runs on a fresh-context Opus 5.5 (bench README).
 CLAUDE_LAUNCH = policy.CLAUDE_SEATS + ("security-pass",)
 # Per-pass caps, the master skill's day-one defaults; `context --cap-*` overrides them at Open.
@@ -104,6 +111,7 @@ def cmd_context(a) -> None:
         "log": os.path.join(eng, "trace", "logs", "guard.jsonl"),
         "caps": context_caps(a),
     }
+    data["effort"], data["escalation"] = context_effort(a, eng)
     ctx = policy.Context(data)  # validates: no exception for AGENTS.md, CLAUDE.md or skills
     ctx.test_paths()  # a repo without the floor stops at Open, but for the Planner drafting it
     out = Path(eng) / "trace" / "logs" / f"pass-{a.pass_id}.context.json"
@@ -128,6 +136,45 @@ def context_caps(a) -> Dict[str, float]:
     return caps
 
 
+def context_effort(a, eng: str) -> Tuple[str, Optional[Dict[str, str]]]:
+    """The seat's effort: the default, or one step up for an escalation the record names.
+
+    The record is the gate FAIL that sent the redraft up (audits/<gate>[-rN].md,
+    its verdict a FAIL), or the ledger entry where the coordinator or Sean called
+    the step for another trigger, which must name it. Its hash goes in the context,
+    so the launch can tell the record has not moved since.
+    """
+    default = "" if a.seat in CLAUDE_LAUNCH else CODEX_EFFORT
+    if not a.effort and not a.escalation:
+        return default, None
+    if not a.effort or not a.escalation:
+        die("an effort step and its record go together: --effort xhigh --escalation <gate FAIL or ledger entry>")
+    if a.seat in CLAUDE_LAUNCH:
+        die(f"{a.seat} runs on Claude, where a tier is a model step, not an effort; it has no --effort")
+    if a.seat in policy.GATES:
+        die(f"{a.seat} is a gate: a FAIL sends the owning seat's redraft one tier up, and the gate re-runs at its default")
+    if a.effort != CODEX_ESCALATED_EFFORT:
+        die(f"--effort {a.effort}: the only step above {CODEX_EFFORT} is {CODEX_ESCALATED_EFFORT}; past it, stop and ask Sean")
+    rec = Path(policy.real(os.path.join(eng, a.escalation)))
+    rel = os.path.relpath(rec, eng)
+    if rel.startswith(".."):
+        die(f"--escalation names a record in the engagement folder, not {rec}")
+    if not rec.is_file():
+        die(f"no record at {rel}")
+    text = rec.read_text(encoding="utf-8")
+    if GATE_FINDINGS.fullmatch(rel):
+        m = re.search(r'^verdict:\s*"?(.*?)"?\s*$', text, re.M)
+        verdict = m.group(1) if m else ""
+        if not re.search(r"\bFAIL\b", verdict):
+            die(f"{rel} is not a gate FAIL (verdict: {verdict or 'none'}), so it sends no redraft up")
+    elif LEDGER_ENTRY.fullmatch(rel):
+        if CODEX_ESCALATED_EFFORT not in text:
+            die(f"{rel} does not name the {CODEX_ESCALATED_EFFORT} step; the entry that calls an escalation says which")
+    else:
+        die(f"--escalation names gate findings (audits/<gate>[-rN].md) or a ledger entry (dNN-<slug>.md), not {rel}")
+    return a.effort, {"path": rel, "sha256": sha256(rec)}
+
+
 def load(path: str) -> policy.Context:
     return policy.Context(json.loads(Path(path).read_text()), source=policy.real(path))
 
@@ -139,6 +186,11 @@ def load_raw(path: str) -> Dict:
 def caps_of(path: str, seat: str) -> Dict[str, float]:
     """A context written before the caps existed falls back to the seat's defaults."""
     return load_raw(path).get("caps") or dict(DEFAULT_CAPS.get(seat, {}))
+
+
+def effort_of(path: str, seat: str) -> str:
+    """A context written before the effort step existed runs at the default."""
+    return load_raw(path).get("effort") or ("" if seat in CLAUDE_LAUNCH else CODEX_EFFORT)
 
 
 def pass_id_of(context_path: str) -> str:
@@ -498,7 +550,8 @@ def launch_argv(ctx: policy.Context, prompt: str, home: Path, profile: str = "",
         if "budget_usd" in caps:
             argv += ["--max-budget-usd", number(caps["budget_usd"])]
         return argv + [prompt]
-    return ["codex", "exec", "--json", "--model", codex_model(ctx.seat), "-c", f'model_reasoning_effort="{CODEX_EFFORT}"',
+    effort = effort_of(ctx.source, ctx.seat)
+    return ["codex", "exec", "--json", "--model", codex_model(ctx.seat), "-c", f'model_reasoning_effort="{effort}"',
             "-p", profile, "--strict-config", "-c", 'web_search="disabled"', "-C", ctx.worktree,
             "-o", output, prompt]
 
@@ -664,6 +717,11 @@ def cmd_launch(a) -> None:
         link = home / f"{profile}.config.toml"
         if not link.is_symlink() or link.resolve() != wall.resolve():
             die(f"{link} does not link to {wall}; run seat.py codex-pass")
+    escalation = load_raw(a.context).get("escalation")
+    if escalation:
+        rec = Path(ctx.engagement) / escalation["path"]
+        if not rec.is_file() or sha256(rec) != escalation["sha256"]:
+            die(f"{escalation['path']} changed since the context named it; a changed record is a new pass (never-do 17)")
     output = output_path(ctx, a.output)
     argv = launch_argv(ctx, Path(a.prompt_file).read_text(), home, profile, output, caps)
     env = scrubbed_env(ctx, home)
@@ -685,7 +743,7 @@ def cmd_launch(a) -> None:
     record = {
         "pass": pid, "seat": ctx.seat, "vendor": vendor,
         "model": CLAUDE_MODEL if vendor == "claude" else codex_model(ctx.seat),
-        "effort": "" if vendor == "claude" else CODEX_EFFORT,
+        "effort": effort_of(a.context, ctx.seat), "escalation": escalation,
         "argv": shown, "caps": caps, **run,
         "wall_files": [{"path": str(wall), "sha256": wall_sha}],
         "raw_log": rel(log), "stderr_log": rel(err),
@@ -888,6 +946,8 @@ def main() -> None:
     c.add_argument("--cap-minutes", type=float)
     c.add_argument("--cap-tool-calls", type=int)
     c.add_argument("--cap-budget-usd", type=float)
+    c.add_argument("--effort", default="", help=f"{CODEX_ESCALATED_EFFORT} only, for the Builder's escalated repair")
+    c.add_argument("--escalation", default="", help="the record that calls it: a gate FAIL in audits/, or a dNN ledger entry")
     c.set_defaults(fn=cmd_context)
     s = sub.add_parser("claude-settings")
     s.add_argument("context")
