@@ -145,6 +145,19 @@ def test_split_child_that_already_exists_upstream_is_caught(eng_dir):
     assert not c.ok and any("OC-2" in f and "already exists upstream" in f for f in c.findings)
 
 
+def test_a_redraft_restating_its_earlier_revisions_split_is_not_charged(eng_dir):
+    """pass-03 redrafts strategy-pov.md in place and restates revision 1's split of GP-1.
+
+    The gate it repairs against cites GP-a, so the child reads as already upstream:
+    the false finding dc-eng-002 hit on every Planner redraft. Rung 0 cannot read the
+    overwritten revision, so the restatement is counted and said out loud in a note.
+    """
+    edit_artifact(eng_dir, "audits/gate-1-r1.md", "| GP-1 rests on", "| GP-1 (and so GP-a) rests on")
+    c = results(eng_dir)["Every move names an existing upstream item; splits are subsets"]
+    assert c.ok, c.findings
+    assert any("pass-03" in n and "restate" in n for n in c.notes)
+
+
 def test_malformed_move_line_is_caught(eng_dir):
     edit_artifact(eng_dir, "artifacts/business-case.md", "- kept — L1 from pc-eng-000.growth", "- tweaked — L1 from pc-eng-000.growth")
     c = results(eng_dir)["Every move names an existing upstream item; splits are subsets"]

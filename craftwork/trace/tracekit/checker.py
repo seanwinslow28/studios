@@ -431,6 +431,11 @@ def _moves(eng: Engagement) -> Check:
     c = Check(CHECK_NAMES[5])
     id_re = eng.studio.id_re
     superseded_passes: list[str] = []
+    restated: dict[str, int] = {}   # pass → split lines a redraft carried from its overwritten revision
+    first_writer: dict[str, str] = {}
+    for r in eng.records:
+        for o in r.artifact_outputs:
+            first_writer.setdefault(o.path, r.pass_id)
     for r in eng.records:
         state = eng.moves_state(r)
         if state == "none-kind":
@@ -450,6 +455,9 @@ def _moves(eng: Engagement) -> Check:
             continue
         upstream, any_unreadable = _upstream_texts(eng, r)
         own = eng.read_text(rel) or ""
+        # a redraft in place restates the splits its earlier revision made; the audit and prompt it
+        # repairs against already cite those children, and that revision is no longer on disk
+        redraft = first_writer.get(rel, r.pass_id) != r.pass_id
         for m in mv.lines:
             c.n_total += 1
             if m.op == "added":
@@ -460,13 +468,19 @@ def _moves(eng: Engagement) -> Check:
             if all(v is True for v in verdicts):
                 ok = True
                 if m.op == "split":
+                    carried = False
                     for child in m.children:
                         if _present(child, upstream, id_re) is True:
+                            if redraft:
+                                carried = True
+                                continue
                             c.findings.append(f"{r.pass_id}: split child {child} already exists upstream (line {m.lineno})")
                             ok = False
                         elif _present(child, [own], id_re) is False:
                             c.findings.append(f"{r.pass_id}: split child {child} does not appear in {rel} (line {m.lineno})")
                             ok = False
+                    if carried:
+                        restated[r.pass_id] = restated.get(r.pass_id, 0) + 1
                 c.n_ok += 1 if ok else 0
             elif any_unreadable:
                 c.n_unverifiable += 1   # the item may live only in a revision rung 0 cannot read
@@ -479,6 +493,12 @@ def _moves(eng: Engagement) -> Check:
         c.notes.append(
             f"{len(superseded_passes)} pass(es) whose artifact was later overwritten in place, so their Moves are no "
             f"longer on disk: {', '.join(superseded_passes)}"
+        )
+    if restated:
+        c.notes.append(
+            f"{sum(restated.values())} split(s) in a redrafted artifact restate a split its earlier revision made, so "
+            f"their children are already upstream; counted as kept, since rung 0 cannot read that revision to tell a "
+            f"restatement from a new split: " + ", ".join(f"{p} ({n})" for p, n in restated.items())
         )
     if c.n_unverifiable:
         c.notes.append(
