@@ -297,6 +297,51 @@ def test_report_cites_what_it_read(world):
     assert re.search(r"report: .*diff-check-[0-9a-f]{7}\.txt \(sha256 [0-9a-f]{64}\)", r.stdout)
 
 
+def invocation(text):
+    """The report's `## Invocation` section as {field: value}."""
+    body = text.split("## Invocation", 1)[1].split("\n## ", 1)[0]
+    return dict(line.split(": ", 1) for line in body.strip().splitlines())
+
+
+def test_report_records_its_own_invocation(world):
+    """The report alone is the execution record the gate packet asks for (SWCB #146)."""
+    wt = build(world, [("builder", {"src/app.py": "x = 2\n"}, f"{cases.ENG} S1: x")])
+    head = sh("git", "rev-parse", "HEAD", cwd=wt).stdout.strip()
+    r = subprocess.run([sys.executable, str(CHECK), "--worktree", ".", "--engagement", str(world["eng"]), "--offline"],
+                       cwd=wt, capture_output=True, text=True, env=world["env"])
+    text = sorted((world["eng"] / "evidence").glob("diff-check-*.txt"))[-1].read_text()
+    inv = invocation(text)
+    assert inv["command"] == f"{sys.executable} {CHECK} --worktree . --engagement {world['eng']} --offline"
+    assert inv["cwd"] == str(wt)
+    assert inv["interpreter"].startswith(f"{sys.executable} (Python {sys.version.split()[0]}")
+    assert inv["checker"] == f"{CHECK} (sha256 {hashlib.sha256(CHECK.read_bytes()).hexdigest()})"
+    policy_py = HOOKS / "policy.py"
+    assert inv["policy"] == f"{policy_py} (sha256 {hashlib.sha256(policy_py.read_bytes()).hexdigest()})"
+    assert inv["engagement"] == str(world["eng"])
+    assert inv["worktree HEAD"] == f"{head} (the candidate)"
+    assert inv["worktree status"] == "clean"
+    assert inv["mode"].startswith("fixture")  # the fixture answers every lookup, --offline or not
+    assert inv["process exit"] == str(r.returncode) == "0"
+    assert text.rstrip().endswith("exit: 0")
+
+
+def test_invocation_records_mode_and_a_dirty_worktree(world):
+    wt = build(world, [("builder", {"src/app.py": "x = 2\n"}, f"{cases.ENG} S1: x")])
+    first = sh("git", "rev-parse", "HEAD", cwd=wt).stdout.strip()
+    sh("git", "commit", "-q", "--allow-empty", "-m", f"{cases.ENG} S2: empty", cwd=wt, env=world["env"])
+    (wt / "src" / "app.py").write_text("x = 3\n")
+    (wt / "scratch.txt").write_text("loose\n")
+    env = {k: v for k, v in world["env"].items() if k != "DIFFCHECK_REGISTRY_FIXTURE"}
+    r, text = run(world, wt, "--candidate", first, "--offline", env=env)
+    inv = invocation(text)
+    assert inv["worktree HEAD"].endswith("(not the candidate)")
+    assert inv["worktree status"] == "2 uncommitted path(s): src/app.py, scratch.txt"
+    assert inv["mode"].startswith("offline (--offline")
+    r, _ = run(world, wt, "--candidate", first, env=env)
+    report = re.search(r"^report: (.*) \(sha256", r.stdout, re.M).group(1)  # a re-run's -2 sorts first
+    assert invocation(Path(report).read_text())["mode"].startswith("online")
+
+
 def test_the_hooks_stamp_the_trailer_the_check_reads(world):
     """End to end with the real git hooks: the Verifier's commit is attributed without a hand-written trailer."""
     wt = world["root"] / "wt"

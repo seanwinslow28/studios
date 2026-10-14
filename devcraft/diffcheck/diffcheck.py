@@ -34,7 +34,9 @@ branch, or a control edit no exception names, fails outright.
 
 Exit 0: clean. Exit 1: findings, recorded for the release gate (a push may
 proceed). Exit 2: refused (the push fails). The report is written in every case
-it can be.
+it can be, and records its own invocation (command, cwd, interpreter, checker
+hash, worktree HEAD and status, mode, process exit), so it is its own execution
+record for the gate packet (SWCB #146).
 
 Stdlib only, Python 3.9 or later. Written on the Devcraft build map's "Build the
 diff check" ticket (2026-10-12).
@@ -47,6 +49,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -188,6 +191,10 @@ class Git:
 
     def branch(self) -> str:
         return self.run("symbolic-ref", "-q", "--short", "HEAD", check=False).strip()
+
+    def status(self) -> List[str]:
+        """Uncommitted paths in the worktree, tracked changes first, as `git status` lists them."""
+        return [line[3:] for line in self.run("status", "--porcelain", check=False).splitlines() if len(line) > 3]
 
 
 # --- the engagement's record --------------------------------------------------------
@@ -557,7 +564,8 @@ class Hit:
 
 
 class DiffCheck:
-    def __init__(self, a) -> None:
+    def __init__(self, a, args: List[str]) -> None:
+        self.args = args
         self.wt = policy.real(a.worktree)
         self.git = Git(self.wt)
         self.rec = Record(policy.real(a.engagement))
@@ -575,6 +583,8 @@ class DiffCheck:
         if self.git.exists(self.base, "devcraft/CLAUDE.md"):
             self.controls += list(policy.STUDIOS_CONTROLS)
         self.names_hits = 0
+        self.lookups = 0
+        self.gitleaks = ""
 
     # -- rules the sets of paths --------------------------------------------------------
     def test_paths(self) -> List[str]:
@@ -710,6 +720,7 @@ class DiffCheck:
                         ([f"removed {', '.join(removed)}"] if removed else []) + ([f"changed {', '.join(bumped)}"] if bumped else []))
                     self.add("dependency", rel, what, [rel] + removed + bumped, "dependency")
                 for name in new:
+                    self.lookups += 1
                     info = registry_lookup(eco, name, self.offline)
                     desc = f"new package {name} ({eco}): "
                     if info.get("exists") == "yes":
@@ -745,7 +756,7 @@ class DiffCheck:
         self.hits.append(h)
 
     def secret_scan(self) -> None:
-        tool = next((g for g in GITLEAKS if g and os.access(g, os.X_OK)), "")
+        tool = self.gitleaks = next((g for g in GITLEAKS if g and os.access(g, os.X_OK)), "")
         if not tool:
             self.checks.append("secret scan: gitleaks is not installed at a known full path")
             return
@@ -769,6 +780,33 @@ class DiffCheck:
                                  "(never-do 6); a value is never covered by an exception", []))
 
     # -- verdict and report -------------------------------------------------------------
+    def invocation(self, code: int) -> List[str]:
+        """How this run was made, so the report alone is its execution record (SWCB #146)."""
+        checker, policy_py = Path(__file__).resolve(), Path(policy.__file__).resolve()
+        head = self.git.run("rev-parse", "HEAD", check=False).strip()
+        dirty = self.git.status()
+        fixture = os.environ.get("DIFFCHECK_REGISTRY_FIXTURE")
+        if fixture:
+            mode = f"fixture (registry lookups answered from DIFFCHECK_REGISTRY_FIXTURE={fixture}; no network)"
+        elif self.offline:
+            mode = "offline (--offline: registry lookups skipped, each a check that could not run)"
+        else:
+            mode = "online (registry lookups over the network)"
+        return ["## Invocation", "",
+                f"command: {shlex.join([sys.executable, str(checker)] + self.args)}",
+                f"cwd: {os.getcwd()}",
+                f"interpreter: {sys.executable} (Python {sys.version.split()[0]})",
+                f"checker: {checker} (sha256 {sha256(checker)})",
+                f"policy: {policy_py} (sha256 {sha256(policy_py)})",
+                f"engagement: {self.rec.eng}",
+                f"worktree HEAD: {head or '?'} ({'the candidate' if head == self.cand else 'not the candidate'})",
+                "worktree status: " + (f"{len(dirty)} uncommitted path(s): " + ", ".join(dirty[:10])
+                                       + (", …" if len(dirty) > 10 else "") if dirty else "clean"),
+                f"mode: {mode}",
+                f"registry lookups: {self.lookups}",
+                f"secret scan: {self.gitleaks or 'gitleaks not found'}",
+                f"process exit: {code}", ""]
+
     def verdict(self) -> Tuple[int, str]:
         refused = [h for h in self.hits if h.refuse]
         if refused:
@@ -800,6 +838,7 @@ class DiffCheck:
             out.append(f"note: {n}")
         if self.rec.notes:
             out.append("")
+        out += self.invocation(code)
         out += ["## Commits", ""]
         for c in self.commits:
             first = c["message"].splitlines()[0] if c["message"] else ""
@@ -881,9 +920,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--ops-path", action="append", default=[], help="an ops path the record cannot supply (ops-only asks)")
     ap.add_argument("--out", default="", help="default: <engagement>/evidence/diff-check-<candidate>.txt, never overwritten")
     ap.add_argument("--offline", action="store_true", help="skip registry lookups; each is then a check that could not run")
-    a = ap.parse_args(argv)
+    args = sys.argv[1:] if argv is None else list(argv)
+    a = ap.parse_args(args)
     try:
-        dc = DiffCheck(a)
+        dc = DiffCheck(a, args)
         dc.run()
     except (Refuse, policy.ContextError) as e:
         sys.stderr.write(f"diffcheck: refused. {e}\n")
