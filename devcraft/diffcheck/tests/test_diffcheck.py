@@ -223,6 +223,42 @@ def test_plan_edited_after_the_gate_voids_its_additions(world):
     assert "build plan frozen at that anchor: no" in text
 
 
+def gate_launch(world, pass_id, gate, anchor):
+    """The launch record `seat.py launch` leaves for a plan gate that named `anchor` and filed `gate`."""
+    (world["eng"] / "trace" / "logs" / f"pass-{pass_id}.launch.json").write_text(json.dumps({
+        "pass": f"pass-{pass_id}", "seat": "plan-gate", "vendor": "claude",
+        "vendor_basis": {"by": "anchor", "path": anchor, "sha256": "x", "last_writer": "codex"},
+        "outputs": [{"path": gate, "sha256": "x"}]}))
+
+
+def test_a_redrafted_plan_is_read_where_the_plan_gate_read_it(world):
+    eng = world["eng"]
+    redraft = PLAN.replace("`spec/` because", "`spec/`, `e2e/` because")
+    (eng / "artifacts" / "build-plan-r3.md").write_text(redraft)
+    (eng / "audits" / "plan-gate-r2.md").write_text(GATE.format(sha=hashlib.sha256(redraft.encode()).hexdigest()))
+    gate_launch(world, "08", "audits/plan-gate-r2.md", "artifacts/build-plan-r3.md")
+    wt = build(world, [("verifier", {"e2e/a.spec.js": "test('a', () => {});\n"}, "tests: e2e")])
+    r, text = run(world, wt)
+    assert r.returncode == 0, text
+    assert "build plan: artifacts/build-plan-r3.md (the anchor pass-08 named)" in text
+    assert "build plan frozen at that anchor: yes" in text
+    assert "test paths added: spec/, e2e/" in text
+
+
+def test_a_gate_anchor_outside_the_artifacts_is_not_followed(world):
+    eng = world["eng"]
+    (eng / "notes.md").write_text(PLAN.replace("`spec/` because", "`src/` because"))
+    (eng / "audits" / "plan-gate-r2.md").write_text(
+        GATE.format(sha=hashlib.sha256((eng / "notes.md").read_bytes()).hexdigest()))
+    gate_launch(world, "08", "audits/plan-gate-r2.md", "notes.md")
+    wt = build(world, [("verifier", {"src/app.py": "x = 2\n"}, "tests: src")])
+    r, text = run(world, wt)
+    assert r.returncode == 1
+    assert "notes.md is not in artifacts/ or inherited/" in text
+    assert "build plan frozen at that anchor: no" in text
+    assert any(h[0] == "boundary" for h in hits(text)), text
+
+
 def test_no_floor_is_refused(world):
     main = world["main"]
     sh("git", "rm", "-q", ".devcraft/test-paths", cwd=main)

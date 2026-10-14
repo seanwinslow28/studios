@@ -263,6 +263,8 @@ class Record:
         self.eng_id = m.group(1) if m else self.eng.name
         self.gate_file: Optional[Path] = None
         self.anchor_sha = ""
+        self.plan_file: Optional[Path] = None
+        self.plan_source = ""
         self.exceptions: List[Dict[str, str]] = []
         self.plan_frozen = False
         self.test_paths_add: List[str] = []
@@ -295,10 +297,44 @@ class Record:
                 continue
             self.exceptions.append({"id": row[0], "kind": kind, "what": row[2], "seat": row[3] if len(row) > 3 else ""})
 
+    def _gate_anchor(self) -> Optional[Tuple[str, str]]:
+        """The anchor the plan gate's pass named, from the launch record that filed the gate file.
+
+        `seat.py launch` records the anchor a gate was given (`vendor_basis`) beside
+        the file it filed (`outputs`), so a redraft filed under a new name by `-o`
+        is found where the gate read it (SWCB #145). None when no launch record
+        filed this gate file: a gate filed by hand reads `artifacts/build-plan.md`.
+        """
+        logs = self.eng / "trace" / "logs"
+        if not self.gate_file or not logs.is_dir():
+            return None
+        gate = str(self.gate_file.relative_to(self.eng))
+        for rec in sorted(logs.glob("pass-*.launch.json")):
+            try:
+                data = json.loads(rec.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            basis = data.get("vendor_basis") or {}
+            if data.get("seat") != "plan-gate" or basis.get("by") != "anchor" or not basis.get("path"):
+                continue
+            if any(o.get("path") == gate for o in data.get("outputs") or []):
+                return basis["path"], data.get("pass") or rec.name.split(".")[0]
+        return None
+
     def _read_plan(self) -> None:
-        plan = self.eng / "artifacts" / "build-plan.md"
-        if not plan.is_file():
+        named = self._gate_anchor()
+        rel = named[0] if named else "artifacts/build-plan.md"
+        self.plan_source = f"the anchor {named[1]} named" if named else "by name"
+        plan = (self.eng / rel).resolve()
+        inside = os.path.relpath(plan, self.eng.resolve())
+        if inside.startswith("..") or inside.split(os.sep)[0] not in ("artifacts", "inherited") or inside.count(os.sep) < 1:
+            self.notes.append(f"the plan gate's anchor {rel} is not in artifacts/ or inherited/: its path additions are not honored")
             return
+        if not plan.is_file():
+            if named:
+                self.notes.append(f"the plan gate's anchor {rel} is missing: its path additions are not honored")
+            return
+        self.plan_file = plan
         if not self.gate_file:
             self.notes.append("a build plan with no plan gate on record: its additions are not honored")
             return
@@ -754,6 +790,8 @@ class DiffCheck:
                + (" (from flags: " + ", ".join(self.flag_ops) + ")" if self.flag_ops else ""),
                f"plan gate: {self.rec.gate_file.relative_to(self.rec.eng) if self.rec.gate_file else 'none'}"
                + (f" (anchor {self.rec.anchor_sha[:12]})" if self.rec.anchor_sha else ""),
+               f"build plan: {self.rec.plan_file.relative_to(self.rec.eng.resolve()) if self.rec.plan_file else 'none'}"
+               + (f" ({self.rec.plan_source})" if self.rec.plan_file else ""),
                f"build plan frozen at that anchor: {'yes' if self.rec.plan_frozen else 'no'}",
                f"exceptions honored: {', '.join(e['id'] + ' ' + e['kind'] for e in self.rec.exceptions) or 'none'}",
                f"ratified ledger entries seen: {', '.join(y['id'] + ' (' + y['date'] + ')' for y in self.rec.yeses) or 'none'}",
