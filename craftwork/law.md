@@ -96,7 +96,7 @@ Why: the first Productcraft train's aliases moved to the 5.5 generation after it
 
 ## Checks converge, and the ladder has brakes
 
-*(Productcraft rule 9, ratified 2026-09-21 on [#296](https://github.com/seanwinslow28/code-brain/issues/296) from pc-eng-001's d51; shared on #282 decision 2.)*
+*(Productcraft rule 9, ratified 2026-09-21 on [#296](https://github.com/seanwinslow28/code-brain/issues/296) from pc-eng-001's d51; shared on #282 decision 2. Clauses 9 and 10 from the dc-eng-002 retrospective, [SWCB #139](https://github.com/seanwinslow28/SWCB/issues/139), ruled 2026-10-13.)*
 
 The adversarial posture is unchanged. It was tested and found innocent: on pc-eng-001, 20 of 20 seat-audit materials were repaired-and-verified or owner-accepted, none withdrawn. The brakes are on the ladder.
 
@@ -108,5 +108,7 @@ The adversarial posture is unchanged. It was tested and found innocent: on pc-en
 6. **The stopping rule.** A check series on one artifact ends when the verification pass returns holds-with-no-new-material, **or** when the cap is spent, whichever comes first. The coordinator reports every open series at each gate as *round / findings / repair size*, so shrinkage is visible. A series that does not shrink is a variance question to Sean, never another round.
 7. **Residuals are re-read before Close.** Every residual carried to a gate as a candidate acceptance is re-read against the artifact as it now stands. One that a later round already repaired closes as stale. A finding raised by more than one check routes to one owner **once**. Duplicates route; they never recount.
 8. **Process waste is a finding against the studio**, coded from the trace kit's process-waste family ([trace/taxonomy.md](trace/taxonomy.md)), never a bare `manufactured` code.
+9. **A gate gets two rounds.** A gate's series is a run, one repair round by the owning seats, and one re-run. A second FAIL stops the engagement and hands it to Sean with every open finding as a candidate acceptance. There is no automatic third round, and no Open may price one in.
+10. **The gate's series line binds the coordinator.** When a gate reports that its series did not shrink, or a finding id returns with a new counterexample, the coordinator stops and asks Sean. It may not route the next round under a prior ruling. A reused id with new substance counts as not shrinking.
 
-Why: on pc-eng-001's one re-audit, all four new findings were residuals of that revision's own repairs, although it re-attacked the whole document. The unbounded thing was repair-induced surface, not unexamined text.
+Why: on pc-eng-001's one re-audit, all four new findings were residuals of that revision's own repairs, although it re-attacked the whole document. The unbounded thing was repair-induced surface, not unexamined text. Clauses 9 and 10: dc-eng-002's plan gate ran seven rounds under clauses 1 to 8, which cap seat checks and not gates; 14 of the 17 material findings open after a repair round sat in text the repair had introduced, and the gate's own non-shrinking line was overridden once by the coordinator at a cost of two passes.

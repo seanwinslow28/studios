@@ -15,7 +15,7 @@ Gates are protocols, not seats. The trace kit files them as the gate seats `plan
 
 When Systemcraft's Gate 3 waits on a build, the release gate runs first and feeds it, never replacing it. Its verdict is typed RELEASE, never LAUNCH.
 
-Outcomes are typed **PLAN** / **RELEASE** / **SECURITY**, each `PASS | PASS WITH ACCEPTANCES | FAIL` and always `— QUALITY VERDICT ONLY`. No verdict here is a merge or a go-live: those take Sean's dated yes, recorded in the ledger.
+Outcomes are typed **PLAN** / **RELEASE** / **SECURITY**, each `PASS | PASS WITH ACCEPTANCES | FAIL` and always `— QUALITY VERDICT ONLY`. No verdict here is a merge or a go-live: those take Sean's dated yes, recorded in the ledger. A finding that lies outside the brief's pre-registered threat model is a NOTE with a recorded limit, never MATERIAL ([SWCB #139](https://github.com/seanwinslow28/SWCB/issues/139), ruled 2026-10-13); the model and the P0 rule written from it are frozen by the plan gate beside the exceptions.
 
 ## The three gates
 
@@ -32,6 +32,8 @@ Outcomes are typed **PLAN** / **RELEASE** / **SECURITY**, each `PASS | PASS WITH
 
 **The automatic checks** run just before the release gate, by the coordinator, with each tool called by its full path. The two dependency scanners need the network, so they run outside any seat's sandbox. Each output is saved to `evidence/` and handed to the gate; a check that could not run is a finding, never a silent skip.
 
+**The release gate does not launch without its evidence** ([SWCB #139](https://github.com/seanwinslow28/SWCB/issues/139), ruled 2026-10-13): a drill file at the exact candidate hash, each automatic check's output with its full invocation at that hash, and every diff-check hit matched to a frozen exception or a dated yes from Sean. The launcher refuses the launch when any is missing (its machine check is [SWCB #150](https://github.com/seanwinslow28/SWCB/issues/150)); until it does, the coordinator ticks the three by hand in the gate's pass record before `seat.py launch`. A gate round spent on the coordinator's own missing evidence is process waste: dc-eng-002's release gate carried two such findings and dc-eng-003's failed its first round on one.
+
 | Check | Command (from the worktree) | What it covers |
 |---|---|---|
 | Diff check | `python3 devcraft/diffcheck/diffcheck.py --worktree <wt> --engagement <eng>` ([its README](../diffcheck/README.md)); base and branch from the brief, the candidate at `HEAD` | never-do hits matched to the frozen exceptions, each commit's seat against its paths |
@@ -46,7 +48,7 @@ If the planned vendor is unavailable, the protocol's fallback holds: the gate ru
 
 ## FAIL, re-runs and the security seat question
 
-FAIL → the owning seat of each CRITICAL or MATERIAL finding redrafts one tier up ([craftwork § Model delegation](../../craftwork/law.md#model-delegation)), except the Verifier, whose ladder is Opus 5.5 → stop and ask Sean, and the gate re-runs as `-r2`. Every check series still open is reported at each gate as round / findings / repair size.
+FAIL → the owning seat of each CRITICAL or MATERIAL finding redrafts one tier up ([craftwork § Model delegation](../../craftwork/law.md#model-delegation)), except the Verifier, whose ladder is Opus 5.5 → stop and ask Sean, and the gate re-runs as `-r2`. That re-run is the gate's last round ([craftwork § Checks converge](../../craftwork/law.md#checks-converge-and-the-ladder-has-brakes), clause 9): a second FAIL stops the engagement and hands it to Sean with the open findings as candidate acceptances. Every check series still open is reported at each gate as round / findings / repair size, and a gate's own non-shrinking line is binding on the coordinator (clause 10).
 
 A **CRITICAL security finding at the release gate that the plan's surface section did not foresee** is the P0 of the security ruling: the findings file sets `unforeseen_security_critical: yes`, and the coordinator files a fresh ticket to reopen whether security needs a seat. Nothing else reopens that question.
 

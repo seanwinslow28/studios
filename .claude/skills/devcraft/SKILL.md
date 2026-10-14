@@ -51,7 +51,8 @@ The coordinator's own session, one `kind: open` pass record at stage 0, whose ou
 5. **Preflight and worktree.** Run `python3 devcraft/hooks/seat.py check`; any gap stops the engagement at Open. Create the build's branch in its own worktree off the target repo's current base, and install its git hooks with `seat.py worktree <worktree> --engagement <eng>`. A one-off changes no code and takes no worktree.
 6. **Thin-lane check.** Each rostered seat's [lane manifest](../../../devcraft/lanes/README.md) against the engagement's topics; a lane with no pointer for its topic is declared in the brief, and the thin-lane trigger is decided here, never mid-pass.
 7. **Set the budgets** (the table below): the pass budget, the per-pass caps, and Sean's attention budget, the number of yes/no stops he will be asked for. Any default may change with a stated reason.
-8. **Write `brief.md`**, the header first, then the brief:
+8. **Pre-register the threat model, then the P0 rule from it** ([SWCB #139](https://github.com/seanwinslow28/SWCB/issues/139), ruled 2026-10-13). One paragraph: who or what the build protects against, the harm it bounds, and what is out of model. The P0-equivalent rule ([craftwork § Standing success measure](../../../craftwork/law.md#standing-success-measure)) is then written from that paragraph with a likelihood clause, "in ordinary use" or "including deliberate evasion". The plan gate freezes both beside the exceptions, and a gate finding outside the model is a NOTE with a recorded limit, never MATERIAL. dc-eng-002 wrote its P0 rule with no model and no likelihood clause, and its plan gate spent five rounds inside the class Sean excluded at d13.
+9. **Write `brief.md`**, the header first, then the brief:
 
 ```markdown
 ---
@@ -71,7 +72,7 @@ originates_from: null             # the handoff brief's id, on a handoff
 ---
 ```
 
-Then, in a breath each: the ask (on a small ask, its `ASK<n>` lines); for Sean's spec, what is fixed and what is open; on an ops-only ask, the file list that is Release's whole write zone; the roster; the budget, its caps and any change from the defaults with its why; the thin lanes; the security-pass expectation if already known; the five self-targeted duties when that modifier is on; the Jev slot when one is declared. The kit reads the header ([craftwork/trace/README.md](../../../craftwork/trace/README.md)); the structure check reads `type:`.
+Then, in a breath each: the ask (on a small ask, its `ASK<n>` lines); for Sean's spec, what is fixed and what is open; the threat model and the P0 rule written from it; on an ops-only ask, the file list that is Release's whole write zone; the roster; the budget, its caps and any change from the defaults with its why; the thin lanes; the security-pass expectation if already known; the five self-targeted duties when that modifier is on; the Jev slot when one is declared. The kit reads the header ([craftwork/trace/README.md](../../../craftwork/trace/README.md)); the structure check reads `type:`.
 
 ### 2 — Route
 
