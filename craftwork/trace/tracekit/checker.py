@@ -416,6 +416,25 @@ def _text_has_id(text: str, item_id: str) -> bool:
     return False
 
 
+_ID_TOKEN = r"(?<![\w\-])[A-Z]{1,4}-?\d+[a-z]?(?!\w)"
+_NUMBERING_START = re.compile(
+    rf"(?i:\b(?:start|starts|starting|begin|begins|beginning)\s+(?:at|from|with))"
+    rf"((?:[\s,*`_–\-]|\band\b|\bor\b|{_ID_TOKEN})+)"
+    rf"|{_ID_TOKEN}(?=\+)"
+)
+
+
+def _without_numbering_starts(text: str) -> str:
+    """Blank the ids a text names only as where new numbering starts ("test ids start at T176 and
+    ST17", "T176+"): such an id is the next one free, not an item that exists."""
+    def blank(m: re.Match) -> str:
+        if m.group(1) is None:
+            return " " * len(m.group(0))
+        head = m.group(0)[: m.start(1) - m.start(0)]
+        return head + re.sub(_ID_TOKEN, lambda t: " " * len(t.group(0)), m.group(1))
+    return _NUMBERING_START.sub(blank, text)
+
+
 def _present(item: str, texts: list[str], id_re: re.Pattern | None = None) -> bool | None:
     """True if every id in the item (or its phrase) appears in some text; None if nothing to test."""
     ids = extract_ids(item, id_re)
@@ -432,6 +451,7 @@ def _moves(eng: Engagement) -> Check:
     id_re = eng.studio.id_re
     superseded_passes: list[str] = []
     restated: dict[str, int] = {}   # pass → split lines a redraft carried from its overwritten revision
+    start_only: list[str] = []      # "pass: child" named upstream only as where new numbering starts
     first_writer: dict[str, str] = {}
     for r in eng.records:
         for o in r.artifact_outputs:
@@ -454,6 +474,7 @@ def _moves(eng: Engagement) -> Check:
         if mv.origin:
             continue
         upstream, any_unreadable = _upstream_texts(eng, r)
+        upstream_items = [_without_numbering_starts(t) for t in upstream]
         own = eng.read_text(rel) or ""
         # a redraft in place restates the splits its earlier revision made; the audit and prompt it
         # repairs against already cite those children, and that revision is no longer on disk
@@ -470,7 +491,7 @@ def _moves(eng: Engagement) -> Check:
                 if m.op == "split":
                     carried = False
                     for child in m.children:
-                        if _present(child, upstream, id_re) is True:
+                        if _present(child, upstream_items, id_re) is True:
                             if redraft:
                                 carried = True
                                 continue
@@ -479,6 +500,8 @@ def _moves(eng: Engagement) -> Check:
                         elif _present(child, [own], id_re) is False:
                             c.findings.append(f"{r.pass_id}: split child {child} does not appear in {rel} (line {m.lineno})")
                             ok = False
+                        elif _present(child, upstream, id_re) is True:
+                            start_only.append(f"{r.pass_id}: {child}")
                     if carried:
                         restated[r.pass_id] = restated.get(r.pass_id, 0) + 1
                 c.n_ok += 1 if ok else 0
@@ -499,6 +522,11 @@ def _moves(eng: Engagement) -> Check:
             f"{sum(restated.values())} split(s) in a redrafted artifact restate a split its earlier revision made, so "
             f"their children are already upstream; counted as kept, since rung 0 cannot read that revision to tell a "
             f"restatement from a new split: " + ", ".join(f"{p} ({n})" for p, n in restated.items())
+        )
+    if start_only:
+        c.notes.append(
+            f"{len(start_only)} split child(ren) named upstream only as where new numbering starts (\"start at …\", "
+            f"\"T176+\"), so not charged as already existing: " + ", ".join(start_only)
         )
     if c.n_unverifiable:
         c.notes.append(

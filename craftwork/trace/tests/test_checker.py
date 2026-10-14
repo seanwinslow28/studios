@@ -145,6 +145,24 @@ def test_split_child_that_already_exists_upstream_is_caught(eng_dir):
     assert not c.ok and any("OC-2" in f and "already exists upstream" in f for f in c.findings)
 
 
+def test_a_split_child_named_upstream_only_as_where_new_ids_start_is_not_charged(eng_dir):
+    """dc-eng-003's plan said the Verifier's test ids "start at **T176** and **ST17**", and the
+    Verifier's split into T176 … ST17 then read as children that already existed upstream."""
+    edit_artifact(eng_dir, "artifacts/strategy-pov.md", "- OC-1 — casting completes faster.\n",
+                  "- OC-1 — casting completes faster.\n\nOutcome ids the Analyst adds start at **OC-1a** and **OC-1b**.\n")
+    c = results(eng_dir)["Every move names an existing upstream item; splits are subsets"]
+    assert c.ok, c.findings
+    assert any("numbering starts" in n and "pass-09: OC-1a" in n and "pass-09: OC-1b" in n for n in c.notes)
+
+
+def test_a_numbering_start_does_not_hide_a_child_the_text_also_names_as_an_item(eng_dir):
+    edit_artifact(eng_dir, "artifacts/strategy-pov.md", "- OC-1 — casting completes faster.\n",
+                  "- OC-1 — casting completes faster.\n\nNew ids start at OC-1b, after OC-1a.\n")
+    c = results(eng_dir)["Every move names an existing upstream item; splits are subsets"]
+    assert not c.ok and any("OC-1a" in f and "already exists upstream" in f for f in c.findings)
+    assert not any("OC-1b" in f for f in c.findings)
+
+
 def test_a_redraft_restating_its_earlier_revisions_split_is_not_charged(eng_dir):
     """pass-03 redrafts strategy-pov.md in place and restates revision 1's split of GP-1.
 
