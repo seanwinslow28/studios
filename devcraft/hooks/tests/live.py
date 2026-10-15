@@ -285,7 +285,7 @@ def run_scratch(wt, eng, results):
     expect(results, "scratch/claude: $DEVCRAFT_SCRATCH names the folder", f'"{scr}' in r.stdout or f"{scr}\\n" in r.stdout)
 
     (eng / "artifacts" / "release-plan.md").write_text("---\nmodel: claude-opus-5-5\n---\n\nA release plan.\n")
-    ctx = context(wt, eng, "release-gate", "07", "--anchor", "artifacts/release-plan.md")
+    ctx = context(wt, eng, "release-gate", "07", "--anchor", "artifacts/release-plan.md", "--candidate", "HEAD")
     profile = sh("python3", str(SEAT), "codex-pass", ctx).stdout.strip()
     c = seatmod.load(ctx)
     scr = Path(c.scratch)

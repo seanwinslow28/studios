@@ -54,8 +54,8 @@ Run by the coordinator just before the gate, their outputs saved to `evidence/` 
 | Check | Command | Output | Exercises | Does not exercise |
 |---|---|---|---|---|
 | Diff check | | `evidence/diff-check-<candidate>.txt` | | |
-| Secret scan | | `evidence/secrets.txt` | | |
-| Dependency check | | `evidence/deps.txt` | | |
+| Secret scan | | `evidence/secrets-<candidate>.txt` | | |
+| Dependency check | | `evidence/deps-<candidate>.txt` | | |
 
 ## Fixed security attack list (release gate, every time; the security pass, weighted to the triggers that fired)
 

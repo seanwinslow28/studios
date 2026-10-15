@@ -81,7 +81,7 @@ Every way this breaks in the running world, each with the signal that would show
 
 **Where:** `<worktree path or named copy>`
 **When:** `<instant>`
-**Commands and output:** `evidence/drill.txt` (sha256 `<hash>`), with the lines that show the change applied, undone and stopped quoted here.
+**Commands and output:** `evidence/drill-<candidate>.txt` (sha256 `<hash>`), naming the full candidate hash, with the lines that show the change applied, undone and stopped quoted here.
 **Result:** what the drill proved, and what it did not exercise.
 
 ## Monitoring
@@ -101,8 +101,8 @@ Readable at 3 a.m. by someone who did not build this: exact commands, the expect
 - **Permissions:** what the job runs as, its file modes, the least that works.
 - **Secrets:** by name, how each is loaded at runtime, and what happens when one is missing.
 - **Hosts:** every host the change talks to, against the plan's allowlist.
-- **Dependency check:** the scanner, its command and its result (`evidence/deps.txt`), or `no dependency changed`.
-- **Secret scan:** the command over the build's commit range and its result (`evidence/secrets.txt`).
+- **Dependency check:** the scanner, its command and its result (`evidence/deps-<candidate>.txt`), or `no dependency changed`.
+- **Secret scan:** the command over the build's commit range and its result (`evidence/secrets-<candidate>.txt`).
 
 ## Go-live step
 

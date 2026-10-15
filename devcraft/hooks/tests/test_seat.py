@@ -270,7 +270,7 @@ def test_builder_layer_in_the_real_sandbox(world, codex_home, cmd, allowed):
 
 @pytest.mark.skipif(not CODEX, reason="codex not installed")
 def test_gate_layer_is_read_only(world, codex_home):
-    seat(world, "codex-pass", context(world, "release-gate", "21", *CLAUDE_ANCHOR), "--home", str(codex_home))
+    seat(world, "codex-pass", context(world, "release-gate", "21", *CLAUDE_ANCHOR, "--candidate", "HEAD"), "--home", str(codex_home))
     profile = f"{world['eng'].name}-pass-21"
     assert sandboxed(world, codex_home, profile, "pass-21", "cat src/app.py && echo WROTE")
     assert not sandboxed(world, codex_home, profile, "pass-21", "echo a > src/app.py && echo WROTE")
@@ -368,7 +368,7 @@ def test_caps_default_by_seat_and_override(world):
     assert b == {"minutes": 60, "tool_calls": 200}
     v = json.loads(Path(context(world, "verifier", "31", "--cap-minutes", "45")).read_text())["caps"]
     assert v == {"minutes": 45, "budget_usd": 15}
-    g = json.loads(Path(context(world, "release-gate", "32", *CLAUDE_ANCHOR)).read_text())["caps"]
+    g = json.loads(Path(context(world, "release-gate", "32", *CLAUDE_ANCHOR, "--candidate", "HEAD")).read_text())["caps"]
     assert g == {"minutes": 20, "tool_calls": 80}
     r = subprocess.run(["python3", str(SEAT), "context", "--seat", "builder", "--worktree", str(world["wt"]), "--engagement",
                         str(world["eng"]), "--pass", "33", "--cap-budget-usd", "5"], env=world["env"], capture_output=True, text=True)
@@ -473,15 +473,15 @@ def test_no_pass_reads_another_pass_scratch_folder(world, codex_home):
 
 
 def test_output_rules(world, codex_home):
-    ctx = context(world, "release-gate", "37", *CLAUDE_ANCHOR)
+    ctx = context(world, "plan-gate", "37", *CLAUDE_ANCHOR)
     seat(world, "codex-pass", ctx, "--home", str(codex_home))
     r = launch(world, ctx)
     assert r.returncode != 0 and "--output" in r.stderr, "a Codex pass names its artifact"
     r = launch(world, ctx, "--output", "trace/logs/x.md")
     assert r.returncode != 0 and "artifacts/ or audits/" in r.stderr
-    r = launch(world, ctx, "--output", "artifacts/release-gate-findings.md")
+    r = launch(world, ctx, "--output", "artifacts/plan-gate-findings.md")
     argv = json.loads(r.stderr)["argv"]
-    assert r.returncode == 0 and argv[argv.index("-o") + 1] == str(world["eng"] / "artifacts" / "release-gate-findings.md")
+    assert r.returncode == 0 and argv[argv.index("-o") + 1] == str(world["eng"] / "artifacts" / "plan-gate-findings.md")
     assert argv[argv.index("--model") + 1] == "gpt-6.1-sol"
     v = context(world, "verifier", "38")
     seat(world, "claude-settings", v)
@@ -763,7 +763,7 @@ def test_every_gate_names_its_anchor(world):
 
 
 def test_a_gate_runs_on_the_vendor_that_did_not_last_write_its_anchor(world):
-    g = ctx_data(context(world, "release-gate", "65", *CLAUDE_ANCHOR))
+    g = ctx_data(context(world, "release-gate", "65", *CLAUDE_ANCHOR, "--candidate", "HEAD"))
     assert g["vendor"] == "codex" and g["vendor_basis"]["last_writer"] == "claude" and g["caps"] == {"minutes": 20, "tool_calls": 80}
     s = ctx_data(context(world, "security-pass", "66", *CODEX_ANCHOR))
     assert s["vendor"] == "claude" and s["caps"] == {"minutes": 30, "budget_usd": 15}
@@ -813,7 +813,7 @@ def test_the_record_must_be_an_artifact_whose_writer_can_be_read(world):
 def test_a_changed_anchor_stops_the_launch(world, codex_home):
     anchor = world["eng"] / "artifacts" / "release-plan-74.md"
     anchor.write_text("---\nmodel: claude-opus-5-5\n---\n\nplan\n")
-    ctx = context(world, "release-gate", "74", "--anchor", "artifacts/release-plan-74.md")
+    ctx = context(world, "release-gate", "74", "--anchor", "artifacts/release-plan-74.md", "--candidate", "HEAD")
     seat(world, "codex-pass", ctx, "--home", str(codex_home))
     anchor.write_text("---\nmodel: claude-opus-5-5\n---\n\nplan, edited\n")
     r = launch(world, ctx, "--output", "audits/release-gate-74.md")
@@ -903,3 +903,197 @@ def test_the_verifiers_codex_layer_in_the_real_sandbox(world, codex_home):
     assert not sandboxed(world, codex_home, profile, "pass-82", "echo a > {}/audits/x.md && echo WROTE".format(world["eng"]))
     assert sandboxed(world, codex_home, profile, "pass-82", "cat {}/held-out/h.py && echo WROTE".format(world["eng"]))
     assert not sandboxed(world, codex_home, profile, "pass-82", "cat {}/src/x.py && echo WROTE".format(world["emp"]))
+
+
+# --- the release gate launches only on its evidence at the candidate (SWCB #150) -------------
+
+FAKE_TOOL = '''#!/usr/bin/env python3
+import sys
+if sys.argv[1:] == ["--version"]:
+    print("faketool version 9.9.9")
+    sys.exit(0)
+print("scanned: " + " ".join(sys.argv[1:]))
+sys.exit(int(sys.argv[1]) if sys.argv[1:] and sys.argv[1].isdigit() else 0)
+'''
+
+
+@pytest.fixture(scope="module")
+def tool(world):
+    t = world["root"] / "tools" / "faketool"
+    t.parent.mkdir()
+    t.write_text(FAKE_TOOL)
+    t.chmod(0o755)
+    return t
+
+
+def head(w):
+    return subprocess.run(["git", "-C", str(w["wt"]), "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
+
+
+def gate_engagement(w, name, plan="---\nmodel: claude-opus-5-5\n---\n\nA release plan.\n"):
+    """A fresh engagement folder per test, so no test's evidence counts for another's gate."""
+    eng = w["root"] / name
+    for d in ("artifacts", "audits", "trace/logs", "evidence"):
+        (eng / d).mkdir(parents=True)
+    (eng / "artifacts" / "release-plan.md").write_text(plan)
+    return eng
+
+
+def gate_context(w, eng, n, *extra):
+    return seat(w, "context", "--seat", "release-gate", "--worktree", str(w["wt"]), "--engagement", str(eng), "--pass", n,
+                "--branch", "devcraft/dc-eng-900", "--anchor", "artifacts/release-plan.md", *extra)
+
+
+def record_check(w, ctx, check, *argv):
+    return subprocess.run(["python3", str(SEAT), "record", ctx, "--check", check, "--", *argv],
+                          env=w["env"], capture_output=True, text=True)
+
+
+def diffcheck_report(cand, exit_code=0, mode="online (registry lookups over the network)", at=None):
+    """The diff check's report as diffcheck.py writes it since SWCB #146, cut to the lines the launcher reads."""
+    verdict = "DIFF CHECK CLEAN — 0 hit(s), every one on the record" if exit_code == 0 else \
+        "DIFF CHECK FINDINGS — 2 unmatched hit(s), 0 check(s) that could not run"
+    return "\n".join([
+        "# Diff check — dc-eng-9xx", "", "run: 2026-10-15T12:00:00Z", f"candidate: {at or cand}", "commits: 1", "",
+        "## Invocation", "", "command: /usr/bin/python3 /x/devcraft/diffcheck/diffcheck.py --worktree /wt --engagement /eng",
+        "cwd: /x", "interpreter: /usr/bin/python3 (Python 3.9.6)", "checker: /x/diffcheck.py (sha256 ab)",
+        f"worktree HEAD: {at or cand} (the candidate)", "worktree status: clean", f"mode: {mode}",
+        f"process exit: {exit_code}", "", "## Hits", "", "none", "", "## Verdict", "", verdict, "",
+        "Exit 0 clean, 1 findings for the release gate, 2 refused (the push fails).", f"exit: {exit_code}", ""])
+
+
+def test_a_release_gate_names_its_candidate(world):
+    eng = gate_engagement(world, "dc-eng-910-cand")
+    r = subprocess.run(["python3", str(SEAT), "context", "--seat", "release-gate", "--worktree", str(world["wt"]),
+                        "--engagement", str(eng), "--pass", "01", "--anchor", "artifacts/release-plan.md"],
+                       env=world["env"], capture_output=True, text=True)
+    assert r.returncode != 0 and "--candidate" in r.stderr
+    assert "not a commit" in subprocess.run(
+        ["python3", str(SEAT), "context", "--seat", "release-gate", "--worktree", str(world["wt"]), "--engagement", str(eng),
+         "--pass", "01", "--anchor", "artifacts/release-plan.md", "--candidate", "no-such-rev"],
+        env=world["env"], capture_output=True, text=True).stderr
+    assert "release gate's" in context_fails(world, "builder", "93", "--candidate", "HEAD")
+    data = ctx_data(gate_context(world, eng, "01", "--candidate", "HEAD"))
+    assert data["candidate"] == head(world)
+
+
+def test_record_files_a_check_with_its_full_invocation(world, tool):
+    eng = gate_engagement(world, "dc-eng-911-rec")
+    ctx = gate_context(world, eng, "01", "--candidate", "HEAD")
+    cand = head(world)
+    r = record_check(world, ctx, "secrets", str(tool), "1", "--log-opts", f"base..{cand}")
+    assert r.returncode == 0, r.stderr
+    out = json.loads(r.stdout)
+    f = eng / "evidence" / f"secrets-{cand[:7]}.txt"
+    assert out["path"] == f"evidence/secrets-{cand[:7]}.txt" and out["sha256"] == seatmod.sha256(f) and out["exit"] == 1
+    text = f.read_text()
+    for line in ("check: secrets", f"candidate: {cand}", f"cwd: {world['wt']}",
+                 f"command: {tool} 1 --log-opts base..{cand}", f"tool: {tool} (faketool version 9.9.9)",
+                 "interpreter: /usr/bin/env python3", f"worktree HEAD: {cand} (the candidate)", "exit: 1",
+                 f"scanned: 1 --log-opts base..{cand}"):
+        assert line in text.splitlines(), line
+    again = json.loads(record_check(world, ctx, "secrets", str(tool)).stdout)
+    assert again["path"] == f"evidence/secrets-{cand[:7]}-2.txt", "evidence is append-only"
+
+
+def test_record_refuses_what_it_cannot_record_at_the_candidate(world, tool):
+    eng = gate_engagement(world, "dc-eng-912-rec")
+    ctx = gate_context(world, eng, "01", "--candidate", "HEAD")
+    assert "full path" in record_check(world, ctx, "secrets", "faketool").stderr
+    assert "invalid choice" in record_check(world, ctx, "lint", str(tool)).stderr
+    builder = context(world, "builder", "94")
+    assert "the gate's context" in record_check(world, builder, "secrets", str(tool)).stderr
+    # a candidate the worktree is not at: a commit beside HEAD, made without checking it out
+    other = subprocess.run(["git", "-C", str(world["wt"]), "commit-tree", "HEAD^{tree}", "-p", "HEAD", "-m", "side"],
+                           env=world["env"], capture_output=True, text=True, check=True).stdout.strip()
+    off = gate_context(world, eng, "02", "--candidate", other)
+    r = record_check(world, off, "deps", str(tool))
+    assert r.returncode != 0 and "not the candidate" in r.stderr
+    assert not list((eng / "evidence").iterdir())
+
+
+def test_the_release_gate_does_not_launch_without_its_evidence(world, codex_home, tool, fake):
+    eng = gate_engagement(world, "dc-eng-913-gate")
+    ctx = gate_context(world, eng, "01", "--candidate", "HEAD")
+    seat(world, "codex-pass", ctx, "--home", str(codex_home))
+    cand, short = head(world), head(world)[:7]
+    r = launch(world, ctx, "--output", "audits/release-gate.md")
+    assert r.returncode == seatmod.EVIDENCE_EXIT == 4
+    for gap in (f"drill-{short}.txt", f"secrets-{short}.txt", f"deps-{short}.txt", f"diff-check-{short}.txt"):
+        assert gap in r.stderr, gap
+    # a hand-written record with no invocation does not count
+    (eng / "evidence" / f"secrets-{short}.txt").write_text(f"$ /opt/homebrew/bin/gitleaks git\nno leaks found\nexit=0\n")
+    assert "no full invocation" in launch(world, ctx, "--output", "audits/release-gate.md").stderr
+    (eng / "evidence" / f"drill-{short}.txt").write_text(f"coordinator drill at {cand}\nall steps held\n")
+    record_check(world, ctx, "secrets", str(tool), "1")  # leaks found are the gate's finding, not a refusal
+    record_check(world, ctx, "deps", str(tool))
+    (eng / "evidence" / f"diff-check-{short}.txt").write_text(diffcheck_report(cand, exit_code=1))
+    r = launch(world, ctx, "--output", "audits/release-gate.md")
+    assert r.returncode == 4 and "unmatched" in r.stderr and "secrets" not in r.stderr and "drill" not in r.stderr
+    (eng / "evidence" / f"diff-check-{short}-2.txt").write_text(diffcheck_report(cand))
+    behave(fake, calls=1, answer="RELEASE GATE FINDINGS")
+    r = launch(world, ctx, "--output", "audits/release-gate.md", "--run")
+    assert r.returncode == 0, r.stderr
+    rec = json.loads((eng / "trace" / "logs" / "pass-01.launch.json").read_text())
+    assert [e["path"] for e in rec["evidence"]] == [f"evidence/drill-{short}.txt", f"evidence/secrets-{short}-2.txt",
+                                                    f"evidence/deps-{short}.txt", f"evidence/diff-check-{short}-2.txt"]
+    assert all(e["sha256"] == seatmod.sha256(eng / e["path"]) for e in rec["evidence"])
+
+
+def test_a_diff_check_report_counts_only_clean_at_the_candidate(world, codex_home, tool):
+    eng = gate_engagement(world, "dc-eng-914-dc")
+    ctx = gate_context(world, eng, "01", "--candidate", "HEAD")
+    seat(world, "codex-pass", ctx, "--home", str(codex_home))
+    cand, short = head(world), head(world)[:7]
+    (eng / "evidence" / f"drill-{short}.txt").write_text(f"drill at {cand}\n")
+    record_check(world, ctx, "secrets", str(tool))
+    record_check(world, ctx, "deps", str(tool))
+    report = eng / "evidence" / f"diff-check-{short}.txt"
+    for text, why in ((diffcheck_report(cand, mode="fixture (registry lookups answered from x; no network)"), "fixture"),
+                      (diffcheck_report(cand, at="f" * 40), "not the candidate"),
+                      ("# Diff check\n\ncandidate: " + cand + "\n\n## Verdict\n\nexit: 0\n", "no full invocation")):
+        report.write_text(text)
+        r = launch(world, ctx, "--output", "audits/release-gate.md")
+        assert r.returncode == 4 and why in r.stderr, (why, r.stderr)
+    report.write_text(diffcheck_report(cand))
+    assert launch(world, ctx, "--output", "audits/release-gate.md").returncode == 0
+    # the newest report at the candidate is the one that counts
+    (eng / "evidence" / f"diff-check-{short}-2.txt").write_text(diffcheck_report(cand, exit_code=1))
+    assert launch(world, ctx, "--output", "audits/release-gate.md").returncode == 4
+
+
+def test_the_drill_is_the_one_the_release_plan_names(world, codex_home, tool):
+    cand = head(world)
+    plan = "---\nmodel: claude-opus-5-5\n---\n\n**Commands and output:** `evidence/drill-r2.txt` (sha256 `{}`), quoted here.\n"
+    eng = gate_engagement(world, "dc-eng-915-drill", plan=plan.format("0" * 64))
+    ctx = gate_context(world, eng, "01", "--candidate", "HEAD")
+    seat(world, "codex-pass", ctx, "--home", str(codex_home))
+    record_check(world, ctx, "secrets", str(tool))
+    record_check(world, ctx, "deps", str(tool))
+    (eng / "evidence" / f"diff-check-{cand[:7]}.txt").write_text(diffcheck_report(cand))
+    (eng / "evidence" / f"drill-{cand[:7]}.txt").write_text(f"drill at {cand}\n")
+    r = launch(world, ctx, "--output", "audits/release-gate.md")
+    assert r.returncode == 4 and "evidence/drill-r2.txt" in r.stderr, "the plan's name wins over the default"
+    drill = eng / "evidence" / "drill-r2.txt"
+    drill.write_text("drill at some other commit\n")
+    assert "does not name the candidate" in launch(world, ctx, "--output", "audits/release-gate.md").stderr
+    drill.write_text(f"drill at {cand}\n")
+    assert "hashed" in launch(world, ctx, "--output", "audits/release-gate.md").stderr
+    eng2 = gate_engagement(world, "dc-eng-916-drill", plan=plan.format(seatmod.sha256(drill)))
+    for p in (eng / "evidence").iterdir():
+        shutil.copy(p, eng2 / "evidence" / p.name)
+    ctx2 = gate_context(world, eng2, "01", "--candidate", "HEAD")
+    seat(world, "codex-pass", ctx2, "--home", str(codex_home))
+    r = launch(world, ctx2, "--output", "audits/release-gate.md")
+    assert r.returncode == 0, r.stderr
+
+
+def test_a_release_gate_context_with_no_candidate_does_not_launch(world, codex_home):
+    eng = gate_engagement(world, "dc-eng-917-old")
+    ctx = Path(gate_context(world, eng, "01", "--candidate", "HEAD"))
+    data = json.loads(ctx.read_text())
+    del data["candidate"]  # a context written before SWCB #150
+    ctx.write_text(json.dumps(data))
+    seat(world, "codex-pass", str(ctx), "--home", str(codex_home))
+    r = launch(world, str(ctx), "--output", "audits/release-gate.md")
+    assert r.returncode == 4 and "names no candidate" in r.stderr

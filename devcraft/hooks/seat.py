@@ -6,12 +6,15 @@
                       [--grant-control F]... [--host H]...
                       [--cap-minutes N] [--cap-tool-calls N] [--cap-budget-usd N]
                       [--effort xhigh] [--escalation R]
-                      [--verify A | --anchor A [--fallback ISSUE]]   → <E>/trace/logs/pass-NN.context.json
+                      [--verify A | --anchor A [--fallback ISSUE]]
+                      [--candidate REV]                             → <E>/trace/logs/pass-NN.context.json
     seat.py claude-settings <context.json>                      → <passes>/<eng>/pass-NN.settings.json
     seat.py codex-home [--home ~/.codex-devcraft]                → the Codex seat home, its hooks trusted
     seat.py codex-pass <context.json> [--home ...]              → <passes>/<eng>/pass-NN.codex-layer.toml,
                                                                   linked as <home>/<eng>-pass-NN.config.toml
     seat.py worktree <worktree> --engagement E                  → that worktree's own git hooks
+    seat.py record <context.json> --check secrets|deps|drill -- TOOL ARGS...
+                                                                → <E>/evidence/<check>-<candidate>.txt
     seat.py launch <context.json> --prompt-file F [--output A] [--run]
                                                                 → <E>/trace/logs/pass-NN.{jsonl,stderr.log,launch.json}
     seat.py freeze-diff <context.json> --base REV [--point REV] → <E>/artifacts/pass-NN.diff.patch, and its hash
@@ -39,6 +42,9 @@ after dc-eng-003's read-only passes could neither run a probe nor copy the tree.
 Sean's own `~/.codex` was denied to every pass, and the toolbelt's plugin skills
 copied into the seat home, on SWCB #149 (2026-10-15), after a dc-eng-003 Builder
 pass read a system skill there because its contract pointed at it.
+The release gate's evidence check (its candidate in the context, `record`, and
+`launch` refusing with exit 4) was added on SWCB #150 (2026-10-15), after two
+trains spent gate rounds on the coordinator's own missing drill and check records.
 """
 from __future__ import annotations
 
@@ -47,6 +53,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import shutil
 import signal
 import subprocess
@@ -103,6 +110,15 @@ ISSUE_LINK = re.compile(r"https://github\.com/[\w.-]+/[\w.-]+/issues/\d+")
 # The `codex exec --json` items that are tool calls; agent_message, reasoning and todo_list are not.
 CODEX_TOOL_ITEMS = ("command_execution", "file_change", "mcp_tool_call", "web_search", "collab_tool_call")
 KILL_GRACE_S = 10
+# A release gate whose evidence is missing does not launch (SWCB #150); 2 is a cap, 3 a helper agent.
+EVIDENCE_EXIT = 4
+RECORDED_CHECKS = {"secrets": "secret scan", "deps": "dependency check", "drill": "drill"}
+# What `record` writes above a check's output, so the file alone is its execution record.
+INVOCATION_FIELDS = ("check", "candidate", "cwd", "command", "tool", "interpreter", "worktree HEAD", "exit")
+# What the diff check's report records of its own run since SWCB #146.
+DIFFCHECK_FIELDS = ("candidate", "command", "cwd", "interpreter", "worktree HEAD", "mode", "process exit")
+# The release plan's drill line: **Commands and output:** `evidence/<file>` (sha256 `<hash>`).
+DRILL_DECLARED = re.compile(r"\*\*Commands and output:\*\*\s*`evidence/([^`]+)`(?:\s*\(sha256\s*`([0-9a-f]{64})`\))?")
 CODEX_FEATURES_OFF = (
     "apps", "plugins", "remote_plugin", "multi_agent", "memories", "browser_use", "computer_use",
     "in_app_browser", "image_generation", "goals", "skill_mcp_dependency_install", "shell_snapshot",
@@ -133,6 +149,7 @@ def cmd_context(a) -> None:
     read_only = a.seat in policy.GATES or a.read_only or bool(a.verify)
     escalation = context_escalation(a, eng)
     vendor, basis = context_vendor(a, eng, escalation)
+    candidate = context_candidate(a)
     data = {
         "seat": a.seat, "worktree": policy.real(a.worktree), "engagement": eng, "branch": a.branch or "",
         "pass": a.pass_id, "test_paths_add": a.test_path, "ops_paths": a.ops_path,
@@ -143,6 +160,8 @@ def cmd_context(a) -> None:
         "effort": a.effort or (CODEX_EFFORT if vendor == "codex" else ""), "escalation": escalation,
         "scratch": policy.scratch_dir(eng, a.pass_id),
     }
+    if candidate:
+        data["candidate"] = candidate
     ctx = policy.Context(data)  # validates: no exception for AGENTS.md, CLAUDE.md or skills
     ctx.test_paths()  # a repo without the floor stops at Open, but for the Planner drafting it
     out = Path(eng) / "trace" / "logs" / f"pass-{a.pass_id}.context.json"
@@ -152,6 +171,20 @@ def cmd_context(a) -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(data, indent=2) + "\n")
     print(out)
+
+
+def context_candidate(a) -> str:
+    """The commit a release gate reviews, in full: its drill and automatic checks are read at it (SWCB #150)."""
+    if a.seat != "release-gate":
+        if a.candidate:
+            die("--candidate is the release gate's: the commit its evidence and its review are at")
+        return ""
+    if not a.candidate:
+        die("release-gate names the commit it reviews with --candidate (its drill and automatic checks are read at that hash)")
+    sha = git_out(policy.real(a.worktree), "rev-parse", "--verify", "--quiet", f"{a.candidate}^{{commit}}")
+    if not sha:
+        die(f"{a.candidate} is not a commit in {a.worktree}")
+    return sha
 
 
 def make_scratch(path: str) -> None:
@@ -441,6 +474,11 @@ def covered(ctx: policy.Context, patterns: List[str]) -> List[str]:
         dirs[:] = keep
         out.update(r for r in (os.path.join(rel, f) for f in files) if policy.any_match(r, patterns))
     return sorted(out)
+
+
+def git_out(worktree: str, *args: str) -> str:
+    r = subprocess.run(["git", "-C", worktree, *args], capture_output=True, text=True)
+    return r.stdout.strip() if r.returncode == 0 else ""
 
 
 def common_git_dir(worktree: str) -> str:
@@ -923,6 +961,13 @@ def cmd_launch(a) -> None:
             rec = Path(ctx.engagement) / named["path"]
             if not rec.is_file() or sha256(rec) != named["sha256"]:
                 die(f"{named['path']} changed since the context named it; a changed record is a new pass (never-do 17)")
+    evidence = None
+    if ctx.seat == "release-gate":
+        gaps, evidence = release_evidence(ctx, raw)
+        if gaps:
+            sys.stderr.write("seat.py: the release gate does not launch without its evidence (SWCB #150):\n"
+                             + "".join(f"  - {g}\n" for g in gaps))
+            sys.exit(EVIDENCE_EXIT)
     output = output_path(ctx, a.output)
     argv = launch_argv(ctx, Path(a.prompt_file).read_text(), home, profile, output, caps)
     env = scrubbed_env(ctx, home)
@@ -951,6 +996,8 @@ def cmd_launch(a) -> None:
         "wall_files": [{"path": str(wall), "sha256": wall_sha}],
         "raw_log": rel(log), "stderr_log": rel(err), "scratch": ctx.scratch or None,
     }
+    if evidence is not None:
+        record["evidence"] = evidence
     code = 0
     if vendor == "claude":
         res = watch.result or {}
@@ -982,6 +1029,170 @@ def cmd_launch(a) -> None:
     rec.write_text(json.dumps(record, indent=2) + "\n")
     print(f"{pid}: {record.get('outcome', 'returned')}; {run['tool_calls']} tool call(s), {run['wall_clock_s']}s → {rel(rec)}")
     sys.exit(code)
+
+
+# --- the release gate's evidence (SWCB #150) ----------------------------------------------
+
+def evidence_files(eng: Path, stem: str) -> List[Path]:
+    """`<stem>.txt` and its re-runs `<stem>-2.txt`, `-3`…, oldest first: evidence is append-only."""
+    found = []
+    for p in (eng / "evidence").glob(f"{stem}*.txt"):
+        m = re.fullmatch(re.escape(stem) + r"(?:-(\d+))?\.txt", p.name)
+        if m:
+            found.append((int(m.group(1) or 1), p))
+    return [p for _, p in sorted(found)]
+
+
+def header_fields(text: str) -> Dict[str, str]:
+    """The `key: value` lines of a record, the first of each key."""
+    out: Dict[str, str] = {}
+    for m in re.finditer(r"^([A-Za-z][A-Za-z ]*?): (.*)$", text, re.M):
+        out.setdefault(m.group(1), m.group(2).strip())
+    return out
+
+
+def recorded_gaps(text: str, cand: str) -> List[str]:
+    """Why a check's file is not a full execution record at the candidate; empty when it is."""
+    f = header_fields(text.split("\n## Output", 1)[0])
+    missing = [k for k in INVOCATION_FIELDS if not f.get(k)]
+    if missing:
+        return [f"no full invocation (no {', '.join(missing)})"]
+    gaps = []
+    if f["candidate"] != cand:
+        gaps.append(f"run at {f['candidate'][:12]}, not the candidate")
+    if f["worktree HEAD"] != f"{cand} (the candidate)":
+        gaps.append("run with the worktree off the candidate")
+    return gaps
+
+
+def diffcheck_gaps(text: str, cand: str) -> List[str]:
+    """Why a diff-check report does not clear the gate: it must be complete, at the candidate, and exit 0."""
+    f = header_fields(text)
+    exits = re.findall(r"^exit: (-?\d+)\s*$", text, re.M)
+    missing = [k for k in DIFFCHECK_FIELDS if not f.get(k)] + ["exit"] * (not exits)
+    if missing:
+        return [f"has no full invocation (no {', '.join(missing)}); re-run the diff check, whose report records its own (SWCB #146)"]
+    if f["candidate"] != cand:
+        return [f"is at {f['candidate'][:12]}, not the candidate"]
+    if f["worktree HEAD"] != f"{cand} (the candidate)":
+        return ["ran with the worktree off the candidate"]
+    if f["mode"].startswith("fixture"):
+        return ["ran in fixture mode, its registry lookups answered from a file"]
+    if exits[-1] != "0":
+        verdict = next((l for l in text.splitlines() if l.startswith("DIFF CHECK")), f"exit {exits[-1]}")
+        return [f"exits {exits[-1]} ({verdict}): every hit must match a frozen exception or a dated yes from Sean"]
+    return []
+
+
+def release_evidence(ctx: policy.Context, raw: Dict) -> Tuple[List[str], List[Dict[str, str]]]:
+    """What the release gate launches on, or what it lacks (gate schedule § The automatic checks).
+
+    At the exact candidate the context names: the drill (`drill-<candidate>.txt`,
+    or the file the release plan's "Commands and output" line declares, at the
+    hash it gives); the secret scan and the dependency check, each filed by
+    `record` with its full invocation; and the newest diff-check report, complete
+    and clean. A scan's own findings are the gate's to judge, never a refusal.
+    """
+    eng = Path(ctx.engagement)
+    cand = raw.get("candidate") or ""
+    if not cand:
+        return ["the context names no candidate; write the gate a new context with --candidate <commit>"], []
+    short = cand[:7]
+    gaps: List[str] = []
+    files: List[Path] = []
+    plan = eng / ((raw.get("vendor_basis") or {}).get("path") or "artifacts/release-plan.md")
+    declared = DRILL_DECLARED.search(plan.read_text(encoding="utf-8")) if plan.is_file() else None
+    if declared and "<" not in declared.group(1):
+        name, want = declared.group(1), declared.group(2)
+    else:
+        name, want = f"drill-{short}.txt", None
+    drill = eng / "evidence" / name
+    if not drill.is_file():
+        gaps.append(f"drill: no evidence/{name}")
+    elif cand not in drill.read_text(encoding="utf-8", errors="replace"):
+        gaps.append(f"drill: evidence/{name} does not name the candidate {cand}")
+    elif want and sha256(drill) != want:
+        gaps.append(f"drill: evidence/{name} is not the file the release plan hashed (sha256 {want[:12]}…)")
+    else:
+        files.append(drill)
+    for check in ("secrets", "deps"):
+        found = evidence_files(eng, f"{check}-{short}")
+        good = [p for p in found if not recorded_gaps(p.read_text(encoding="utf-8", errors="replace"), cand)]
+        if good:
+            files += good
+        elif found:
+            why = "; ".join(recorded_gaps(found[-1].read_text(encoding="utf-8", errors="replace"), cand))
+            gaps.append(f"{RECORDED_CHECKS[check]}: evidence/{found[-1].name} has {why}; file it with seat.py record --check {check}")
+        else:
+            gaps.append(f"{RECORDED_CHECKS[check]}: no evidence/{check}-{short}.txt; file it with seat.py record --check {check}")
+    reports = evidence_files(eng, f"diff-check-{short}")
+    if not reports:
+        gaps.append(f"diff check: no evidence/diff-check-{short}.txt")
+    else:
+        why = diffcheck_gaps(reports[-1].read_text(encoding="utf-8", errors="replace"), cand)
+        if why:
+            gaps.append(f"diff check: evidence/{reports[-1].name} {why[0]}")
+        else:
+            files.append(reports[-1])
+    return gaps, [{"path": os.path.relpath(p, eng), "sha256": sha256(p)} for p in files]
+
+
+def tool_version(tool: str) -> str:
+    """The tool's own `--version` line, or empty when it gives none (never `version`: osv-scanner reads that as a path)."""
+    try:
+        r = subprocess.run([tool, "--version"], stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    line = next((l.strip() for l in (r.stdout + r.stderr).splitlines() if l.strip()), "")
+    return line if r.returncode == 0 else ""
+
+
+def interpreter_of(tool: str) -> str:
+    if re.fullmatch(r"python[\d.]*", os.path.basename(tool)):
+        return f"{tool} (the tool itself)"
+    with open(tool, "rb") as f:
+        first = f.readline(256)
+    return first[2:].decode("utf-8", "replace").strip() if first.startswith(b"#!") else "none (a native binary)"
+
+
+def cmd_record(a) -> None:
+    """Run one of the release gate's checks outside any sandbox and file its output with its full invocation."""
+    ctx = load(a.context)
+    cand = load_raw(a.context).get("candidate")
+    if ctx.seat != "release-gate" or not cand:
+        die("record files a release gate's evidence: name the gate's context, written with --candidate")
+    argv = a.argv
+    if not argv:
+        die("name the check's command after --, its tool by full path")
+    tool = argv[0]
+    if not os.path.isabs(tool) or not os.access(tool, os.X_OK):
+        die(f"each check calls its tool by its full path (gate schedule § The automatic checks), not {tool}")
+    head = git_out(ctx.worktree, "rev-parse", "HEAD")
+    if head != cand:
+        die(f"the worktree is at {head[:12] or '?'}, not the candidate {cand[:12]}; a check at the candidate runs on it")
+    version = tool_version(tool)
+    if not version:
+        die(f"{tool} --version gave no version, so the record would be incomplete")
+    dirty = git_out(ctx.worktree, "status", "--porcelain").splitlines()
+    eng = Path(ctx.engagement)
+    (eng / "evidence").mkdir(parents=True, exist_ok=True)
+    stem = f"{a.check}-{cand[:7]}"
+    taken = evidence_files(eng, stem)
+    out = eng / "evidence" / (f"{stem}.txt" if not taken else f"{stem}-{len(taken) + 1}.txt")
+    while out.exists():  # a stray name in the sequence; never overwrite
+        out = out.with_name(f"{out.stem}x.txt")
+    started = now()
+    r = subprocess.run(argv, cwd=ctx.worktree, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    lines = [f"# {RECORDED_CHECKS[a.check]} at the candidate {cand}", "",
+             f"check: {a.check}", f"candidate: {cand}", f"run: {started}", f"cwd: {ctx.worktree}",
+             f"command: {shlex.join(argv)}", f"tool: {tool} ({version})", f"interpreter: {interpreter_of(tool)}",
+             f"worktree HEAD: {head} (the candidate)",
+             "worktree status: " + (f"{len(dirty)} uncommitted path(s): " + ", ".join(d[3:] for d in dirty[:10])
+                                    + (", …" if len(dirty) > 10 else "") if dirty else "clean"),
+             f"exit: {r.returncode}", "", "## Output", "", r.stdout.decode("utf-8", "replace")]
+    with open(out, "x", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+    print(json.dumps({"path": os.path.relpath(out, eng), "sha256": sha256(out), "candidate": cand, "exit": r.returncode}))
 
 
 # --- the frozen diff ------------------------------------------------------------------
@@ -1164,6 +1375,7 @@ def main() -> None:
     c.add_argument("--verify", default="", help="a verification pass: the repaired artifact; it runs read-only, on the other vendor")
     c.add_argument("--anchor", default="", help="a gate's anchor; the gate runs on the vendor that did not last write it")
     c.add_argument("--fallback", default="", help="the re-run ticket, when the planned vendor is unavailable")
+    c.add_argument("--candidate", default="", help="the release gate's: the commit it reviews, where its evidence is read")
     c.set_defaults(fn=cmd_context)
     s = sub.add_parser("claude-settings")
     s.add_argument("context")
@@ -1179,6 +1391,11 @@ def main() -> None:
     w.add_argument("worktree")
     w.add_argument("--engagement", required=True)
     w.set_defaults(fn=cmd_worktree)
+    e = sub.add_parser("record")
+    e.add_argument("context")
+    e.add_argument("--check", required=True, choices=sorted(RECORDED_CHECKS))
+    e.epilog = "After --, the check's command, its tool by full path."
+    e.set_defaults(fn=cmd_record)
     l = sub.add_parser("launch")  # noqa: E741
     l.add_argument("context")
     l.add_argument("--prompt-file", required=True)
@@ -1198,7 +1415,11 @@ def main() -> None:
     k = sub.add_parser("check")
     k.add_argument("--home", default=str(DEFAULT_HOME))
     k.set_defaults(fn=cmd_check)
-    a = ap.parse_args()
+    a, extra = ap.parse_known_args()
+    if a.cmd == "record":  # everything after -- is the check's own command
+        a.argv = extra[1:] if extra[:1] == ["--"] else extra
+    elif extra:
+        ap.error(f"unrecognized arguments: {' '.join(extra)}")
     try:
         a.fn(a)
     except policy.ContextError as e:
