@@ -119,11 +119,13 @@ def deny(reason: str) -> None:
     raise Verdict(reason)
 
 
-def resolve(arg: str, cwd: Optional[str], scratch: str = "") -> Optional[str]:
-    """An argument as an absolute path, or None when it cannot be resolved."""
+def resolve(arg: str, cwd: Optional[str]) -> Optional[str]:
+    """An argument as an absolute path, or None when it cannot be resolved.
+
+    `$DEVCRAFT_SCRATCH` is never expanded: the command itself can reassign it
+    (`DEVCRAFT_SCRATCH=src; echo x > $DEVCRAFT_SCRATCH/a`), so a seat writes
+    its scratch path out in full (SWCB #148)."""
     a = arg.replace("${HOME}", "~").replace("$HOME", "~")
-    if scratch:  # the launcher sets it to the pass's scratch folder (SWCB #148)
-        a = re.sub(r"\$(\{DEVCRAFT_SCRATCH\}|DEVCRAFT_SCRATCH(?![A-Za-z0-9_]))", lambda _: scratch, a)
     if "$" in a or "`" in a:
         return None
     if a.startswith("~"):
@@ -138,7 +140,7 @@ def resolve(arg: str, cwd: Optional[str], scratch: str = "") -> Optional[str]:
 def check_write(ctx: Context, arg: str, cwd: Optional[str], creating: bool = False) -> None:
     if arg in SAFE_SINKS:
         return
-    p = resolve(arg, cwd, ctx.scratch)
+    p = resolve(arg, cwd)
     if p is None:
         deny(f"cannot resolve the write target {arg!r}; name it plainly (never-do 7)")
     why = ctx.write_verdict(p, creating=creating)
@@ -147,7 +149,7 @@ def check_write(ctx: Context, arg: str, cwd: Optional[str], creating: bool = Fal
 
 
 def check_read(ctx: Context, arg: str, cwd: Optional[str]) -> None:
-    p = resolve(arg, cwd, ctx.scratch)
+    p = resolve(arg, cwd)
     if p is None:
         return
     why = ctx.read_verdict(p)

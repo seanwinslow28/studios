@@ -117,6 +117,10 @@ DENY_BASH = [
     ("builder", "tar -xzf {SCR}/src.tar -C tests", "Builder extracts into a test path"),
     ("security-pass", "tar -cf {ENG}/audits/x.tar src", "create an archive in the records"),
     ("security-pass", "rm -rf $TMPDIR/x", "a write the guard cannot resolve"),
+    # the command can reassign the variable, so the guard never trusts it (security review of 45472ab)
+    ("builder", "DEVCRAFT_SCRATCH=tests; echo x > $DEVCRAFT_SCRATCH/test_a.py", "scratch variable reassigned to a test path"),
+    ("builder", "export DEVCRAFT_SCRATCH={WT}/tests && touch ${DEVCRAFT_SCRATCH}/a", "scratch variable exported, braced"),
+    ("release-gate", "echo x > $DEVCRAFT_SCRATCH/probe.py", "scratch named by its variable, not written out"),
     ("security-pass", "git commit -m x", "read-only pass commits"),
     # fails closed
     ("builder", "cat <<EOF\nnever closes", "unparseable command"),
@@ -158,8 +162,6 @@ ALLOW_BASH = [
     ("security-pass", "tar -x -f {SCR}/src.tar -C {SCR}/copy", "extract the copy in scratch"),
     ("security-pass", "cd {SCR} && tar xf src.tar", "old-style extract after cd into scratch"),
     ("security-pass", "mkdir -p {SCR}/home && rm -rf {SCR}/copy", "make and clear folders in scratch"),
-    ("release-gate", "echo x > $DEVCRAFT_SCRATCH/probe.py", "scratch named by its variable"),
-    ("release-gate", "touch ${DEVCRAFT_SCRATCH}/a", "scratch named by its variable, braced"),
     ("security-pass", "tar -tf {SCR}/src.tar", "list an archive"),
     ("builder", "git archive -o {SCR}/src.tar HEAD", "the Builder copies the tree into scratch"),
     ("build-planner", "git archive -o {SCR}/src.tar HEAD", "the Planner copies the tree into scratch"),
