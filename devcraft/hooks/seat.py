@@ -36,6 +36,9 @@ that calls for it, never chosen, and the record's hash goes in the context.
 Every pass's scratch folder (outside every repo, the one place a read-only
 pass writes, and TMPDIR for the pass) was added on SWCB #148 (2026-10-14),
 after dc-eng-003's read-only passes could neither run a probe nor copy the tree.
+Sean's own `~/.codex` was denied to every pass, and the toolbelt's plugin skills
+copied into the seat home, on SWCB #149 (2026-10-15), after a dc-eng-003 Builder
+pass read a system skill there because its contract pointed at it.
 """
 from __future__ import annotations
 
@@ -44,6 +47,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import signal
 import subprocess
 import sys
@@ -103,6 +107,11 @@ CODEX_FEATURES_OFF = (
     "apps", "plugins", "remote_plugin", "multi_agent", "memories", "browser_use", "computer_use",
     "in_app_browser", "image_generation", "goals", "skill_mcp_dependency_install", "shell_snapshot",
 )
+# The toolbelt's skills that ship only in Sean's own Codex home: codex-home copies them
+# into the seat home's toolbelt/, so no seat reads his (SWCB #149). The system skills
+# need no copy; Codex installs them in every home's skills/.system/.
+PLUGIN_CACHE = Path(os.environ.get("DEVCRAFT_PLUGIN_CACHE", str(policy.HOME / ".codex" / "plugins" / "cache" / "openai-curated")))
+TOOLBELT_PLUGIN_SKILLS = {"superpowers": ("executing-plans", "verification-before-completion")}
 
 
 def die(msg: str) -> None:
@@ -452,7 +461,7 @@ def claude_settings(ctx: policy.Context) -> Dict:
     if ctx.vendor != "claude":
         die(f"{ctx.seat} runs on Codex in this pass (its context); write its layer with codex-pass")
     emp = policy.employer_paths()
-    creds = credential_denies(ctx)
+    creds = credential_denies(ctx) + list(policy.SEAN_HOMES)
     no_read = creds + emp + [str(Path(ctx.engagement) / "held-out")] * (ctx.seat != "verifier") + other_scratch(ctx)
     no_read = [p for p in no_read if p]
     gitdir, wtgit = common_git_dir(ctx.worktree), worktree_git_dir(ctx.worktree)
@@ -548,18 +557,60 @@ def hook_hash(event: str, group: Dict, h: Dict) -> str:
 def floor_profile(name: str, extends: str, deny: List[str]) -> List[str]:
     lines = [f"[permissions.{name}]", f'extends = "{extends}"', f"[permissions.{name}.filesystem]"]
     lines += [f'{toml_str(p)} = "deny"' for p in deny]
+    lines += [f'{toml_str(p)} = "read"' for p in policy.SEAN_HOME_OPEN]  # Codex's own install, re-run by its sandbox
     lines += [f"[permissions.{name}.network]", "enabled = false", ""]
     return lines
 
 
+def copy_toolbelt(home: Path) -> List[str]:
+    """Copy the toolbelt's plugin skills into the seat home, from the newest cached version; the gaps."""
+    gaps = []
+    for plugin, skills in TOOLBELT_PLUGIN_SKILLS.items():
+        versions = sorted((d for d in (PLUGIN_CACHE / plugin).glob("*") if (d / "skills").is_dir()),
+                          key=lambda d: d.stat().st_mtime) if (PLUGIN_CACHE / plugin).is_dir() else []
+        for skill in skills:
+            src = versions[-1] / "skills" / skill if versions else None
+            if not src or not (src / "SKILL.md").is_file():
+                gaps.append(f"{plugin}:{skill} is not in {PLUGIN_CACHE / plugin}")
+                continue
+            dest = home / "toolbelt" / plugin / skill
+            shutil.rmtree(dest, ignore_errors=True)
+            shutil.copytree(src, dest, symlinks=False)
+    return gaps
+
+
+def toolbelt_gaps(home: Path) -> List[str]:
+    return [f"{p}:{s} has no copy in {home / 'toolbelt'} (seat.py codex-home)"
+            for p, skills in TOOLBELT_PLUGIN_SKILLS.items() for s in skills
+            if not (home / "toolbelt" / p / s / "SKILL.md").is_file()]
+
+
+def skill_roots(home: Path) -> Optional[List[str]]:
+    """The folders Codex finds skills in under this home, from its own rendered prompt, no model call.
+
+    None when the prompt has no skill-roots table to read: the check then fails closed.
+    """
+    try:
+        r = subprocess.run(["codex", "debug", "prompt-input", "-c", "skills.include_instructions=true"],
+                           cwd=str(home), env=dict(os.environ, CODEX_HOME=str(home)), stdin=subprocess.DEVNULL,
+                           capture_output=True, text=True, timeout=60)
+        text = "\n".join(c.get("text", "") for m in json.loads(r.stdout) for c in m.get("content", []) if isinstance(c, dict))
+    except (OSError, ValueError, subprocess.TimeoutExpired, AttributeError):
+        return None
+    table = re.search(r"### Skill roots\n((?:- `r\d+` = `[^`]+`\n?)+)", text)
+    return re.findall(r"- `r\d+` = `([^`]+)`", table.group(1)) if table else None
+
+
 def cmd_codex_home(a) -> None:
     home = Path(os.path.expanduser(a.home))
+    if any(policy.under(policy.real(str(home)), policy.real(h)) for h in policy.SEAN_HOMES):
+        die(f"{home} is inside Sean's own Codex home, which every pass is denied (SWCB #149)")
     home.mkdir(parents=True, exist_ok=True)
     os.chmod(home, 0o700)
     hj = home / "hooks.json"
     data = hooks_json()
     hj.write_text(json.dumps(data, indent=2) + "\n")
-    deny = list(policy.CREDENTIAL_PATHS) + policy.employer_paths()
+    deny = list(policy.CREDENTIAL_PATHS) + list(policy.SEAN_HOMES) + policy.employer_paths()
     lines = [
         "# Devcraft's Codex seat home. Written by devcraft/hooks/seat.py codex-home; rewrite it, never hand-edit.",
         "# A pass layers <eng>-pass-NN.config.toml on top with -p; with no layer a pass gets the read-only floor.",
@@ -578,6 +629,8 @@ def cmd_codex_home(a) -> None:
                           f'trusted_hash = "{hook_hash(event, g, h)}"', "enabled = true"]
     (home / "config.toml").write_text("\n".join(lines) + "\n")
     print(home)
+    for g in copy_toolbelt(home):
+        print(f"GAP: {g}; the Builder's toolbelt names it")
     if not (home / "auth.json").exists():
         print(f"Next, Sean signs this home in once: CODEX_HOME={home} codex login")
 
@@ -585,7 +638,7 @@ def cmd_codex_home(a) -> None:
 def codex_layer(ctx: policy.Context) -> List[str]:
     name = f"pass-{Path(ctx.source).name.split('.')[0].split('pass-')[-1]}"
     held_out = [os.path.join(ctx.engagement, "held-out")] * (ctx.seat != "verifier")  # the Verifier's own slice
-    deny = credential_denies(ctx) + policy.employer_paths() + held_out + other_scratch(ctx)
+    deny = credential_denies(ctx) + list(policy.SEAN_HOMES) + policy.employer_paths() + held_out + other_scratch(ctx)
     rel_read: List[str] = []
     # Only the Builder and Release write the worktree; every other Codex pass, a
     # Planner's redraft included, files its one output by -o and reads the rest.
@@ -609,6 +662,7 @@ def codex_layer(ctx: policy.Context) -> List[str]:
              f"[projects.{toml_str(ctx.worktree)}]", 'trust_level = "untrusted"', ""]
     lines += [f"[permissions.{name}]", f'extends = "{extends}"', f"[permissions.{name}.filesystem]"]
     lines += [f'{toml_str(p)} = "deny"' for p in sorted(set(deny))]
+    lines += [f'{toml_str(p)} = "read"' for p in policy.SEAN_HOME_OPEN]  # Codex's own install, re-run by its sandbox
     lines += [f'{toml_str(ctx.engagement)} = "read"']  # the coordinator's; -o files the final message
     if ctx.scratch:  # the one folder every pass writes, a read-only one included (SWCB #148)
         lines += [f'{toml_str(ctx.scratch)} = "write"']
@@ -1074,6 +1128,15 @@ def cmd_check(a) -> None:
                         gaps.append(f"Codex hook {event}:{gi}:{hi} does not run the guard")
     else:
         gaps.append(f"no Codex seat home at {home} (seat.py codex-home)")
+    if home.is_dir():
+        gaps += toolbelt_gaps(home)
+        # Codex finds skills by $CODEX_HOME, not by Sean's home; a release that changes that shows here (SWCB #149)
+        roots = skill_roots(home)
+        if roots is None:
+            gaps.append("cannot read the skill roots Codex finds under the seat home (codex debug prompt-input)")
+        else:
+            gaps += [f"Codex finds skills in {r}, inside Sean's own Codex home" for r in roots
+                     if any(policy.under(policy.real(r), policy.real(h)) for h in policy.SEAN_HOMES)]
     for g in gaps:
         print(f"GAP: {g}")
     print("preflight: " + ("clean" if not gaps else f"{len(gaps)} gap(s)"))

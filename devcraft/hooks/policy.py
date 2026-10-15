@@ -77,6 +77,13 @@ CREDENTIAL_PATHS = tuple(str(HOME / p) for p in (
     ".netrc", ".git-credentials", ".docker/config.json", ".npmrc", ".pypirc",
     ".kube/config", ".config/gcloud", ".azure", "Library/Keychains",
 ))
+# Sean's own Codex home (SWCB #149): his config, hooks, sessions, memories, skills and
+# plugins, never a seat's. A seat's Codex runs from the seat home (`seat.py
+# codex-home`), which keeps its own system skills and the toolbelt's copies; under
+# it Codex finds skills in the seat home and `~/.agents/skills` only. The one opening
+# is Codex's own install, which its sandbox re-runs; a pass on Claude never needs it.
+SEAN_HOMES = tuple(str(HOME / p) for p in (".codex",))
+SEAN_HOME_OPEN = tuple(str(HOME / p) for p in (".codex/packages",))
 # `.env*` anywhere, except the two example names.
 ENV_FILE = re.compile(r"(^|/)\.env[^/]*$")
 ENV_OK = re.compile(r"(^|/)\.env\.(example|sample)$")
@@ -313,6 +320,8 @@ class Context:
             return "another pass's scratch folder; a pass reads only its own, which may not hold held-out/ (SWCB #148)"
         if is_credential(p, self.grant_read):
             return f"{p} holds a live credential and no plan line opens it to this seat (never-do 6)"
+        if any(under(p, real(h)) for h in SEAN_HOMES) and not any(under(p, real(o)) for o in SEAN_HOME_OPEN):
+            return f"{p} is in Sean's own Codex home; a seat reads the seat home's copy (never-do 14, SWCB #149)"
         for e in employer_paths():
             if under(p, e):
                 return "that path is on the machine's employer list (never-do 2)"

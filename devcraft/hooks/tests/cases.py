@@ -5,9 +5,9 @@ off; `test_guard.py` runs every case through the guard in both vendors'
 payload shapes, and `live.py` sends a handful through real seat sessions.
 
 `{WT}` is the build's worktree, `{ENG}` the engagement folder, `{EMP}` a path on
-the machine's employer list, `{SCR}` the pass's scratch folder. Each case:
-(seat, command or (tool, path), why). The security pass and the release gate
-run read-only.
+the machine's employer list, `{SCR}` the pass's scratch folder, `{HOME}` the
+stand-in for `~`. Each case: (seat, command or (tool, path), why). The
+security pass and the release gate run read-only.
 """
 
 DENY_BASH = [
@@ -53,6 +53,10 @@ DENY_BASH = [
     ("verifier", "git config user.email x@y.z", "change git identity"),
     ("verifier", "git -c credential.helper=store status", "credential helper for one call"),
     ("builder", "security find-generic-password -s x", "read the keychain"),
+    # never-do 14: Sean's own Codex home; a seat reads the seat home's copies (SWCB #149)
+    ("builder", "cat {HOME}/.codex/skills/.system/review-agent/SKILL.md", "read a system skill in Sean's own Codex home"),
+    ("release-gate", "ls $HOME/.codex/plugins/cache", "list Sean's own Codex plugins"),
+    ("verifier", "cat ~/.codex/config.toml", "read Sean's own Codex config"),
     # never-do 7: paths that resolve outside the worktree
     ("builder", "rm -rf ~/Code-Brain", "delete outside via ~"),
     ("builder", "rm -rf $HOME/x", "delete outside via $HOME"),
@@ -127,6 +131,9 @@ DENY_BASH = [
 ]
 
 ALLOW_BASH = [
+    ("builder", "cat ~/.codex-devcraft/skills/.system/review-agent/SKILL.md", "read the seat home's system skill"),
+    ("release-gate", "cat ~/.codex-devcraft/toolbelt/superpowers/executing-plans/SKILL.md", "read the seat home's toolbelt copy"),
+    ("builder", "ls {HOME}/.codex/packages/standalone", "list Codex's own install, which its sandbox re-runs"),
     ("builder", "echo x > src/app.py", "Builder writes source"),
     ("builder", "uv run pytest -q", "run the suite"),
     ("builder", "npm test", "run the suite (npm)"),
@@ -174,6 +181,7 @@ DENY_TOOL = [
     ("verifier", ("Write", "src/app.py"), "Verifier writes source"),
     ("verifier", ("Edit", "AGENTS.md"), "edit AGENTS.md"),
     ("verifier", ("Read", "~/.aws/credentials"), "read AWS credentials"),
+    ("security-pass", ("Read", "~/.codex/skills/.system/review-agent/SKILL.md"), "Read Sean's own Codex home"),
     ("verifier", ("Read", "{EMP}/notes.md"), "read an employer path"),
     ("release-reliability", ("Edit", "tests/test_a.py"), "Release edits a test"),
     ("build-planner", ("Write", "src/new.py"), "Planner writes source"),

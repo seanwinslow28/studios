@@ -70,7 +70,7 @@ def world(tmp_path_factory):
 
 def fill(text: str, w) -> str:
     return (text.replace("{WT}", str(w["wt"])).replace("{ENG}", str(w["eng"])).replace("{EMP}", str(w["emp"]))
-            .replace("{SCR}", str(w["scratch"])))
+            .replace("{SCR}", str(w["scratch"])).replace("{HOME}", str(w["home"])))
 
 
 def run(w, seat, event, python=PYTHONS[0], context=True):

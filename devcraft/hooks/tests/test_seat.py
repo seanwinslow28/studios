@@ -34,8 +34,16 @@ def world(tmp_path_factory):
     (emp / "src" / "x.py").write_text("x")
     (local / "employer-paths").write_text(f"{emp}\n")
     (local / "names").write_text("Examplecorp\n")
+    # The Codex plugin cache the toolbelt's copies come from, an old and a newer version (SWCB #149)
+    for version, text in (("old", "stale"), ("new", "current")):
+        for skill in ("executing-plans", "verification-before-completion"):
+            d = root / "plugins" / "superpowers" / version / "skills" / skill
+            d.mkdir(parents=True)
+            (d / "SKILL.md").write_text(text)
+    os.utime(root / "plugins" / "superpowers" / "old", (1, 1))
     env = dict(os.environ, DEVCRAFT_LOCAL=str(local), DEVCRAFT_PASSES=str(root / "passes"),
-               DEVCRAFT_SCRATCH_ROOT=str(root / "scratch"), GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t",
+               DEVCRAFT_SCRATCH_ROOT=str(root / "scratch"), DEVCRAFT_PLUGIN_CACHE=str(root / "plugins"),
+               GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t",
                GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
     env.pop("DEVCRAFT_CONTEXT", None)
     main = root / "main"
@@ -123,6 +131,8 @@ def test_claude_settings(world):
     assert sb["enabled"] and sb["failIfUnavailable"] and sb["allowUnsandboxedCommands"] is False
     assert sb["network"]["allowedDomains"] == []
     assert str(world["eng"] / "held-out") not in sb["filesystem"]["denyRead"], "the Verifier writes held-out"
+    codex = os.path.expanduser("~/.codex")  # Sean's own Codex home (SWCB #149)
+    assert codex in sb["filesystem"]["denyRead"] and f"Read(/{codex}/**)" in deny
     hooks = s["hooks"]
     assert hooks["PreToolUse"][0]["hooks"][0]["command"].endswith("guard.py") and "SessionStart" in hooks
     assert s["env"]["DEVCRAFT_CONTEXT"] == ctx
@@ -160,6 +170,38 @@ def test_codex_home_trusts_only_the_guard(world, codex_home):
     assert list(hooks) == ["PreToolUse"]
     cfg = (codex_home / "config.toml").read_text()
     assert "trusted_hash" in cfg and 'default_permissions = "devcraft-floor"' in cfg and "shell_snapshot = false" in cfg
+    assert f'"{os.path.expanduser("~/.codex")}" = "deny"' in cfg, "the floor denies Sean's own Codex home (SWCB #149)"
+
+
+def test_codex_home_copies_the_toolbelt_from_the_newest_version(world, codex_home):
+    for skill in ("executing-plans", "verification-before-completion"):
+        assert (codex_home / "toolbelt" / "superpowers" / skill / "SKILL.md").read_text() == "current"
+
+
+def test_the_seat_home_never_sits_inside_sean_codex_home(world):
+    r = subprocess.run(["python3", str(SEAT), "codex-home", "--home", "~/.codex/devcraft-seat-test"],
+                       env=world["env"], capture_output=True, text=True)
+    assert r.returncode != 0 and "SWCB #149" in r.stderr
+    assert not os.path.exists(os.path.expanduser("~/.codex/devcraft-seat-test"))
+
+
+def test_preflight_catches_a_missing_toolbelt_copy(world, codex_home):
+    saved = codex_home / "toolbelt" / "superpowers" / "executing-plans"
+    saved.rename(saved.with_name("moved"))
+    try:
+        r = subprocess.run(["python3", str(SEAT), "check", "--home", str(codex_home)], env=world["env"], capture_output=True, text=True)
+        assert r.returncode == 1 and "superpowers:executing-plans has no copy" in r.stdout
+    finally:
+        saved.with_name("moved").rename(saved)
+
+
+@pytest.mark.skipif(not CODEX, reason="codex not installed")
+def test_codex_finds_no_skills_in_sean_codex_home(world, codex_home):
+    # Codex finds skills by $CODEX_HOME and ~/.agents/skills, never by Sean's own ~/.codex (SWCB #149)
+    roots = seatmod.skill_roots(codex_home)
+    assert roots, "the skill-roots table could not be read"
+    assert not [r for r in roots if r.startswith(os.path.expanduser("~/.codex/"))]
+    assert any(r.startswith(str(codex_home)) for r in roots)
 
 
 def test_preflight_catches_an_untrusted_hook(world, codex_home):
@@ -193,6 +235,8 @@ BUILDER_MATRIX = [
     ("cat {EMP}/src/x.py && echo WROTE", False),
     ("cat {ENG}/held-out/h.py && echo WROTE", False),
     ("ls ~/.ssh && echo WROTE", False),
+    ("ls ~/.codex/skills && echo WROTE", False),  # Sean's own Codex home (SWCB #149)
+    ("ls ~/.codex/packages && echo WROTE", True),  # but Codex's own install, which the sandbox re-runs
     ("echo a > {ENG}/artifacts/x && echo WROTE", False),
     ("echo a > {ROOT}/outside && echo WROTE", False),
     ("curl -sS -m 5 -o /dev/null https://example.com && echo WROTE", False),

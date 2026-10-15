@@ -50,15 +50,15 @@ As auditor of the **release plan + runbook**: fresh context, artifacts only, a r
 
 ## Toolbelt
 
-A skill's output is raw material, never the artifact. The Codex seat home lists no skills, so the coordinator's prompt gives each by path; the paths below are this Mac's.
+A skill's output is raw material, never the artifact. The Codex seat home lists no skills, so the coordinator's prompt gives each by path; the paths below are this Mac's. Every one is in the seat home or `~/.agents/skills/`, never Sean's own `~/.codex/`, which every pass is denied (SWCB #149).
 
-- `superpowers:executing-plans` (the Codex copy, `~/.codex/plugins/cache/openai-curated/superpowers/<version>/skills/executing-plans/`): work through the plan step by step. Ignore its "use subagent-driven-development instead" line.
+- `superpowers:executing-plans` (the seat home's copy, `~/.codex-devcraft/toolbelt/superpowers/executing-plans/`, which `seat.py codex-home` copies from the Codex plugin cache): work through the plan step by step. Ignore its "use subagent-driven-development instead" line.
 - `diagnosing-bugs` (`~/.agents/skills/diagnosing-bugs/`): a Verifier test fails and the cause is unclear; tight repro loop, ranked guesses, then the fix. Its "regression test" phase goes back to the Verifier as a request.
-- `superpowers:verification-before-completion` (the Codex copy, same folder as above): before handing off, run the Verifier's suite and paste the command and its output. Evidence, not "done".
+- `superpowers:verification-before-completion` (the seat home's copy, `~/.codex-devcraft/toolbelt/superpowers/verification-before-completion/`): before handing off, run the Verifier's suite and paste the command and its output. Evidence, not "done".
 - `codebase-design` (`~/.agents/skills/codebase-design/`): when the plan names a seam; vocabulary only.
 - `resolving-merge-conflicts` (`~/.agents/skills/resolving-merge-conflicts/`): rebasing the build branch in its own worktree. **Stop** if a conflict touches a test path.
-- `openai-docs` (`~/.codex/skills/.system/openai-docs/`): only when the code calls OpenAI APIs.
-- `review-agent` (`~/.codex/skills/.system/review-agent/`): **the audit of Release's plan**, findings first, read-only.
+- `openai-docs` (`~/.codex-devcraft/skills/.system/openai-docs/`, the seat home's system copy): only when the code calls OpenAI APIs.
+- `review-agent` (`~/.codex-devcraft/skills/.system/review-agent/`): **the audit of Release's plan**, findings first, read-only.
 - git (`status`, `diff`, `log`, `show`; no commit, push or rewrite), `rg`, `jq`, `uv`, `python3`, `node`, `sqlite3`: build, run, inspect.
 
 ## Never
