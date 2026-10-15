@@ -34,7 +34,8 @@ def world(tmp_path_factory):
     (emp / "src" / "x.py").write_text("x")
     (local / "employer-paths").write_text(f"{emp}\n")
     (local / "names").write_text("Examplecorp\n")
-    env = dict(os.environ, DEVCRAFT_LOCAL=str(local), DEVCRAFT_PASSES=str(root / "passes"), GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t",
+    env = dict(os.environ, DEVCRAFT_LOCAL=str(local), DEVCRAFT_PASSES=str(root / "passes"),
+               DEVCRAFT_SCRATCH_ROOT=str(root / "scratch"), GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t",
                GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
     env.pop("DEVCRAFT_CONTEXT", None)
     main = root / "main"
@@ -195,7 +196,13 @@ BUILDER_MATRIX = [
     ("echo a > {ENG}/artifacts/x && echo WROTE", False),
     ("echo a > {ROOT}/outside && echo WROTE", False),
     ("curl -sS -m 5 -o /dev/null https://example.com && echo WROTE", False),
+    ("echo a > {SCR}/probe.py && echo WROTE", True),
+    ("echo a > {ROOT}/scratch/{ENGNAME}/pass-99/x && echo WROTE", False),
 ]
+
+
+def scratch_of(world, n):
+    return world["root"] / "scratch" / world["eng"].name / f"pass-{n}"
 
 
 def sandboxed(world, home, profile, perm, cmd):
@@ -213,6 +220,7 @@ def test_builder_layer_in_the_real_sandbox(world, codex_home, cmd, allowed):
     if not profile_file.exists():
         seat(world, "codex-pass", context(world, "builder", "20", "--ops-path", "deploy/"), "--home", str(codex_home))
     cmd = cmd.replace("{EMP}", str(world["emp"])).replace("{ENG}", str(world["eng"])).replace("{ROOT}", str(world["root"]))
+    cmd = cmd.replace("{SCR}", str(scratch_of(world, "20"))).replace("{ENGNAME}", world["eng"].name)
     assert sandboxed(world, codex_home, profile_file.stem.replace(".config", ""), "pass-20", cmd) is allowed
 
 
@@ -223,6 +231,13 @@ def test_gate_layer_is_read_only(world, codex_home):
     assert sandboxed(world, codex_home, profile, "pass-21", "cat src/app.py && echo WROTE")
     assert not sandboxed(world, codex_home, profile, "pass-21", "echo a > src/app.py && echo WROTE")
     assert not sandboxed(world, codex_home, profile, "pass-21", "cat {}/src/x.py && echo WROTE".format(world["emp"]))
+    # its one write is its own scratch folder (SWCB #148): a probe, a copy of the tree, a test home
+    scr = scratch_of(world, "21")
+    assert sandboxed(world, codex_home, profile, "pass-21", f"echo a > {scr}/probe.py && echo WROTE")
+    assert sandboxed(world, codex_home, profile, "pass-21",
+                     f"git archive -o {scr}/src.tar HEAD src && mkdir {scr}/copy && tar -x -f {scr}/src.tar -C {scr}/copy && echo WROTE")
+    assert sandboxed(world, codex_home, profile, "pass-21", f"TMPDIR={scr} mktemp -d && echo WROTE")
+    assert not sandboxed(world, codex_home, profile, "pass-21", f"echo a > {world['eng']}/artifacts/x && echo WROTE")
 
 
 # --- launcher: caps, wall files off the ledger, -o to the artifact, frozen diff, probe -------
@@ -337,6 +352,80 @@ def test_security_pass_runs_on_claude_read_only(world):
     s = json.loads(Path(seat(world, "claude-settings", context(world, "security-pass", "36", *CODEX_ANCHOR))).read_text())
     assert f"Edit(/{world['wt']}/**)" in s["permissions"]["deny"]
     assert str(world["eng"] / "held-out") in s["sandbox"]["filesystem"]["denyRead"]
+
+
+# --- the scratch folder (SWCB #148) -------------------------------------------------
+
+def test_every_pass_gets_an_empty_private_scratch_folder(world):
+    data = json.loads(Path(context(world, "security-pass", "160", *CODEX_ANCHOR)).read_text())
+    scr = scratch_of(world, "160")
+    assert data["scratch"] == str(scr) and scr.is_dir() and not any(scr.iterdir())
+    assert scr.stat().st_mode & 0o777 == 0o700
+
+
+def test_a_scratch_folder_starts_empty_and_outside_every_repo(world):
+    scr = scratch_of(world, "161")
+    scr.mkdir(parents=True)
+    (scr / "left-over").write_text("x")
+    args = ["python3", str(SEAT), "context", "--seat", "verifier", "--worktree", str(world["wt"]),
+            "--engagement", str(world["eng"]), "--pass", "161"]
+    r = subprocess.run(args, env=world["env"], capture_output=True, text=True)
+    assert r.returncode != 0 and "not empty" in r.stderr
+    assert not (world["eng"] / "trace" / "logs" / "pass-161.context.json").exists()
+    env = dict(world["env"], DEVCRAFT_SCRATCH_ROOT=str(world["root"] / "main" / "scratch"))  # another repo
+    r = subprocess.run(args[:-1] + ["162"], env=env, capture_output=True, text=True)
+    assert r.returncode != 0 and "inside the repo" in r.stderr
+    env = dict(world["env"], DEVCRAFT_SCRATCH_ROOT=str(world["wt"] / "scratch"))
+    r = subprocess.run(args[:-1] + ["162"], env=env, capture_output=True, text=True)
+    assert r.returncode != 0 and "overlaps the worktree" in r.stderr
+
+
+def test_a_read_only_claude_pass_writes_only_its_scratch_folder(world):
+    ctx = context(world, "security-pass", "163", *CODEX_ANCHOR)
+    s = json.loads(Path(seat(world, "claude-settings", ctx)).read_text())
+    scr = str(scratch_of(world, "163"))
+    assert s["sandbox"]["filesystem"]["allowWrite"] == [scr]
+    deny = s["permissions"]["deny"]
+    assert f"Edit(/{world['eng']}/**)" in deny and f"Edit(/{world['wt']}/**)" in deny
+    assert not any(scr in r for r in deny)
+    shown = json.loads(launch(world, ctx, "--output", "audits/security-pass-163.md").stderr)
+    argv, env = shown["argv"], shown["env"]
+    assert argv[argv.index("--tools") + 1] == "Read,Write,Bash,Glob,Grep,Skill", "Write, never Edit"
+    assert ["--add-dir", scr] == argv[argv.index(scr) - 1:argv.index(scr) + 1]
+    assert "TMPDIR" in env and "DEVCRAFT_SCRATCH" in env
+
+
+def test_the_launch_points_tmpdir_at_the_scratch_folder(world):
+    ctx = seatmod.load(context(world, "verifier", "164"))
+    env = seatmod.scrubbed_env(ctx, world["home"])
+    assert env["TMPDIR"] == env["DEVCRAFT_SCRATCH"] == str(scratch_of(world, "164"))
+
+
+def test_an_old_context_runs_without_a_scratch_folder(world):
+    p = Path(context(world, "security-pass", "165", *CODEX_ANCHOR))
+    data = json.loads(p.read_text())
+    del data["scratch"]
+    p.write_text(json.dumps(data))
+    s = json.loads(Path(seat(world, "claude-settings", str(p))).read_text())
+    assert s["sandbox"]["filesystem"]["allowWrite"] == []
+    argv = json.loads(launch(world, str(p), "--output", "audits/security-pass-165.md").stderr)["argv"]
+    assert argv[argv.index("--tools") + 1] == "Read,Bash,Glob,Grep,Skill"
+
+
+@pytest.mark.skipif(not CODEX, reason="codex not installed")
+def test_no_pass_reads_another_pass_scratch_folder(world, codex_home):
+    # A Verifier sees held-out/ and could copy it into its scratch; the Builder after it never reads that
+    context(world, "verifier", "166")
+    (scratch_of(world, "166") / "held-copy.py").write_text("hidden")
+    ctx = context(world, "builder", "167")
+    seat(world, "codex-pass", ctx, "--home", str(codex_home))
+    profile = f"{world['eng'].name}-pass-167"
+    assert not sandboxed(world, codex_home, profile, "pass-167", f"cat {scratch_of(world, '166')}/held-copy.py && echo WROTE")
+    assert sandboxed(world, codex_home, profile, "pass-167", f"echo a > {scratch_of(world, '167')}/x && cat {scratch_of(world, '167')}/x && echo WROTE")
+    s = json.loads(Path(seat(world, "claude-settings", context(world, "release-reliability", "168"))).read_text())
+    assert str(scratch_of(world, "166")) in s["sandbox"]["filesystem"]["denyRead"]
+    assert f"Read(/{scratch_of(world, '166')}/**)" in s["permissions"]["deny"]
+    assert str(scratch_of(world, "168")) not in s["sandbox"]["filesystem"]["denyRead"]
 
 
 def test_output_rules(world, codex_home):
@@ -613,7 +702,7 @@ def test_a_verification_of_a_codex_repair_runs_on_claude(world):
     assert f"Edit(/{world['wt']}/**)" in s["permissions"]["deny"]
     assert str(world["eng"] / "held-out") in s["sandbox"]["filesystem"]["denyRead"]
     argv = json.loads(launch(world, ctx, "--output", "audits/audit-release-verify.md").stderr)["argv"]
-    assert argv[0] == "claude" and argv[argv.index("--tools") + 1] == "Read,Bash,Glob,Grep,Skill"
+    assert argv[0] == "claude" and argv[argv.index("--tools") + 1] == "Read,Write,Bash,Glob,Grep,Skill", "Write for scratch only"
     assert argv[argv.index("--model") + 1] == "claude-opus-5-5" and argv[argv.index("--max-budget-usd") + 1] == "15"
 
 

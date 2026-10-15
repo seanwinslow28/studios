@@ -5,7 +5,9 @@ off; `test_guard.py` runs every case through the guard in both vendors'
 payload shapes, and `live.py` sends a handful through real seat sessions.
 
 `{WT}` is the build's worktree, `{ENG}` the engagement folder, `{EMP}` a path on
-the machine's employer list. Each case: (seat, command or (tool, path), why).
+the machine's employer list, `{SCR}` the pass's scratch folder. Each case:
+(seat, command or (tool, path), why). The security pass and the release gate
+run read-only.
 """
 
 DENY_BASH = [
@@ -100,6 +102,22 @@ DENY_BASH = [
     ("verifier", "rm {ENG}/trace/logs/guard.jsonl", "delete the guard log"),
     ("release-reliability", "echo x > {ENG}/brief.md", "rewrite the brief"),
     ("builder", "echo x > {ENG}/artifacts/change-note.md", "Codex seat writes the engagement folder"),
+    # read-only passes: the scratch folder is the one write (SWCB #148)
+    ("security-pass", "echo x > src/app.py", "read-only pass writes source"),
+    ("security-pass", "echo x > {ENG}/artifacts/findings.md", "read-only pass writes the engagement folder"),
+    ("release-gate", "echo x > {SCR}-other/probe.py", "write beside the scratch folder, not in it"),
+    ("builder", "cat {SCR}/../pass-00/held-copy.py", "read another pass's scratch folder"),
+    ("verifier", "cp -r {SCR}/../pass-00 {SCR}/mine", "copy another pass's scratch folder"),
+    ("security-pass", "git archive --remote=origin HEAD", "git archive from a remote"),
+    ("security-pass", "git archive --exec=/bin/sh HEAD", "git archive runs a command"),
+    ("security-pass", "git archive -o src.tar HEAD", "git archive into the worktree"),
+    ("release-gate", "git archive -o{ENG}/artifacts/src.tar HEAD", "git archive into the engagement folder"),
+    ("security-pass", "git archive HEAD | tar -x -C src", "extract a copy into the worktree"),
+    ("security-pass", "tar xf {SCR}/src.tar", "old-style extract into the current folder"),
+    ("builder", "tar -xzf {SCR}/src.tar -C tests", "Builder extracts into a test path"),
+    ("security-pass", "tar -cf {ENG}/audits/x.tar src", "create an archive in the records"),
+    ("security-pass", "rm -rf $TMPDIR/x", "a write the guard cannot resolve"),
+    ("security-pass", "git commit -m x", "read-only pass commits"),
     # fails closed
     ("builder", "cat <<EOF\nnever closes", "unparseable command"),
 ]
@@ -130,6 +148,21 @@ ALLOW_BASH = [
     ("release-reliability", "plutil -lint deploy/job.plist", "lint a plist"),
     ("build-planner", "echo plan > {ENG}/artifacts/build-plan.md", "Planner writes its artifact"),
     ("build-planner", "rg -n def src", "Planner reads source"),
+    # the scratch folder, every seat's, read-only passes included (SWCB #148)
+    ("security-pass", "echo 'print(1)' > {SCR}/probe.py", "read-only pass writes a probe"),
+    ("security-pass", "/usr/bin/python3 -B {SCR}/probe.py src", "read-only pass runs its probe"),
+    ("security-pass", "python3 - <<'EOF'\nprint(1)\nEOF", "read-only pass runs a heredoc script"),
+    ("release-gate", "git archive -o {SCR}/src.tar HEAD src", "copy the tree into scratch"),
+    ("release-gate", "git archive --output={SCR}/src.tar HEAD", "copy the tree into scratch, long flag"),
+    ("security-pass", "git archive HEAD src | tar -x -C {SCR}/copy", "copy the tree into scratch through tar"),
+    ("security-pass", "tar -x -f {SCR}/src.tar -C {SCR}/copy", "extract the copy in scratch"),
+    ("security-pass", "cd {SCR} && tar xf src.tar", "old-style extract after cd into scratch"),
+    ("security-pass", "mkdir -p {SCR}/home && rm -rf {SCR}/copy", "make and clear folders in scratch"),
+    ("release-gate", "echo x > $DEVCRAFT_SCRATCH/probe.py", "scratch named by its variable"),
+    ("release-gate", "touch ${DEVCRAFT_SCRATCH}/a", "scratch named by its variable, braced"),
+    ("security-pass", "tar -tf {SCR}/src.tar", "list an archive"),
+    ("builder", "git archive -o {SCR}/src.tar HEAD", "the Builder copies the tree into scratch"),
+    ("build-planner", "git archive -o {SCR}/src.tar HEAD", "the Planner copies the tree into scratch"),
 ]
 
 DENY_TOOL = [
@@ -145,6 +178,10 @@ DENY_TOOL = [
     ("build-planner", ("Edit", "{ENG}/trace/notes.md"), "Planner edits a record"),
     ("verifier", ("Edit", "{ENG}/audits/plan-audit.md"), "edit an existing audit record"),
     ("verifier", ("WebFetch", "https://example.com"), "web"),
+    ("security-pass", ("Write", "src/probe.py"), "read-only pass writes the worktree"),
+    ("security-pass", ("Write", "{ENG}/artifacts/probe.py"), "read-only pass writes the engagement folder"),
+    ("release-gate", ("apply_patch", "src/app.py"), "read-only Codex pass patches source"),
+    ("builder", ("Read", "{SCR}/../pass-00/held-copy.py"), "Read another pass's scratch folder"),
 ]
 
 ALLOW_TOOL = [
@@ -155,6 +192,8 @@ ALLOW_TOOL = [
     ("release-reliability", ("Edit", "deploy/job.plist"), "Release edits its ops path"),
     ("build-planner", ("Write", "{ENG}/artifacts/build-plan.md"), "Planner writes its plan"),
     ("build-planner", ("Read", "src/app.py"), "Planner reads source"),
+    ("security-pass", ("Write", "{SCR}/probe.py"), "read-only pass writes a probe file"),
+    ("release-gate", ("apply_patch", "{SCR}/probe.py"), "read-only Codex pass patches its scratch"),
 ]
 
 # Plan-named exceptions, through the context's grants (see test_guard.py).

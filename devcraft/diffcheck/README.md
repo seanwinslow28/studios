@@ -17,7 +17,7 @@ python3 devcraft/diffcheck/diffcheck.py --worktree <build worktree> --engagement
 ```
 
 1. **Before every push.** The build worktree's pre-push hook ([`hooks/gitcheck.py`](../hooks/gitcheck.py)) runs it on every ref being pushed, offline. Exit 2 refuses the push; findings are recorded and the push proceeds, so the release gate reads them.
-2. **For the release gate's packet.** The coordinator runs it once more, with the network, just before the gate, beside the secret scan and the dependency check ([gate-schedule.md § The automatic checks](../templates/gate-schedule.md)). The report is handed to the gate and cited in the release plan's gate packet.
+2. **For the release gate's packet.** The coordinator runs it once more, with the network, just before the gate, beside the secret scan and the dependency check ([gate-schedule.md § The automatic checks](../templates/gate-schedule.md)). The report is handed to the gate and cited in the release plan's gate packet. The gate never re-runs it: it reads the machine-local name list, which every pass's sandbox denies, so the gate checks the filed report and its invocation instead (SWCB #148).
 
 Base and branch come from the brief (`base:`, `branch:`); the candidate is the worktree's `HEAD`. Flags override each, and `--test-path` / `--ops-path` supply what no plan can on an ops-only ask (the brief's file list), recorded in the report as coming from flags.
 

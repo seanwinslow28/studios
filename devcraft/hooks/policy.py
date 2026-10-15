@@ -44,6 +44,12 @@ LOCAL_DIR = Path(os.environ.get("DEVCRAFT_LOCAL", str(HOME / ".config" / "devcra
 EMPLOYER_PATHS_FILE = LOCAL_DIR / "employer-paths"
 NAMES_FILE = LOCAL_DIR / "names"
 
+# Each pass's scratch folder (SWCB #148): one per pass, outside every repo, and
+# the one place every pass may write, a read-only gate included. Probe scripts,
+# a copy of the tree made with `git archive`, a throwaway test home; never a
+# record, which is the coordinator's to file.
+SCRATCH_ROOT = Path(os.environ.get("DEVCRAFT_SCRATCH_ROOT", str(HOME / ".cache" / "devcraft" / "scratch")))
+
 # GitHub owners whose repos count as Sean's (never-do 1).
 OWNERS = ("seanwinslow28",)
 
@@ -119,6 +125,10 @@ def names() -> List[str]:
     if not found:
         raise ContextError(f"the name list is empty ({NAMES_FILE})")
     return found
+
+
+def scratch_dir(engagement: str, pass_id: str) -> str:
+    return real(str(SCRATCH_ROOT / os.path.basename(engagement) / f"pass-{pass_id}"))
 
 
 def real(path: str) -> str:
@@ -209,6 +219,10 @@ class Context:
             raise ContextError(f"unknown vendor {self.vendor!r}")
         self.log = data.get("log") or os.path.join(self.engagement, "trace", "logs", "guard.jsonl")
         self.extra_read = [real(p) for p in data.get("read_dirs", [])]
+        # A context written before SWCB #148 has no scratch folder.
+        self.scratch = real(data["scratch"]) if data.get("scratch") else ""
+        if self.scratch and any(under(self.scratch, r) or under(r, self.scratch) for r in (self.worktree, self.engagement)):
+            raise ContextError(f"the scratch folder {self.scratch} overlaps the worktree or the engagement folder")
 
     @classmethod
     def from_env(cls) -> "Context":
@@ -242,8 +256,10 @@ class Context:
     def write_verdict(self, path: str, creating: bool = False) -> Optional[str]:
         """None if this seat may write `path`; otherwise the reason it may not."""
         p = real(path)
+        if self.scratch and under(p, self.scratch):
+            return None  # the pass's own scratch folder, a read-only pass's included (SWCB #148)
         if self.read_only:
-            return f"{self.seat} runs read-only"
+            return f"{self.seat} runs read-only; its one write is its scratch folder {self.scratch or '(none: an old context)'}"
         if under(p, self.engagement):
             rel = os.path.relpath(p, self.engagement)
             if self.vendor == "codex":
@@ -282,10 +298,19 @@ class Context:
             return None if is_ops else f"{rel} is not one of Release's flagged ops paths (never-do 4)"
         return f"the {self.seat} writes only in the engagement folder"
 
+    def in_other_scratch(self, path: str) -> bool:
+        """Inside another pass's scratch folder of this engagement? Its siblings share one parent."""
+        if not self.scratch:
+            return False
+        parent = os.path.dirname(self.scratch)
+        return under(path, parent) and path != parent and not under(path, self.scratch)
+
     def read_verdict(self, path: str) -> Optional[str]:
         p = real(path)
         if self.seat == "builder" and under(p, os.path.join(self.engagement, "held-out")):
             return "held-out/ is the slice the Builder never sees (test record)"
+        if self.in_other_scratch(p):
+            return "another pass's scratch folder; a pass reads only its own, which may not hold held-out/ (SWCB #148)"
         if is_credential(p, self.grant_read):
             return f"{p} holds a live credential and no plan line opens it to this seat (never-do 6)"
         for e in employer_paths():

@@ -121,7 +121,7 @@ def world(tmp_path):
     fixture = root / "registry.json"
     fixture.write_text(json.dumps(REGISTRY))
     env = dict(os.environ, DEVCRAFT_LOCAL=str(local), DIFFCHECK_REGISTRY_FIXTURE=str(fixture),
-               GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
+               DEVCRAFT_SCRATCH_ROOT=str(root / "scratch"), GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
     env.pop("DEVCRAFT_CONTEXT", None)
     main = root / "main"
     main.mkdir()

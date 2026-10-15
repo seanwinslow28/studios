@@ -51,20 +51,26 @@ def world(tmp_path_factory):
     for d in ("artifacts", "audits", "trace/logs", "held-out"):
         (eng / d).mkdir(parents=True)
     (eng / "audits" / "plan-audit.md").write_text("x")
+    scratch = root / "scratch" / "eng" / "pass-01"  # as policy.scratch_dir lays it out
+    scratch.mkdir(parents=True)
+    (root / "scratch" / "eng" / "pass-00").mkdir()  # an earlier pass's, perhaps the Verifier's
+    (root / "scratch" / "eng" / "pass-00" / "held-copy.py").write_text("hidden")
     contexts = {}
-    for seat in ("build-planner", "builder", "verifier", "release-reliability"):
+    for seat in ("build-planner", "builder", "verifier", "release-reliability", "security-pass", "release-gate"):
         ctx = {"seat": seat, "worktree": str(wt), "engagement": str(eng), "branch": "devcraft/dc-eng-001",
-               "ops_paths": ["deploy/"], "log": str(eng / "trace" / "logs" / "guard.jsonl")}
+               "ops_paths": ["deploy/"], "log": str(eng / "trace" / "logs" / "guard.jsonl"),
+               "scratch": str(scratch), "read_only": seat in ("security-pass", "release-gate")}
         if seat == "builder":
             ctx["grants"] = {"read": [str(wt / ".env.test")], "control": [".github/workflows/ci.yml"]}
         p = eng / "trace" / "logs" / f"{seat}.context.json"
         p.write_text(json.dumps(ctx))
         contexts[seat] = p
-    return {"root": root, "home": home, "wt": wt, "eng": eng, "emp": emp, "contexts": contexts}
+    return {"root": root, "home": home, "wt": wt, "eng": eng, "emp": emp, "scratch": scratch, "contexts": contexts}
 
 
 def fill(text: str, w) -> str:
-    return text.replace("{WT}", str(w["wt"])).replace("{ENG}", str(w["eng"])).replace("{EMP}", str(w["emp"]))
+    return (text.replace("{WT}", str(w["wt"])).replace("{ENG}", str(w["eng"])).replace("{EMP}", str(w["emp"]))
+            .replace("{SCR}", str(w["scratch"])))
 
 
 def run(w, seat, event, python=PYTHONS[0], context=True):

@@ -119,9 +119,11 @@ def deny(reason: str) -> None:
     raise Verdict(reason)
 
 
-def resolve(arg: str, cwd: Optional[str]) -> Optional[str]:
+def resolve(arg: str, cwd: Optional[str], scratch: str = "") -> Optional[str]:
     """An argument as an absolute path, or None when it cannot be resolved."""
     a = arg.replace("${HOME}", "~").replace("$HOME", "~")
+    if scratch:  # the launcher sets it to the pass's scratch folder (SWCB #148)
+        a = re.sub(r"\$(\{DEVCRAFT_SCRATCH\}|DEVCRAFT_SCRATCH(?![A-Za-z0-9_]))", lambda _: scratch, a)
     if "$" in a or "`" in a:
         return None
     if a.startswith("~"):
@@ -136,7 +138,7 @@ def resolve(arg: str, cwd: Optional[str]) -> Optional[str]:
 def check_write(ctx: Context, arg: str, cwd: Optional[str], creating: bool = False) -> None:
     if arg in SAFE_SINKS:
         return
-    p = resolve(arg, cwd)
+    p = resolve(arg, cwd, ctx.scratch)
     if p is None:
         deny(f"cannot resolve the write target {arg!r}; name it plainly (never-do 7)")
     why = ctx.write_verdict(p, creating=creating)
@@ -145,7 +147,7 @@ def check_write(ctx: Context, arg: str, cwd: Optional[str], creating: bool = Fal
 
 
 def check_read(ctx: Context, arg: str, cwd: Optional[str]) -> None:
-    p = resolve(arg, cwd)
+    p = resolve(arg, cwd, ctx.scratch)
     if p is None:
         return
     why = ctx.read_verdict(p)
@@ -203,6 +205,39 @@ def write_targets(argv: List[str]) -> List[str]:
                     break
                 roots.append(a)
             return roots or ["."]
+    if name in ("tar", "bsdtar", "gtar"):
+        return tar_targets(argv[1:])
+    return []
+
+
+def tar_targets(args: List[str]) -> List[str]:
+    """Where tar writes: each -C folder (or the current one) when it extracts, the -f file when it
+    creates or appends. A bundle's value letters (f, C) take the next arguments in order, old style too."""
+    modes, dirs, files = set(), [], []
+    long_modes = {"extract": "x", "get": "x", "create": "c", "append": "r", "update": "u"}
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a.startswith("--"):
+            key, eq, val = a[2:].partition("=")
+            if key in long_modes:
+                modes.add(long_modes[key])
+            elif key in ("directory", "file"):
+                if not eq and i + 1 < len(args):
+                    i += 1
+                    val = args[i]
+                (dirs if key == "directory" else files).append(val)
+        elif (a.startswith("-") and len(a) > 1) or (i == 0 and a):
+            for ch in a.lstrip("-"):
+                modes.add(ch)
+                if ch in "fC" and i + 1 < len(args):
+                    i += 1
+                    (dirs if ch == "C" else files).append(args[i])
+        i += 1
+    if "x" in modes:
+        return dirs or ["."]
+    if modes & {"c", "r", "u"}:
+        return [f for f in files if f != "-"]
     return []
 
 
@@ -221,6 +256,17 @@ def judge_git(ctx: Context, argv: List[str], cwd: Optional[str]) -> None:
         return
     sub, rest = argv[i], argv[i + 1:]
     if sub in GIT_READ:
+        return
+    if sub == "archive":  # reads a commit; its one write is -o, which lands where the seat may write (SWCB #148)
+        if any(a.startswith(("--remote", "--exec")) for a in rest):
+            deny("git archive --remote or --exec reaches a remote or runs a command (never-do 1, 7)")
+        for j, a in enumerate(rest):
+            if a in ("-o", "--output") and j + 1 < len(rest):
+                check_write(ctx, rest[j + 1], cwd, creating=True)
+            elif a.startswith("--output="):
+                check_write(ctx, a.split("=", 1)[1], cwd, creating=True)
+            elif a.startswith("-o") and len(a) > 2:
+                check_write(ctx, a[2:], cwd, creating=True)
         return
     if sub == "branch":
         if any(a in ("-d", "-D", "--delete", "-m", "-M", "--move", "-c", "-C", "--copy", "-f", "--force", "-u", "--set-upstream-to", "--unset-upstream", "--edit-description") for a in rest) or [a for a in rest if not a.startswith("-")]:
@@ -404,7 +450,7 @@ def judge_simple(ctx: Context, s: shellparse.Simple) -> None:
             if policy.SNAPSHOT_FLAGS.match(a) and (a != "-u" or runner):
                 deny("regenerating snapshots or golden files edits a test (never-do 4)")
     for t in write_targets(argv):
-        check_write(ctx, t, s.cwd, creating=name in ("touch", "mkdir", "tee", "cp", "install", "ln"))
+        check_write(ctx, t, s.cwd, creating=name in ("touch", "mkdir", "tee", "cp", "install", "ln", "tar", "bsdtar", "gtar"))
     if name in ("python", "python3", "node", "ruby", "perl", "deno", "bun") and ctx.read_only:
         pass  # a read-only pass's sandbox holds; nothing to see in the text
 

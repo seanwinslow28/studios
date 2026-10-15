@@ -34,8 +34,8 @@ def repo(tmp_path):
     local.mkdir()
     (local / "employer-paths").write_text(str(root / "emp") + "\n")
     (local / "names").write_text(NAME + "\n")
-    env = dict(os.environ, DEVCRAFT_LOCAL=str(local), GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t",
-               GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
+    env = dict(os.environ, DEVCRAFT_LOCAL=str(local), DEVCRAFT_SCRATCH_ROOT=str(root / "scratch"),
+               GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
     env.pop("DEVCRAFT_CONTEXT", None)
     main = root / "main"
     main.mkdir()

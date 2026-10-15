@@ -33,6 +33,9 @@ A pass on the vendor its seat does not default to (a verification pass, a
 Claude seat's redraft one tier up onto Codex, a gate whose anchor changed
 vendor) was added on SWCB #126 (2026-10-13): the vendor is read from the record
 that calls for it, never chosen, and the record's hash goes in the context.
+Every pass's scratch folder (outside every repo, the one place a read-only
+pass writes, and TMPDIR for the pass) was added on SWCB #148 (2026-10-14),
+after dc-eng-003's read-only passes could neither run a probe nor copy the tree.
 """
 from __future__ import annotations
 
@@ -129,15 +132,30 @@ def cmd_context(a) -> None:
         "log": os.path.join(eng, "trace", "logs", "guard.jsonl"),
         "caps": context_caps(a, vendor, read_only),
         "effort": a.effort or (CODEX_EFFORT if vendor == "codex" else ""), "escalation": escalation,
+        "scratch": policy.scratch_dir(eng, a.pass_id),
     }
     ctx = policy.Context(data)  # validates: no exception for AGENTS.md, CLAUDE.md or skills
     ctx.test_paths()  # a repo without the floor stops at Open, but for the Planner drafting it
     out = Path(eng) / "trace" / "logs" / f"pass-{a.pass_id}.context.json"
     if out.exists():
         die(f"{out} exists; a pass's context is written once (never-do 17)")
+    make_scratch(ctx.scratch)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(data, indent=2) + "\n")
     print(out)
+
+
+def make_scratch(path: str) -> None:
+    """The pass's scratch folder: new, empty, private, and inside no repo (SWCB #148)."""
+    p = Path(path)
+    for d in (p, *p.parents):
+        if (d / ".git").exists():
+            die(f"the scratch folder {p} is inside the repo at {d}; set DEVCRAFT_SCRATCH_ROOT outside every repo")
+    if p.exists() and any(p.iterdir()):
+        die(f"the scratch folder {p} is not empty; a pass starts with an empty one")
+    p.mkdir(parents=True, exist_ok=True)
+    for d in (p, p.parent, policy.SCRATCH_ROOT):
+        os.chmod(d, 0o700)
 
 
 def context_caps(a, vendor: str, read_only: bool) -> Dict[str, float]:
@@ -338,6 +356,14 @@ def credential_denies(ctx: policy.Context) -> List[str]:
     return out
 
 
+def other_scratch(ctx: policy.Context) -> List[str]:
+    """The engagement's other passes' scratch folders: a Verifier's may hold copies of held-out/ (SWCB #148)."""
+    if not ctx.scratch:
+        return []
+    parent = Path(ctx.scratch).parent
+    return sorted(str(d) for d in parent.iterdir() if d.is_dir() and str(d) != ctx.scratch) if parent.is_dir() else []
+
+
 def complement(ctx: policy.Context, allowed: List[str], depth: int = 4) -> List[str]:
     """Worktree paths no `allowed` pattern can reach, as coarsely as possible.
 
@@ -427,7 +453,7 @@ def claude_settings(ctx: policy.Context) -> Dict:
         die(f"{ctx.seat} runs on Codex in this pass (its context); write its layer with codex-pass")
     emp = policy.employer_paths()
     creds = credential_denies(ctx)
-    no_read = creds + emp + [str(Path(ctx.engagement) / "held-out")] * (ctx.seat != "verifier")
+    no_read = creds + emp + [str(Path(ctx.engagement) / "held-out")] * (ctx.seat != "verifier") + other_scratch(ctx)
     no_read = [p for p in no_read if p]
     gitdir, wtgit = common_git_dir(ctx.worktree), worktree_git_dir(ctx.worktree)
     controls = [os.path.join(ctx.worktree, c.rstrip("/")) for c in ctx.controls()
@@ -439,7 +465,9 @@ def claude_settings(ctx: policy.Context) -> Dict:
     records += [str(p) for p in (eng / "audits").glob("*")]
     refs = [str(STUDIOS / "devcraft" / "lanes"), str(STUDIOS / "devcraft" / "corpus")]
     no_write = controls + git_controls + records + refs + [str(passes_dir(ctx).parent)]
-    if ctx.seat == "build-planner" or ctx.read_only:
+    if ctx.read_only:  # the launcher files its one output; its Write tool reaches only the scratch folder
+        no_write += [ctx.worktree, ctx.engagement]
+    elif ctx.seat == "build-planner":
         no_write.append(ctx.worktree)
     elif ctx.seat == "verifier":
         no_write += complement(ctx, ctx.test_paths())
@@ -467,6 +495,8 @@ def claude_settings(ctx: policy.Context) -> Dict:
         if branch:
             allow_write += [os.path.join(gitdir, "refs", "heads", os.path.dirname(branch)) if "/" in branch else os.path.join(gitdir, "refs", "heads"),
                             os.path.join(gitdir, "logs", "refs", "heads", os.path.dirname(branch)) if "/" in branch else os.path.join(gitdir, "logs", "refs", "heads")]
+    if ctx.scratch:
+        allow_write.append(ctx.scratch)
     return {
         "permissions": {"deny": sorted(set(deny)), "defaultMode": "acceptEdits", "disableBypassPermissionsMode": "disable"},
         "sandbox": {
@@ -555,7 +585,7 @@ def cmd_codex_home(a) -> None:
 def codex_layer(ctx: policy.Context) -> List[str]:
     name = f"pass-{Path(ctx.source).name.split('.')[0].split('pass-')[-1]}"
     held_out = [os.path.join(ctx.engagement, "held-out")] * (ctx.seat != "verifier")  # the Verifier's own slice
-    deny = credential_denies(ctx) + policy.employer_paths() + held_out
+    deny = credential_denies(ctx) + policy.employer_paths() + held_out + other_scratch(ctx)
     rel_read: List[str] = []
     # Only the Builder and Release write the worktree; every other Codex pass, a
     # Planner's redraft included, files its one output by -o and reads the rest.
@@ -580,6 +610,8 @@ def codex_layer(ctx: policy.Context) -> List[str]:
     lines += [f"[permissions.{name}]", f'extends = "{extends}"', f"[permissions.{name}.filesystem]"]
     lines += [f'{toml_str(p)} = "deny"' for p in sorted(set(deny))]
     lines += [f'{toml_str(ctx.engagement)} = "read"']  # the coordinator's; -o files the final message
+    if ctx.scratch:  # the one folder every pass writes, a read-only one included (SWCB #148)
+        lines += [f'{toml_str(ctx.scratch)} = "write"']
     if rel_read:
         lines += [f'[permissions.{name}.filesystem.":workspace_roots"]']
         lines += [f'{toml_str(p)} = "read"' for p in sorted(set(rel_read))]
@@ -642,7 +674,9 @@ def launch_argv(ctx: policy.Context, prompt: str, home: Path, profile: str = "",
     caps = caps if caps is not None else caps_of(ctx.source, ctx.seat)
     if ctx.vendor == "claude":
         plugin = str(STUDIOS / "devcraft" / "bench" / "plugins" / ctx.seat)
-        tools = "Read,Bash,Glob,Grep,Skill" if ctx.read_only else "Read,Write,Edit,Bash,Glob,Grep,Skill"
+        # A read-only pass's Write reaches only its scratch folder: every other dir it sees is in its Edit denies.
+        tools = ("Read,Write,Bash,Glob,Grep,Skill" if ctx.scratch else "Read,Bash,Glob,Grep,Skill") if ctx.read_only \
+            else "Read,Write,Edit,Bash,Glob,Grep,Skill"
         # stream-json: the live log the caps watch, and the per-message model stamps rung-0 line 11 reads
         argv = ["claude", "-p", "--output-format", "stream-json", "--verbose", "--model", CLAUDE_MODEL,
                 "--permission-mode", "acceptEdits", "--setting-sources", "", "--settings", str(wall_file(ctx)),
@@ -654,6 +688,8 @@ def launch_argv(ctx: policy.Context, prompt: str, home: Path, profile: str = "",
             argv += ["--append-system-prompt-file", agents]
         for d in (ctx.worktree, ctx.engagement, str(STUDIOS / "devcraft" / "lanes"), str(STUDIOS / "devcraft" / "corpus")):
             argv += ["--add-dir", d]
+        if ctx.scratch:
+            argv += ["--add-dir", ctx.scratch]
         if "budget_usd" in caps:
             argv += ["--max-budget-usd", number(caps["budget_usd"])]
         return argv + [prompt]
@@ -667,6 +703,8 @@ def scrubbed_env(ctx: policy.Context, home: Path) -> Dict[str, str]:
     env = {k: os.environ[k] for k in KEEP_ENV if k in os.environ}
     env["DEVCRAFT_CONTEXT"] = ctx.source
     env["DEVCRAFT_SEAT"] = ctx.seat
+    if ctx.scratch:  # mktemp and Python's tempfile land in the one folder the pass may write
+        env["TMPDIR"] = env["DEVCRAFT_SCRATCH"] = ctx.scratch
     if ctx.vendor == "codex":
         env["CODEX_HOME"] = str(home)
     return env
@@ -846,6 +884,8 @@ def cmd_launch(a) -> None:
         if p.exists():
             die(f"{p} exists; a pass is launched once, so a re-run is a new pass (never-do 17)")
     wall_sha = sha256(wall)  # taken at launch: the wall this pass actually ran under
+    if ctx.scratch:
+        Path(ctx.scratch).mkdir(parents=True, exist_ok=True)
     run = supervise(argv, env, ctx.worktree, log, err, caps, vendor)
     watch: Watch = run.pop("watch")
     rel = lambda p: os.path.relpath(p, eng)  # noqa: E731
@@ -855,7 +895,7 @@ def cmd_launch(a) -> None:
         "effort": effort_of(ctx), "escalation": escalation,
         "argv": shown, "caps": caps, **run,
         "wall_files": [{"path": str(wall), "sha256": wall_sha}],
-        "raw_log": rel(log), "stderr_log": rel(err),
+        "raw_log": rel(log), "stderr_log": rel(err), "scratch": ctx.scratch or None,
     }
     code = 0
     if vendor == "claude":
