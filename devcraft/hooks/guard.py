@@ -190,10 +190,8 @@ def write_targets(argv: List[str]) -> List[str]:
         return operands(argv, with_value=("-s", "-r"))
     if name == "dd":
         return [a[3:] for a in argv[1:] if a.startswith("of=")]
-    if name in ("sed", "gsed") and any(a == "-i" or a.startswith("-i") or a.startswith("--in-place") for a in argv[1:]):
-        ops = operands(argv, with_value=("-e", "-f"))
-        has_script_flag = any(a in ("-e", "-f") for a in argv)
-        return ops if has_script_flag else ops[1:]
+    if name in ("sed", "gsed"):
+        return sed_targets(argv[1:])
     if name == "perl" and any(re.match(r"^-\w*i", a) for a in argv[1:]):
         ops = operands(argv, with_value=("-e", "-E", "-M", "-I"))
         has_e = any(a in ("-e", "-E") or re.match(r"^-\w*[eE]$", a) for a in argv[1:])
@@ -210,6 +208,47 @@ def write_targets(argv: List[str]) -> List[str]:
     if name in ("tar", "bsdtar", "gtar"):
         return tar_targets(argv[1:])
     return []
+
+
+def sed_targets(args: List[str]) -> List[str]:
+    """The files an in-place sed rewrites, or none when it edits nothing in place.
+
+    The script is the first operand unless -e or -f gave it, in any spelling: `-e s`,
+    `-es`, `-ne s`, `--expression=s`. In a short bundle, `i` takes the rest of the word as
+    its suffix, and `e` or `f` the rest or the next word. macOS sed takes the suffix as the
+    next word, so `sed -i '' …` (SWCB #168) skips an empty one; GNU sed reads that word as an
+    empty script, which rewrites nothing. A non-empty separate suffix stays an operand and is
+    judged as a target, which can refuse but never lets a write through."""
+    words, in_place, script_given, i = [], False, False, 0
+    while i < len(args):
+        a = args[i]
+        if a == "--":
+            words += args[i + 1:]
+            break
+        if a.startswith("--"):
+            key, eq, _ = a[2:].partition("=")
+            if key == "in-place":
+                in_place = True
+            elif key in ("expression", "file"):
+                script_given = True
+                i += 0 if eq else 1
+        elif a.startswith("-") and a != "-":
+            for k, ch in enumerate(a[1:], 2):
+                if ch in "iI":
+                    in_place = True
+                    if k == len(a) and i + 1 < len(args) and args[i + 1] == "":
+                        i += 1
+                    break
+                if ch in "ef":
+                    script_given = True
+                    i += 1 if k == len(a) else 0
+                    break
+        else:
+            words.append(a)
+        i += 1
+    if not in_place:
+        return []
+    return words if script_given else words[1:]
 
 
 def tar_targets(args: List[str]) -> List[str]:
@@ -270,6 +309,8 @@ def judge_git(ctx: Context, argv: List[str], cwd: Optional[str]) -> None:
             elif a.startswith("-o") and len(a) > 2:
                 check_write(ctx, a[2:], cwd, creating=True)
         return
+    if sub == "hash-object" and not any(a == "-w" or re.fullmatch(r"-[A-Za-z]*w[A-Za-z]*", a) for a in rest):
+        return  # without -w it only prints a hash; nothing reaches the object store (SWCB #168)
     if sub == "branch":
         if any(a in ("-d", "-D", "--delete", "-m", "-M", "--move", "-c", "-C", "--copy", "-f", "--force", "-u", "--set-upstream-to", "--unset-upstream", "--edit-description") for a in rest) or [a for a in rest if not a.startswith("-")]:
             deny("creating, moving or deleting branches is the coordinator's (never-do 7)")
@@ -404,6 +445,30 @@ def judge_packages(ctx: Context, name: str, argv: List[str]) -> None:
     deny(f"{name} {verb} changes dependencies; the coordinator runs the installs the plan names (never-do 12)")
 
 
+RG_GLOB_FLAGS = ("-g", "--glob", "--iglob")
+EXCLUDE_FLAGS = ("--exclude", "--exclude-dir")
+EXCLUDE_TOOLS = {"grep": EXCLUDE_FLAGS, "egrep": EXCLUDE_FLAGS, "fgrep": EXCLUDE_FLAGS, "fd": EXCLUDE_FLAGS + ("-E",),
+                 "rsync": EXCLUDE_FLAGS, "tar": EXCLUDE_FLAGS, "bsdtar": EXCLUDE_FLAGS, "gtar": EXCLUDE_FLAGS,
+                 "diff": EXCLUDE_FLAGS}
+
+
+def exclusions(name: str, argv: List[str]) -> set:
+    """The places in argv that hold a filter keeping files out: rg's `!` globs, an exclude's value.
+
+    Excluding a credential file is not reading it (SWCB #168). An include glob is
+    still judged as a path, so `rg KEY -g '.env*'` stays refused. A value in its own
+    word counts only for the tools named here, where the flag always takes one."""
+    out = set()
+    for j in range(1, len(argv)):
+        a, prev = argv[j], argv[j - 1]
+        if name == "rg" and (prev in RG_GLOB_FLAGS and a.startswith("!")
+                             or a.startswith(("--glob=!", "--iglob=!", "-g!"))):
+            out.add(j)
+        elif a.startswith(tuple(f + "=" for f in EXCLUDE_FLAGS)) or prev in EXCLUDE_TOOLS.get(name, ()):
+            out.add(j)
+    return out
+
+
 def judge_simple(ctx: Context, s: shellparse.Simple) -> None:
     for w in s.writes:
         check_write(ctx, w, s.cwd, creating=True)
@@ -417,9 +482,10 @@ def judge_simple(ctx: Context, s: shellparse.Simple) -> None:
     if not argv:
         return
     name = os.path.basename(argv[0])
-    # Anything that names a credential or an employer path.
-    for a in argv[1:]:
-        for piece in ([a] + a.split("=", 1)[1:]):
+    # Anything that names a credential or an employer path, except a filter that keeps files out.
+    skip = exclusions(name, argv)
+    for j, a in enumerate(argv[1:], 1):
+        for piece in ([a] + a.split("=", 1)[1:]) if j not in skip else []:
             if "/" in piece or piece.startswith((".", "~")):
                 check_read(ctx, piece, s.cwd)
         for m in re.finditer(r"\$\{?([A-Za-z_][A-Za-z0-9_]*)", a):

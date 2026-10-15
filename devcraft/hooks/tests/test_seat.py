@@ -308,6 +308,13 @@ if Path(sys.argv[0]).name == "claude":
         time.sleep(b.get("pause", 0))
     time.sleep(b.get("sleep", 0))
     out({"type": "assistant", "message": {"model": b.get("stamp", model), "content": [{"type": "text", "text": "done"}]}})
+    # Claude Code leaves a .claude/ in each --add-dir root (SWCB #168); only test-world roots here
+    roots = [argv[j + 1] for j, x in enumerate(argv) if x == "--add-dir"]
+    for r in roots:
+        if b.get("claude_dirs_under") and r.startswith(b["claude_dirs_under"]):
+            (Path(r) / ".claude").mkdir(exist_ok=True)
+            if r == b.get("claude_file_in"):
+                (Path(r) / ".claude" / "settings.local.json").write_text("{}")
     out({"type": "result", "subtype": b.get("subtype", "success"), "result": b.get("answer", "FINDINGS"), "usage": {"input_tokens": 10, "output_tokens": 2}})
     sys.exit(0)
 model = argv[argv.index("--model") + 1]
@@ -552,6 +559,20 @@ def test_launch_files_a_read_only_claude_pass(world, fake):
     assert (world["eng"] / "artifacts" / "security-findings.md").read_text() == "SECURITY PASS FINDINGS\n"
     assert '"model": "claude-opus-5-5"' in (world["eng"] / rec["raw_log"]).read_text(), "line 11's stamp is in the raw log"
 
+
+def test_launch_removes_the_empty_claude_dirs_a_pass_left(world, fake):
+    ctx = context(world, "verifier", "47")
+    seat(world, "claude-settings", ctx)
+    scratch = json.loads(Path(ctx).read_text())["scratch"]
+    (world["wt"] / ".claude").mkdir(exist_ok=True)  # there before the pass: never touched
+    behave(fake, calls=1, claude_dirs_under=str(world["root"]), claude_file_in=scratch)
+    r = launch(world, ctx, "--run")
+    rec = record(world, "47")
+    assert r.returncode == 0, r.stderr
+    assert not (world["eng"] / ".claude").exists(), "the empty one the pass left in the engagement folder is gone"
+    assert (world["wt"] / ".claude").is_dir(), "one that was there before the pass stays"
+    assert (Path(scratch) / ".claude" / "settings.local.json").exists(), "one with a file in it stays"
+    assert rec["claude_dirs"] == {"removed": [str(world["eng"] / ".claude")], "left": [str(Path(scratch) / ".claude")]}
 
 def test_claude_stopping_at_its_budget_is_blocked_budget(world, fake):
     behave(fake, calls=1, subtype="error_max_budget_usd")

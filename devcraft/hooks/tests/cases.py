@@ -126,6 +126,18 @@ DENY_BASH = [
     ("builder", "export DEVCRAFT_SCRATCH={WT}/tests && touch ${DEVCRAFT_SCRATCH}/a", "scratch variable exported, braced"),
     ("release-gate", "echo x > $DEVCRAFT_SCRATCH/probe.py", "scratch named by its variable, not written out"),
     ("security-pass", "git commit -m x", "read-only pass commits"),
+    # what SWCB #168 opened stays shut: an include glob, a path beside an exclusion, -w, the real sed target
+    ("builder", "rg -n KEY -g '.env*' .", "an include glob that names a credential file"),
+    ("builder", "rg -n KEY -g '!**/fixtures/**' .env", "a credential path beside an exclusion glob"),
+    ("builder", "grep -rn KEY --exclude=.env.example .env.local", "a credential path beside an exclude"),
+    ("verifier", "git hash-object -w src/app.py", "hash-object -w writes an object"),
+    ("builder", "git hash-object --stdin-paths -w", "hash-object -w from stdin paths"),
+    ("release-reliability", "cd deploy && sed -i '' 's#a#b#g' ../src/app.py", "macOS sed -i '' on a path Release does not own"),
+    ("release-reliability", "sed -i 's#a#b#g' src/app.py", "GNU sed -i: the script is not taken for a suffix"),
+    ("builder", "sed -i -es/1/2/ tests/test_a.py", "sed script attached to -e"),
+    ("builder", "sed --in-place --expression=s/1/2/ tests/test_a.py", "sed long flags"),
+    ("builder", "sed -ni -e s/1/2/p tests/test_a.py", "sed -i inside a short bundle"),
+    ("verifier", "cp {SCR}/plan-audit.md {ENG}/audits/plan-audit.md", "copy a revised draft over a filed audit"),
     # fails closed
     ("builder", "cat <<EOF\nnever closes", "unparseable command"),
 ]
@@ -172,6 +184,17 @@ ALLOW_BASH = [
     ("security-pass", "tar -tf {SCR}/src.tar", "list an archive"),
     ("builder", "git archive -o {SCR}/src.tar HEAD", "the Builder copies the tree into scratch"),
     ("build-planner", "git archive -o {SCR}/src.tar HEAD", "the Planner copies the tree into scratch"),
+    # SWCB #168: an exclusion glob is not a read, macOS sed's empty suffix is not the script, hash-object only reads
+    ("security-pass", "rg --files src -g '!**/fixtures/**' -g '!**/.env*' -g '!**/held-out/**'", "exclusion globs are not reads"),
+    ("builder", "rg -n TODO --glob='!**/.env*' src", "an exclusion glob, long flag"),
+    ("builder", "rg -n TODO --iglob '!**/.env*' src", "an exclusion glob, case-insensitive"),
+    ("builder", "grep -rn TODO --exclude='.env*' --exclude-dir=.secrets src", "grep's excludes are not reads"),
+    ("release-reliability", "sed -i '' 's#/usr/bin/python3 -B ~/x/install.py#/opt/homebrew/bin/python3 -B ~/x/install.py#g' deploy/RUNBOOK.md", "macOS sed -i '': the script is not the file"),
+    ("release-reliability", "/usr/bin/sed -i '' -e 's/a/b/' deploy/job.plist", "macOS sed -i '' with -e"),
+    ("release-reliability", "sed -i.bak 's/a/b/' deploy/job.plist", "sed -i with an attached suffix"),
+    ("verifier", "git -C {WT} hash-object tests/test_a.py", "hash-object without -w only reads"),
+    ("builder", "git hash-object -t blob src/app.py", "the Builder hashes a file"),
+    ("verifier", "cp {SCR}/audit-tests.md {ENG}/audits/audit-tests.md", "file an audit drafted in scratch, once (SWCB #168)"),
 ]
 
 DENY_TOOL = [

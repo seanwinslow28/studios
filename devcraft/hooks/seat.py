@@ -761,6 +761,29 @@ def number(v: float) -> str:
     return str(int(v)) if float(v).is_integer() else str(v)
 
 
+def add_dirs(ctx: policy.Context) -> List[str]:
+    """The folders a Claude pass is given beside its working one."""
+    dirs = [ctx.worktree, ctx.engagement, str(STUDIOS / "devcraft" / "lanes"), str(STUDIOS / "devcraft" / "corpus")]
+    return dirs + [ctx.scratch] if ctx.scratch else dirs
+
+
+def sweep_claude_dirs(fresh: List[str]) -> Dict[str, List[str]]:
+    """Claude Code leaves an empty `.claude/` in each --add-dir root (SWCB #168).
+
+    `fresh` holds the ones absent before the pass. Each that is now an empty
+    folder is removed; one holding anything stays, for the coordinator to read."""
+    out: Dict[str, List[str]] = {"removed": [], "left": []}
+    for d in fresh:
+        if os.path.islink(d) or not os.path.isdir(d):
+            continue
+        try:
+            os.rmdir(d)
+            out["removed"].append(d)
+        except OSError:
+            out["left"].append(d)
+    return out
+
+
 def launch_argv(ctx: policy.Context, prompt: str, home: Path, profile: str = "", output: str = "",
                 caps: Optional[Dict[str, float]] = None) -> List[str]:
     caps = caps if caps is not None else caps_of(ctx.source, ctx.seat)
@@ -778,10 +801,8 @@ def launch_argv(ctx: policy.Context, prompt: str, home: Path, profile: str = "",
         agents = os.path.join(ctx.worktree, "AGENTS.md")
         if os.path.exists(agents):
             argv += ["--append-system-prompt-file", agents]
-        for d in (ctx.worktree, ctx.engagement, str(STUDIOS / "devcraft" / "lanes"), str(STUDIOS / "devcraft" / "corpus")):
+        for d in add_dirs(ctx):
             argv += ["--add-dir", d]
-        if ctx.scratch:
-            argv += ["--add-dir", ctx.scratch]
         if "budget_usd" in caps:
             argv += ["--max-budget-usd", number(caps["budget_usd"])]
         return argv + [prompt]
@@ -985,6 +1006,7 @@ def cmd_launch(a) -> None:
     wall_sha = sha256(wall)  # taken at launch: the wall this pass actually ran under
     if ctx.scratch:
         Path(ctx.scratch).mkdir(parents=True, exist_ok=True)
+    fresh = [d for d in (os.path.join(r, ".claude") for r in add_dirs(ctx)) if not os.path.lexists(d)] if vendor == "claude" else []
     run = supervise(argv, env, ctx.worktree, log, err, caps, vendor)
     watch: Watch = run.pop("watch")
     rel = lambda p: os.path.relpath(p, eng)  # noqa: E731
@@ -1004,6 +1026,9 @@ def cmd_launch(a) -> None:
         record["usage"], record["meter_source"] = res.get("usage"), ("claude -p result.usage" if res.get("usage") else "UNMEASURED")
         if output and res.get("subtype") == "success" and isinstance(res.get("result"), str):
             Path(output).write_text(res["result"] + "\n")
+        swept = sweep_claude_dirs(fresh)
+        if swept["removed"] or swept["left"]:
+            record["claude_dirs"] = swept
     else:
         record["usage"] = watch.usage or None
         record["meter_source"] = "codex turn.completed.usage" if watch.usage else "UNMEASURED"

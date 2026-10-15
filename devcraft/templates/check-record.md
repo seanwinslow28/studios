@@ -9,7 +9,7 @@ The artifact of an **audit** pass: what the auditing seat saw, what it attacked,
 | `<eng>.audit-release` | builder | the release plan and runbook | after Release's draft; a read-only Codex pass | *Does the release plan cover what this change really touches?* |
 | `<eng>.audit-tests` | release-reliability | the test record, after the final run | the last audit before the release gate | *Would these tests catch what breaks in production or overnight?* |
 
-An audit never edits the checked artifact: a material finding is a loopback to its drafting seat, and one repair round per artifact per check is the cap. The coordinator transcribes the verdict into the checked artifact's `audit:` field and into the pass record's `checks`. The Builder's audit is a Codex pass, so its record is the pass's final message, filed by the coordinator byte for byte. Header fields per [artifact-header.md](artifact-header.md); written to `audits/audit-<slug>.md`.
+An audit never edits the checked artifact: a material finding is a loopback to its drafting seat, and one repair round per artifact per check is the cap. The coordinator transcribes the verdict into the checked artifact's `audit:` field and into the pass record's `checks`. The Builder's audit is a Codex pass, so its record is the pass's final message, filed by the coordinator byte for byte. Header fields per [artifact-header.md](artifact-header.md); written to `audits/audit-<slug>.md` once. A Claude auditor drafts it in its scratch folder and copies it there as its last write, since the guard refuses a second write to a record (seat preamble, SWCB #168).
 
 ```markdown
 ---
