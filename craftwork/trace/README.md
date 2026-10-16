@@ -102,6 +102,32 @@ An id is **claimed** by a file on disk *or* by a pass record naming it among its
 
 One self-contained HTML per engagement, to [DESIGN.md](DESIGN.md) (APPROVED 2026-09-11, the renderer's authority — if the two disagree, DESIGN.md is the intent and the renderer is the bug). Masthead → prose reading line → labeling counter → the first-failing-stage matrix beside the fails with their critiques and the rung-0 checks → the train → one folded row per pass → three growth slots → footer. Fonts embedded from [fonts/](fonts/); every string from a record, label or artifact is escaped; no `<link>`, no `<script src>`, no URLs. Labels drafted on the page live in the browser and leave through **Copy label rows**; the file is the record. **The blind rule:** a shadow pair's runtime, launch form, meter source and log path are not in the HTML at all until both rows carry a verdict in the labels file — the reveal happens on the next render, never on the page.
 
+## Optional blind Close sample
+
+Devcraft adopted this option on SWCB #171 (2026-10-16). It checks the bias risk when the operator drafted the reading of its own work; it does not change the legality of coordinator-drafted, Sean-approved labels. Other studios can use the helper explicitly without adopting a new Close requirement. Ordinary `render.py` and rung 0 are unchanged.
+
+Before Sean sees the coordinator's completed draft labels or the ordinary viewer:
+
+```bash
+python3 craftwork/trace/close_sample.py draw devcraft/ledger/engagements/<eng-id>
+```
+
+Open the resulting `trace/close-sample/blind.html` locally. It draws up to three distinct rows: one drafted fail and one drafted pass when those exist, then a row chosen for diversity across stage, seat and kind, with random ties and shuffled display order. A batch smaller than three uses all its rows. All-pass or all-fail batches still work; the later comparison discloses when no drafted fail was available. The selected ids and completed draft are frozen once in `sample.json` and `draft-labels.md`; a second draw is refused. Do not delete or reroll a draw to get agreement.
+
+The blind page includes no draft verdicts, critiques, label totals or guided cases, and restores no ordinary-viewer drafts. It links to the selected runs' input and output files for Sean to read, including trial artifacts in `trace/trials/`. These are the files on disk: an overwritten artifact is its current revision, so defer when the original pass cannot be judged from the available evidence. It does not inline those files or link to administrative trace files, label views/backups, cases, process notes or directory listings. A downloaded file is the only way answers leave the page; reloading clears them. No account, server or extra dependency is needed.
+
+Sean labels before seeing the draft, chooses **Download my labels**, and saves the downloaded `blind-labels.md` beside the page. Then:
+
+```bash
+python3 craftwork/trace/close_sample.py compare devcraft/ledger/engagements/<eng-id>
+```
+
+The comparison reveals the sampled draft rows alongside Sean's saved rows in `comparison.md`, written once. It compares verdict and first failing stage. Critique wording and taxonomy codes are not automatically scored; Sean can require wider review over a substantive difference in reasoning. Every sampled answer must be a decided verdict; a defer or missing answer cannot clear the sample. The saved answers carry a draw id, and changes to the draft, pass records or source evidence invalidate comparison. A live coordinator transcript may append after the draw; its existing bytes are frozen and checked, so rewriting or truncating that prefix still invalidates comparison. Directory snapshots exclude only this helper's generated folder and separately checked live-log bytes. Exit codes: `0` for a draw or agreement, `1` for disagreement, `2` for an incomplete or invalid comparison. None changes `labels.md` or approves the batch.
+
+**Disagreement on any sampled verdict or first failing stage holds batch approval.** Sean reads the remaining rows himself, or a fresh-context reader redrafts the whole batch for his review. Never fix only the sampled rows and approve the rest on that basis. Agreement supports the batch standing for Sean's approval; three matching rows do not establish correctness of the others. A changed batch needs a full review, not a new draw against the old answers.
+
+Close records whether the option was used or declined and links the saved comparison when used. The labels' provenance distinguishes Sean's independently read sample rows from the unsampled coordinator-drafted rows; no whole-batch claim of blind or independent labeling. If Sean already saw the draft, keep the disclosure and use a wider review rather than claiming blindness. This is separate from runtime blinding for shadow trials. It never replaces rung 0, pass coverage, the mandatory Close label sweep, or Sean's approval.
+
 ## Guided reading
 
 The page teaches as it is read, to phase 3 of the eval learning plan (adopted 2026-09-20, recorded in [DESIGN.md §14](DESIGN.md)). Above the counts it states the four things a reader is judging, kept apart — record checks, the seats' findings, your own labels, the owner decisions that are yours alone — with the versioned review prompt for each kind of run. Below them sits **guided reading**: one chapter per case, with decreasing help, each leading with a plain `Run NN · <Seat> <kind>` line, quoting its source with the line it sits on, and offering a question, a note and a bookmark.
