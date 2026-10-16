@@ -78,9 +78,15 @@ beside its JSONL as `pass-NN.rollouts/` by `codexlog.collect`, are checked for t
 model and effort stamps and for any helper agent, which is a finding. The line is
 renamed to say so. A Codex pass with no session files is unverifiable, named.
 
+0.13.0 is the coordinator's record contract (SWCB #169, pieces 1 and 2): `reads.py`
+recovers a pass's `## Corpus read` from its raw log, Claude or Codex, so the
+coordinator pastes the list and never types it; `sessionlog.py` prints the
+coordinator session's own transcript path for its `open`, `readout` and `close`
+records' `raw_log`, which line 11 then reads like any seat's log.
+
 The content machine (#291) shares this code rather than forking it, through its
 own profile.
 """
 
 KIT_NAME = "craftwork/trace"
-KIT_VERSION = "0.12.0"
+KIT_VERSION = "0.13.0"

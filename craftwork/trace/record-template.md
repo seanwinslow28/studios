@@ -2,7 +2,7 @@
 
 The first piece of the trace kit (designed on [#272](https://github.com/seanwinslow28/code-brain/issues/272), decision 2; built on [#290](https://github.com/seanwinslow28/code-brain/issues/290)). One file per seat invocation at `ledger/engagements/<eng-id>/trace/pass-NN-<seat>-<kind>.md`, private, never edited after the pass completes. Frontmatter for machine fields, three short sections for human ones. The record **indexes** the transcript; it never replaces it. Ruled out: dollar figures; prose about what the seat "thought".
 
-**Who writes which field.** The **coordinator** writes the launch fields before firing the seat (`pass` through `inputs`, `withheld`, `raw_log`, `triggered_by`, `shadow_of`) and the completion fields after it returns (`completed`, `wall_clock_s`, `meter`, `meter_source`, `outputs` with their hashes, `## Corpus read` from the transcript's file reads, `## Notes`). The **seat** writes its `## Moves` in the artifact, never here. The coordinator appends to `checks` as audits, co-signs and gates land. **Sean** writes labels in [labels-template.md](labels-template.md), never in a record.
+**Who writes which field.** The **coordinator** writes the launch fields before firing the seat (`pass` through `inputs`, `withheld`, `raw_log`, `triggered_by`, `shadow_of`) and the completion fields after it returns (`completed`, `wall_clock_s`, `meter`, `meter_source`, `outputs` with their hashes, `## Corpus read` pasted from [reads.py](reads.py)'s output, never typed, `## Notes`). The **seat** writes its `## Moves` in the artifact, never here. The coordinator appends to `checks` as audits, co-signs and gates land. **Sean** writes labels in [labels-template.md](labels-template.md), never in a record.
 
 The frontmatter is a YAML subset the checker parses with the stdlib: scalars, lists, one level of nesting, `- key:` blocks. Nothing else. A record the checker cannot parse fails the first rung-0 line, loudly.
 
@@ -39,7 +39,8 @@ outputs:                               # what came back: every file with the has
   - path: d01-the-binding-constraint.md    # a ledger entry the pass wrote is a file: path + hash, like any other
     sha256: <64 hex>
   - id: pc-eng-001.d01                     # and its id beside it, so cross-references resolve
-raw_log: trace/logs/pass-01.jsonl      # the subagent JSONL or the codex log — the record indexes it, never replaces it
+raw_log: trace/logs/pass-01.jsonl      # the subagent JSONL or the codex log — the record indexes it, never replaces it;
+                                       # open / readout / close: the coordinator session's transcript, from sessionlog.py
 checks: []                             # appended afterwards, one block per audit / co-sign / gate that touched this pass:
                                        #   - pass: pass-02
                                        #     kind: gate
@@ -50,7 +51,7 @@ shadow_of: null                        # trials only: the baseline pass this tri
 
 ## Corpus read
 
-<!-- recovered from the transcript's file reads — a fact, not the seat's claim; one path per line, or `none` -->
+<!-- pasted from `python3 craftwork/trace/reads.py <raw_log>`, never typed — a fact, not the seat's claim; one path per line, or `none` -->
 
 - productcraft/corpus/canon/strategy-good-strategy-bad-strategy.md
 
@@ -79,7 +80,7 @@ artifacts/strategy-pov.md § Moves
 | `readout` | the coordinator's post-gate human readout, outside the pass budget | no — writes the readout and its glossary | 0 |
 | `close` | the coordinator's own session, one record at Close | no | 0 |
 
-A redraft after the stale cascade is a `repair` with `triggered_by` naming the loopback pass. The coordinator's own records carry the deviations and the meter of its own session (usually `UNMEASURED`).
+A redraft after the stale cascade is a `repair` with `triggered_by` naming the loopback pass. The coordinator's own records carry the deviations, the meter of its own session (`UNMEASURED`: the app reports none) and a pointer to its transcript (below).
 
 **The three coordinator kinds** — `open`, `readout`, `close` — are the sessions where no seat fires. They are the one exception to the `withheld` rule: there is no drafting conversation to withhold, so the checker does not demand the line. `open` matters to the chain rather than to the reading: the brief, the frozen evidence and any anchoring entries enter the hash history as its outputs, so a later pass that reads them has something to match against. Without it, the first engagement recorded Open as a second `close`. `readout` is the human-facing pass after the close gate — it hands nothing to a seat and is not counted against the pass budget, but it is a real invocation and gets a real record.
 
@@ -98,3 +99,17 @@ Artifacts are redrafted **in place** with `revision:` bumped (#274); the pass re
 ## Corpus reads along a revision chain
 
 A repair that fixes one paragraph hands back a file still carrying every citation its earlier revisions made. The checker does not charge the repairing pass with reading all of them: a citation is accounted for by this pass's `## Corpus read` **or** by that of any earlier pass which recorded the same artifact path as an output. Reads travel along one artifact's own revision chain and never sideways to another artifact. So write `## Corpus read` as what this pass actually opened — never pad it to cover inherited lines.
+
+## Corpus read, by script
+
+The coordinator never types `## Corpus read`. It runs [reads.py](reads.py) on the pass's raw log and pastes what it prints (SWCB #169, after the coordinator typed `none` on six dc-eng-002 Builder passes whose transcripts show the reads, and rung-0 line 5, which trusts this section, turned the error into an accusation against the seat):
+
+```bash
+python3 craftwork/trace/reads.py <eng>/trace/logs/pass-NN.jsonl
+```
+
+It reads a Claude log (stream-json, an Agent-tool subagent JSONL, a session file) or a Codex `--json` log with its `pass-NN.rollouts/` session files. A read is what put a corpus file's text in front of the seat: a successful `Read`, a file a search quoted (a `Grep` in content mode, `rg` or `grep` output), a file handed to a reader (`cat`, `head`, `sed -n`, `awk` …). A listing (`ls`, `rg --files`, `grep -l`, `wc`) reads nothing. A call it cannot judge, such as a heredoc script, an unknown program or a command that failed partway, is printed on stderr and never guessed into the list. The coordinator checks each such call against the transcript and says what it found in `## Notes`; a read it confirms there is added to the list with that note beside it.
+
+## The coordinator's own session
+
+An `open`, `readout` or `close` record's `raw_log` points at the coordinator session's own transcript: the path `python3 craftwork/trace/sessionlog.py` prints when run inside that session. It is a pointer, never a copy. The transcript holds the whole conversation with Sean and stays where Claude Code keeps it, outside the ledger. With it, rung-0 line 11 checks the record's `runtime:` against the session's model stamps like any seat's, and a model switch anywhere in the session is a finding. Claude Code prunes old transcripts (30 days by default), so a pointer can stop resolving; line 11 then names the pass as having no readable log. The meter stays `meter: null` with `meter_source: UNMEASURED`: the desktop app's usage card shows plan limits and the context window, not a session's tokens. A record written before SWCB #169 keeps `raw_log: none` and stays out of line 11's scope.

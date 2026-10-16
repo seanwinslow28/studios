@@ -227,3 +227,55 @@ def test_collect_copies_a_pass_and_its_helpers_from_the_seat_home(tmp_path):
     got = collect(tmp_path / "home", ROOT, tmp_path / "pass-07.rollouts")
     assert sorted(f.name for f in got) == ["rollout-1-own.jsonl", "rollout-2-helper.jsonl"]
     assert (day / "rollout-1-own.jsonl").exists()   # copied, never moved
+
+
+# --------------------------------------------------------------------------- #
+# The coordinator's own session (SWCB #169): `raw_log` points at its transcript
+# --------------------------------------------------------------------------- #
+
+
+def point_coordinator(eng_dir: Path, log: Path) -> str:
+    """Point the close record's `raw_log` at a session transcript outside the engagement; returns its id."""
+    rec = next((eng_dir / "trace").glob("pass-*-coordinator-close.md"))
+    rec.write_text(rec.read_text().replace("raw_log: —", f"raw_log: {log}"))
+    return rec.name[:7]
+
+
+def session(path: Path, *models: str, quoted: str = "") -> Path:
+    """A Claude Code session file: Sean's turns, the coordinator's replies, and a tool result that quotes a log."""
+    lines = [{"type": "user", "message": {"role": "user", "content": "open the engagement"}, "cwd": "/x"}]
+    for m in models:
+        lines.append({"type": "assistant", "message": {"model": m, "role": "assistant", "content": []}})
+    if quoted:
+        lines.append({"type": "user", "message": {"role": "user", "content": [
+            {"type": "tool_result", "tool_use_id": "t", "content": quoted}]}})
+    path.write_text("".join(json.dumps(x) + "\n" for x in lines), encoding="utf-8")
+    return path
+
+
+def test_a_coordinator_session_pointer_is_checked_like_any_log(eng_dir, tmp_path):
+    pid = point_coordinator(eng_dir, session(tmp_path / "s1.jsonl", "claude-fable-5-1", "claude-fable-5-1"))
+    c = line(eng_dir)
+    assert c.ok and c.n_ok == 1 and c.n_total == 25
+    assert not any("out of scope" in n for n in c.notes)
+    assert pid not in " ".join(c.notes)
+
+
+def test_a_model_switch_in_the_coordinator_session_is_a_finding(eng_dir, tmp_path):
+    pid = point_coordinator(eng_dir, session(tmp_path / "s2.jsonl", "claude-fable-5-1", "claude-opus-5-5"))
+    assert line(eng_dir).findings == [
+        f"{pid}: runtime claude-fable-5-1 but its raw log is stamped claude-fable-5-1, claude-opus-5-5"]
+
+
+def test_a_seat_log_quoted_inside_the_session_is_not_a_stamp(eng_dir, tmp_path):
+    # the coordinator reads seat logs all train long; their stamps sit inside a JSON string, escaped
+    quoted = json.dumps({"type": "assistant", "message": {"model": "claude-opus-5-5"}})
+    point_coordinator(eng_dir, session(tmp_path / "s3.jsonl", "claude-fable-5-1", quoted=quoted))
+    assert line(eng_dir).n_ok == 1
+
+
+def test_a_pruned_coordinator_transcript_is_unverifiable_and_named(eng_dir, tmp_path):
+    pid = point_coordinator(eng_dir, tmp_path / "gone.jsonl")
+    c = line(eng_dir)
+    assert c.ok and c.n_ok == 0
+    assert any("no readable JSONL raw log" in n and pid in n for n in c.notes)
