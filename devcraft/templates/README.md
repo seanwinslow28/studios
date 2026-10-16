@@ -20,7 +20,7 @@ Public machinery; filled artifacts are private, in the engagement folder of the 
 **The checks**
 
 - [check-record.md](check-record.md): the record of each of the four audits, with each seat's stake and the verify stance.
-- [gate-findings.md](gate-findings.md): the findings file of each gate, with Devcraft's typed verdicts (`PLAN | RELEASE | SECURITY`), the plan gate's frozen exceptions and the release gate's automatic checks.
+- [gate-findings.md](gate-findings.md): the findings file of each gate, with Devcraft's typed verdicts (`PLAN | RELEASE | SECURITY | AUDIT`), the plan gate's frozen exceptions and the release gate's automatic checks.
 
 **Handoffs**, under [the handoff contract](../../craftwork/handoff-contract.md), written on the map's **The two bindings and Devcraft's return templates** ticket (2026-10-11). A binding sits in the sending team's `templates/`, and its mirror in the receiving team's.
 

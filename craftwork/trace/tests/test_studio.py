@@ -334,6 +334,26 @@ def test_a_devcraft_small_ask_checks_clean(tmp_path):
     assert line8.count == "2 of 2"
 
 
+def test_devcraft_self_check_has_its_own_gate_lane_and_registry_family(tmp_path):
+    from tracekit.registry import numbers_for
+
+    root = _dc_engagement(tmp_path, "small-ask", DC_SMALL + DC_CLOSE)
+    findings = root / "audits" / "self-check.md"
+    findings.write_text("# Self-check\n\nAUDIT PASS — QUALITY VERDICT ONLY\n")
+    _sc_record(root, 6, "self-check", "gate", 3, [CHANGE], ["audits/self-check.md"])
+    labels = root / "trace" / "labels.md"
+    with labels.open("a") as f:
+        f.write("| pass-06 | pass | | fine | |\n")
+    eng = load_engagement(root, studio=load_profile(DC_PROFILE))
+    assert all(c.ok for c in run_checks(eng))
+    page = render_html(eng)
+    assert "Self-check" in page
+    assert "self-check" in eng.studio.gate_seats
+    _, cells = numbers_for([eng])
+    cell = next(c for c in cells if c.seat == "self-check")
+    assert cell.family == "gate" and cell.passes == 1
+
+
 def test_a_devcraft_small_ask_with_its_release_leg_checks_clean(tmp_path):
     _, line8 = _dc_line8(tmp_path, "small-ask", DC_SMALL + DC_RELEASE_LEG + DC_CLOSE)
     assert line8.ok, line8.findings

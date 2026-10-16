@@ -237,6 +237,77 @@ def test_codex_session_files_are_read_beside_the_stream_and_merged(repo, tmp_pat
     assert len(r.unjudged) == 1   # the same failed command, from the stream and the session file, named once
 
 
+def codex_text(workdir, *commands) -> str:
+    """`codex exec` stdout without --json: a header, then `exec` / command / status / output blocks."""
+    out = ["Reading additional input from stdin...", "OpenAI Codex v0.146.0", "--------", f"workdir: {workdir}",
+           "model: gpt-5.6-sol", "--------", "user", "# Pass-07 brief", "", "codex", "I'll read the corpus first."]
+    for cmd, status, text in commands:
+        out += ["exec", f"{cmd} in {workdir}", f" {status} in 0ms:", *text.split("\n")]
+    out += ["codex", "Done.", "tokens used", "12,345"]
+    return "\n".join(out) + "\n"
+
+
+def test_codex_text_commands_are_judged_like_the_json_stream(repo):
+    c = str(canon(repo))
+    text = codex_text(c, ("/bin/zsh -lc 'cat alpha.md'", "succeeded", "# alpha\n\n## A heading"),
+                      ("/bin/zsh -lc 'rg --files .'", "succeeded", "alpha.md\nbeta.md\ngamma.md"),
+                      ("/bin/zsh -lc \"rg -n heading .\"", "succeeded", "./gamma.md:3:## A heading\nexec"),
+                      ("/bin/zsh -lc 'cat beta.md; false'", "exited 1", "# beta"),
+                      (f"/bin/zsh -lc \"python3 - <<'PY'\nopen('{c}/beta.md')\nPY\"", "succeeded", ""))
+    r = read_logs_text(text)
+    assert r.error == ""
+    assert r.paths == {ALPHA, GAMMA}
+    assert [u.split(":")[0] for u in r.unjudged] == ["the command failed", "a heredoc script may read the corpus"]
+
+
+def read_logs_text(text):
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        log = Path(d) / "pass-07.log"
+        log.write_text(text, encoding="utf-8")
+        return read_logs(log)
+
+
+# --------------------------------------------------------------------------- #
+# zsh stops a command line at an unquoted `=word` it cannot look up
+# --------------------------------------------------------------------------- #
+
+
+def test_the_commands_before_a_zsh_equals_failure_are_judged(repo):
+    # zsh reads `=====` as a lookup of a command called `====`, prints `==== not found`
+    # and abandons the rest of the line: what came before ran, what came after never did
+    c = canon(repo)
+    cmd = f"cd {c}; sed -n 1,9p alpha.md; echo =====; cat beta.md"
+    r = read_log(claude_log(("Bash", {"command": cmd}, "Exit code 1\n# alpha\n## A heading\n(eval):1: ==== not found",
+                             True)))
+    assert r.paths == {ALPHA} and r.unjudged == []
+    r = read_log(codex_stream((f"/bin/zsh -lc 'cat {c}/alpha.md {c}/gamma.md && echo ===== && cat {c}/beta.md'", 1,
+                               "# alpha\n# gamma\nzsh:1: ==== not found\n")))
+    assert r.paths == {ALPHA, GAMMA} and r.unjudged == []
+
+
+def test_a_zsh_equals_failure_first_on_the_line_reads_nothing(repo):
+    r = reads(f"echo =====; cat {canon(repo)}/alpha.md", output="(eval):1: ==== not found", ok=False)
+    assert r.paths == set() and r.unjudged == []
+
+
+def test_a_zsh_equals_failure_after_another_error_is_named_not_judged(repo):
+    c = canon(repo)
+    r = reads(f"cat {c}/missing.md; echo =====; cat {c}/beta.md", ok=False,
+              output=f"cat: {c}/missing.md: No such file or directory\n(eval):1: ==== not found")
+    assert r.paths == set()
+    assert len(r.unjudged) == 1
+    assert r.unjudged[0].startswith("the command failed at `=====`, which zsh reads as a command lookup"), r.unjudged
+
+
+def test_a_quoted_separator_is_not_a_zsh_equals_failure(repo):
+    c = canon(repo)
+    r = reads(f"cat {c}/alpha.md; echo '====='; cat {c}/missing.md", ok=False,
+              output=f"# alpha\n=====\ncat: {c}/missing.md: No such file or directory")
+    assert r.paths == set()
+    assert len(r.unjudged) == 1 and r.unjudged[0].startswith("the command failed: "), r.unjudged
+
+
 def test_the_section_is_one_path_per_line_or_none(repo):
     r = read_log(claude_log(("Read", {"file_path": f"{canon(repo)}/beta.md"}, "x", False),
                             ("Read", {"file_path": f"{canon(repo)}/alpha.md"}, "x", False)))
@@ -265,9 +336,25 @@ def test_the_command_prints_the_section_and_names_the_unjudged_on_stderr(repo, t
     assert "`python3` is not a program the script judges" in r.stderr
 
 
-def test_the_command_prints_none_and_exits_two_on_a_missing_log(tmp_path):
-    empty = tmp_path / "pass-01.jsonl"
-    empty.write_text("", encoding="utf-8")
-    assert run(str(empty)).stdout == "none\n"
+def test_the_command_exits_two_on_a_missing_log(tmp_path):
     r = run(str(tmp_path / "pass-99.jsonl"))
-    assert r.returncode == 2 and "pass-99.jsonl" in r.stderr
+    assert r.returncode == 2 and "pass-99.jsonl" in r.stderr and r.stdout == ""
+
+
+def test_the_command_exits_two_on_a_log_it_cannot_read_never_none(tmp_path):
+    # `none` from a log the script could not parse would be the typed-`none` error again (SWCB #169)
+    for name, text in (("pass-01.jsonl", ""), ("pass-02.md", "# Coordinator notes\n\nRead the brief.\n"),
+                       ("pass-03.log", "Reading additional input from stdin...\nsome tool's plain output\n")):
+        log = tmp_path / name
+        log.write_text(text, encoding="utf-8")
+        r = run(str(log))
+        assert r.returncode == 2 and r.stdout == "", name
+        assert name in r.stderr and "no JSON lines" in r.stderr, r.stderr
+
+
+def test_the_command_reads_a_codex_text_log(repo, tmp_path):
+    log = tmp_path / "pass-07.log"
+    log.write_text(codex_text(str(canon(repo)), (f"/bin/zsh -lc 'cat alpha.md'", "succeeded", "# alpha")),
+                   encoding="utf-8")
+    r = run(str(log))
+    assert r.returncode == 0 and r.stdout == f"- {ALPHA}\n" and r.stderr == ""

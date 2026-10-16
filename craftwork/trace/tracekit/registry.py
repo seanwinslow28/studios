@@ -48,7 +48,7 @@ SEAT_FAMILIES = {
     "ops-economics-modeler": "quantitative",
     "red-team-gate": "gate",
     # Devcraft (#110 on the Devcraft build map, 2026-10-11): four families of its own, one per seat, so a
-    # model never earns a seat on another's work; its three gates are separate seats in the shared gate family
+    # model never earns a seat on another's work; its gate protocols share the gate family
     "build-planner": "build planning",
     "builder": "coding",
     "verifier": "test design",
@@ -56,6 +56,7 @@ SEAT_FAMILIES = {
     "plan-gate": "gate",
     "release-gate": "gate",
     "security-pass": "gate",
+    "self-check": "gate",
     "coordinator": "coordination",
 }
 

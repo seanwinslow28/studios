@@ -98,11 +98,12 @@ STUDIO = Studio(
     coordinator_kinds=("open", "close"),
     coordinator_stage=0,
     coordinator_label="open · close",
-    gate_seats=("plan-gate", "release-gate", "security-pass"),
+    gate_seats=("plan-gate", "release-gate", "security-pass", "self-check"),
     seat_names={
         "build-planner": "Planner", "verifier": "Verifier", "builder": "Builder",
         "release-reliability": "Release", "coordinator": "Coordinator",
         "plan-gate": "Plan gate", "release-gate": "Release gate", "security-pass": "Security pass",
+        "self-check": "Self-check",
     },
     repo_prefixes=("devcraft/", "productcraft/", "systemcraft/", "craftwork/", ".claude/"),
     corpus_path_re=re.compile(r"(?<![\w/])((?:devcraft/)?corpus/[\w\-./]+?\.md)"),

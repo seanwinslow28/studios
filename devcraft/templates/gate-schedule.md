@@ -2,7 +2,7 @@
 
 Devcraft's own half of the red-team gate: when its gates fire, what each one reads and may demand, which vendor runs it, and what it attacks per artifact. The protocol itself (posture, statelessness, typed verdicts, IMPLEMENTATION HOLD, the rule that a gate never silently skips) is shared law at [craftwork/templates/red-team-protocol.md](../../craftwork/templates/red-team-protocol.md); this file is kept as Systemcraft keeps [its own](../../systemcraft/templates/gate-schedule.md). Written on the Devcraft build map's **Artifact templates and the gate schedule** ticket (2026-10-11), from rules 6 and 7 of [`devcraft/CLAUDE.md`](../CLAUDE.md), the bench and plugin-routing briefs (ratified 2026-10-08) and the seat-contract rulings (2026-10-11).
 
-Gates are protocols, not seats. The trace kit files them as the gate seats `plan-gate`, `release-gate` and `security-pass` so their records have lanes. Each writes [gate-findings.md](gate-findings.md).
+Gates are protocols, not seats. The trace kit files them as the gate seats `plan-gate`, `release-gate`, `security-pass` and `self-check` so their records have lanes. Each writes [gate-findings.md](gate-findings.md).
 
 ## When gates fire
 
@@ -12,12 +12,13 @@ Gates are protocols, not seats. The trace kit files them as the gate seats `plan
 | **Small direct ask** | **Release gate** only, and only when the change touches live data, a migration, or anything that runs unattended. Otherwise its state is `NOT FIRED — TRIGGER NOT MET`, recorded with the reason |
 | **Ops-only direct ask** (a job, a schedule or a config file; no source) | **Release gate**, always. The drill record stands in for tests; a missing drill record is a release-gate FAIL |
 | **One-off question** | No gate |
+| **Self-targeted check** (the shared law's modifier) | **Self-check gate** after the check report, before delivery. It attacks the check itself, in addition to any build gates the engagement's type requires |
 
 When Systemcraft's Gate 3 waits on a build, the release gate runs first and feeds it, never replacing it. Its verdict is typed RELEASE, never LAUNCH.
 
-Outcomes are typed **PLAN** / **RELEASE** / **SECURITY**, each `PASS | PASS WITH ACCEPTANCES | FAIL` and always `— QUALITY VERDICT ONLY`. No verdict here is a merge or a go-live: those take Sean's dated yes, recorded in the ledger. A finding that lies outside the brief's pre-registered threat model is a NOTE with a recorded limit, never MATERIAL ([SWCB #139](https://github.com/seanwinslow28/SWCB/issues/139), ruled 2026-10-13); the model and the P0 rule written from it are frozen by the plan gate beside the exceptions.
+Outcomes are typed **PLAN** / **RELEASE** / **SECURITY** / **AUDIT**, each `PASS | PASS WITH ACCEPTANCES | FAIL` and always `— QUALITY VERDICT ONLY`. No verdict here is a merge or a go-live: those take Sean's dated yes, recorded in the ledger. A finding that lies outside the brief's pre-registered threat model is a NOTE with a recorded limit, never MATERIAL ([SWCB #139](https://github.com/seanwinslow28/SWCB/issues/139), ruled 2026-10-13); the model and the P0 rule written from it are frozen by the plan gate beside the exceptions.
 
-## The three gates
+## The build gates
 
 | | Plan gate | Security pass | Release gate |
 |---|---|---|---|
@@ -27,6 +28,24 @@ Outcomes are typed **PLAN** / **RELEASE** / **SECURITY**, each `PASS | PASS WITH
 | **Reads** | the plan, the Verifier's audit of it, the intake, the repo at `base` | the plan's security section, the diff, the change note, the test record's security tests, the automatic checks | the gate packet in the release plan: all four artifacts, the diff, every check record, the plan gate's findings, the security pass's when it fired, the automatic checks |
 | **May demand** | paper only: no code exists yet, so runtime evidence is an IMPLEMENTATION HOLD for the release gate, never a finding | the fixed security attack list, weighted to the triggers that fired | everything a built change can show: real output at the named commit, the drill record, the automatic checks, the closure of every hold the plan gate set |
 | **Attacks** | § Build plan, below | § The fixed security attack list | § Change note, § Test record, § Release plan, § Whole build, and the fixed security attack list, together |
+
+## Self-check gate (AUDIT)
+
+The self-check gate reviews a self-targeted check, per [the shared modifier](../../craftwork/law.md#self-targeted-modifier). It is a protocol, with the trace and launcher name `self-check`, not a fifth specialist seat. It never substitutes for a plan, security or release gate.
+
+| | Self-check gate |
+|---|---|
+| **Anchor** | the check report in `artifacts/` or `inherited/`, named with `--anchor`; its header's `model:` line identifies its last writer |
+| **Vendor** | the vendor that did not last write the check: Codex GPT-6.1 Sol High for a Claude-written report, fresh-context Opus 5.5 for a Codex-written one; any fallback is named under the shared protocol |
+| **Launch** | the existing read-only gate form on that vendor, model pinned; default caps of 20 minutes and 80 tool calls on Codex, 30 minutes and $15 on Claude |
+| **Reads** | the check report, its pre-registered questions and limits, its exact context manifests, and the raw records and saved output behind every claim; never the drafting conversation |
+| **May demand** | reproduction of every claim from the raw record, including the commands, inputs and outputs that support it; missing or inaccessible evidence is a recorded limit, never a presumed pass |
+| **Attacks** | § Self-targeted check, below |
+| **Record** | `audits/self-check.md`, a re-run `audits/self-check-r2.md`; `kind: gate`, `seat: self-check`, `gate: AUDIT`, and the anchor's stage; the verdict is `AUDIT PASS \| PASS WITH ACCEPTANCES \| FAIL — QUALITY VERDICT ONLY` |
+
+An AUDIT verdict rules on the check's claims and limits. Judgment and ratification remain Sean's; it never authorizes the studio to implement its own expansion. The existing gate repair cap and stopping rule apply.
+
+## Build-gate evidence
 
 **The plan gate freezes the exceptions.** Its findings copy the plan's Exceptions section as it stood at the hash the gate read. That list is the only one the diff check honors: a skip, a credential file, a dependency, a control file or a host the build needs and the list lacks is a release-gate finding, or a push that fails outright for a default branch or an unnamed control edit (rule 9). A call found after the plan gate comes back as a plan amendment, and the plan gate re-runs on the amendment alone.
 
@@ -72,6 +91,13 @@ The release gate runs every line on every build, whatever the plan rated. The se
 - **SA12 · Public leak.** Book-derived text, ledger detail, or an employer, client or startup name in a tracked file, a commit message, a branch name or an issue (never-do 11). *Lands:* the diff; the change note.
 
 ## Attack checklists per artifact
+
+### Self-targeted check
+
+- **Claims without raw support.** Reproduce each claim from the raw record; a summary, a prior verdict or the studio's own account cannot stand in for evidence.
+- **A check outside its registration.** Questions, finding classes, context manifests or limits differ from those fixed at Open, or a class the check cannot produce is silently treated as covered.
+- **Self-certification.** The check calls its own completion success, lacks an outcome signal the studio cannot self-issue, or takes judgment or ratification from Sean.
+- **Borrowed authority.** An AUDIT verdict is presented as build or release approval, or the check implements or ratifies its own expansion.
 
 ### Build plan
 

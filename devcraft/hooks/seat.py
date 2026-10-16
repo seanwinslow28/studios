@@ -87,7 +87,7 @@ CODEX_EFFORT = "high"
 # The one step above it on the ruled ladder (craftwork § Model delegation); past it, stop and ask Sean.
 # Never `ultra` (it auto-delegates) and never `max`.
 CODEX_ESCALATED_EFFORT = "xhigh"
-GATE_FINDINGS = re.compile(r"audits/(plan-gate|release-gate|security-pass)(-r\d+)?\.md")
+GATE_FINDINGS = re.compile(r"audits/(plan-gate|release-gate|security-pass|self-check)(-r\d+)?\.md")
 LEDGER_ENTRY = re.compile(r"d\d+-[^/]+\.md")
 # The security pass is filed as a gate seat but runs on a fresh-context Opus 5.5 (bench README).
 CLAUDE_LAUNCH = policy.CLAUDE_SEATS + ("security-pass",)
@@ -96,6 +96,7 @@ DEFAULT_CAPS = {
     "builder": {"minutes": 60, "tool_calls": 200},
     "plan-gate": {"minutes": 20, "tool_calls": 80},
     "release-gate": {"minutes": 20, "tool_calls": 80},
+    "self-check": {"minutes": 20, "tool_calls": 80},
     **{s: {"minutes": 30, "budget_usd": 15} for s in CLAUDE_LAUNCH},
 }
 # A pass that moves vendor takes the caps of the vendor and kind of pass it becomes (Sean, SWCB #126).
