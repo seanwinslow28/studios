@@ -25,8 +25,8 @@ from typing import Iterable, List, Optional
 
 SEATS = ("build-planner", "builder", "verifier", "release-reliability")
 CLAUDE_SEATS = ("build-planner", "verifier", "release-reliability")
-CODEX_SEATS = ("builder", "plan-gate", "release-gate")
-GATES = ("plan-gate", "release-gate", "security-pass")
+CODEX_SEATS = ("builder", "plan-gate", "release-gate", "self-check")
+GATES = ("plan-gate", "release-gate", "security-pass", "self-check")
 ALL_ROLES = SEATS + GATES + ("coordinator",)
 VENDORS = ("claude", "codex")
 

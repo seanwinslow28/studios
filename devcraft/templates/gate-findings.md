@@ -1,20 +1,20 @@
-# Gate findings template — the plan gate, the release gate and the security pass
+# Gate findings template — build gates and the self-check gate
 
-The findings file a gate writes: stateless, receiving only the artifacts, the shared [red-team protocol](../../craftwork/templates/red-team-protocol.md) and [the gate schedule](gate-schedule.md), never the drafting conversation, on the vendor that did not last write its anchor. Devcraft's three gates and when each fires are in the gate schedule. Every gate also writes its ledger entry, naming its vendor and why; this file is the authoritative record of the verdict and the entry is derived from it. On Productcraft's shape ([productcraft/templates/gate-findings.md](../../productcraft/templates/gate-findings.md)).
+The findings file a gate writes: stateless, receiving only the artifacts, the shared [red-team protocol](../../craftwork/templates/red-team-protocol.md) and [the gate schedule](gate-schedule.md), never the drafting conversation, on the vendor that did not last write its anchor. The gate schedule defines Devcraft's build gates and its self-check gate, and when each fires. Every gate also writes its ledger entry, naming its vendor and why; this file is the authoritative record of the verdict and the entry is derived from it. On Productcraft's shape ([productcraft/templates/gate-findings.md](../../productcraft/templates/gate-findings.md)).
 
-A Codex gate's findings file is the pass's final message, filed by the coordinator byte for byte; the security pass, on Claude, writes its own. Header fields per [artifact-header.md](artifact-header.md); written to `audits/<gate>.md`, a re-run to `audits/<gate>-r2.md`.
+A gate runs read-only on either vendor; its findings file is its final message, filed byte for byte by the launcher. Header fields per [artifact-header.md](artifact-header.md); written to `audits/<gate>.md`, a re-run to `audits/<gate>-r2.md`. For the self-check gate these are `audits/self-check.md` and `audits/self-check-r2.md`; its anchor is the check report, with the raw record as evidence, and its verdict type is AUDIT.
 
 Posture is inherited: *find the strongest case that this fails; being unable to find a material flaw is a finding, so state what you attacked and why it held*; propose the steel-man alternative.
 
 ```markdown
 ---
-id: dc-eng-001.plan-gate           # plan-gate | release-gate | security-pass, -r2 on a re-run
+id: dc-eng-001.plan-gate           # plan-gate | release-gate | security-pass | self-check, -r2 on a re-run
 engagement: dc-eng-001-<slug>
 date: 2026-10-14
-seat: plan-gate                    # plan-gate | release-gate | security-pass
+seat: plan-gate                    # plan-gate | release-gate | security-pass | self-check
 kind: gate
-stage: 1                           # the anchor's stage: plan gate 1, security pass 3, release gate 4
-gate: PLAN                         # PLAN | RELEASE | SECURITY
+stage: 1                           # the anchor's stage: plan gate 1, security pass 3, release gate 4; self-check follows its check report
+gate: PLAN                         # PLAN | RELEASE | SECURITY | AUDIT
 anchor: dc-eng-001.plan            # the anchor artifact and its revision
 anchor_revision: 1
 anchor_sha256: <sha256>            # the anchor as this gate read it; the plan gate's freezes the exceptions
@@ -30,7 +30,14 @@ ledger_entry: dc-eng-001.d04
 
 ## Verdict line
 
-Typed, so a plan verdict can never be quoted as a release verdict: `PLAN | RELEASE | SECURITY` × `PASS | PASS WITH ACCEPTANCES | FAIL`, then ` — QUALITY VERDICT ONLY`, then scope and authority, then **Means** and **Does not mean / Next**, per the shared [status vocabulary](../../craftwork/templates/status-vocabulary.md). `NOT FIRED — TRIGGER NOT MET` is a state, not a verdict (a security pass on a surface not rated high; a release gate on a small direct ask that touches no live data, no migration and nothing unattended). A RELEASE PASS is never a go-live: Sean's dated yes is separate. FAIL → the owning seat of each blocking finding redrafts one tier up, and the gate re-runs as `-r2`.
+Typed, so a plan verdict can never be quoted as a release verdict: `PLAN | RELEASE | SECURITY | AUDIT` × `PASS | PASS WITH ACCEPTANCES | FAIL`, then ` — QUALITY VERDICT ONLY`, then scope and authority, then **Means** and **Does not mean / Next**, per the shared [status vocabulary](../../craftwork/templates/status-vocabulary.md). `NOT FIRED — TRIGGER NOT MET` is a state, not a verdict (a security pass on a surface not rated high; a release gate on a small direct ask that touches no live data, no migration and nothing unattended). A RELEASE PASS is never a go-live: Sean's dated yes is separate. AUDIT rules only on the check's claims and limits; it grants no build, merge or go-live authority. FAIL → the owning seat of each blocking finding redrafts one tier up, and the gate re-runs as `-r2`.
+
+## Claim reproduction (self-check gate)
+
+One row for every claim in the check report. Reproduce it from the raw record, name the exact input and command or record location, and save the output. A claim that cannot be reproduced names a finding or a recorded limit. Build-only sections below (frozen exceptions, automatic checks, security attacks and implementation holds) are marked not applicable when this check has no build.
+
+| Claim | Raw record and input | Command or record location | Saved output | Held, finding or limit |
+|---|---|---|---|---|
 
 ## Findings
 

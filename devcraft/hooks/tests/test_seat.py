@@ -777,10 +777,43 @@ def test_a_verification_on_its_own_vendor_stays_put(world):
 
 
 def test_every_gate_names_its_anchor(world):
-    for g in ("plan-gate", "release-gate", "security-pass"):
+    for g in ("plan-gate", "release-gate", "security-pass", "self-check"):
         assert "--anchor" in context_fails(world, g, "64")
     assert "--anchor" in context_fails(world, "plan-gate", "64", "--verify", "artifacts/by-claude.md")
     assert "--anchor is a gate's" in context_fails(world, "verifier", "64", *CLAUDE_ANCHOR)
+
+
+@pytest.mark.parametrize("writer,vendor,pass_id", [("claude", "codex", "200"), ("codex", "claude", "201")])
+def test_self_check_launches_read_only_on_the_other_vendor(world, fake, codex_home, writer, vendor, pass_id):
+    ctx = context(world, "self-check", pass_id, "--anchor", f"artifacts/by-{writer}.md")
+    data = ctx_data(ctx)
+    assert data["vendor"] == vendor and data["read_only"]
+    assert data["caps"] == ({"minutes": 20, "tool_calls": 80} if vendor == "codex"
+                            else {"minutes": 30, "budget_usd": 15})
+    if vendor == "codex":
+        name = seat(world, "codex-pass", ctx, "--home", str(world["home"]))
+        assert 'extends = ":read-only"' in (codex_home / f"{name}.config.toml").read_text()
+    else:
+        settings = json.loads(Path(seat(world, "claude-settings", ctx)).read_text())
+        assert f"Edit(/{world['wt']}/**)" in settings["permissions"]["deny"]
+    behave(fake, calls=1, answer="AUDIT PASS — QUALITY VERDICT ONLY")
+    result = launch(world, ctx, "--output", f"audits/self-check-r{pass_id}.md", "--run")
+    assert result.returncode == 0, result.stderr
+    rec = record(world, pass_id)
+    assert rec["vendor"] == vendor and rec["vendor_basis"]["last_writer"] == writer
+    assert rec["model"] == ("gpt-6.1-sol" if vendor == "codex" else "claude-opus-5-5")
+    assert (world["eng"] / "audits" / f"self-check-r{pass_id}.md").read_text() == "AUDIT PASS — QUALITY VERDICT ONLY\n"
+
+
+def test_self_check_fail_sends_the_owning_seat_one_tier_up(world):
+    failure = "audits/self-check-r2.md"
+    (world["eng"] / failure).write_text("---\nseat: self-check\nverdict: AUDIT FAIL — QUALITY VERDICT ONLY\n---\n")
+    data = ctx_data(context(world, "build-planner", "202", "--escalation", failure))
+    assert data["vendor"] == "codex" and data["effort"] == "high"
+    assert data["escalation"]["path"] == failure
+    passed = "audits/self-check.md"
+    (world["eng"] / passed).write_text("---\nseat: self-check\nverdict: AUDIT PASS — QUALITY VERDICT ONLY\n---\n")
+    assert "not a gate FAIL" in context_fails(world, "build-planner", "203", "--escalation", passed)
 
 
 def test_a_gate_runs_on_the_vendor_that_did_not_last_write_its_anchor(world):
