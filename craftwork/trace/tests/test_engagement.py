@@ -87,6 +87,39 @@ def test_missing_required_field_is_a_record_error_not_a_crash(tmp_path):
     assert any("meter_source" in e for e in r.errors)
 
 
+def _with_corpus_read(tmp_path, section: str):
+    d = build(tmp_path / "e")
+    p = d / "trace" / "pass-03-product-strategist-repair.md"
+    head, rest = p.read_text().split("## Corpus read\n", 1)
+    p.write_text(head + "## Corpus read\n\n" + section + "\n\n## Moves" + rest.split("## Moves", 1)[1])
+    return load_engagement(d).by_id["pass-03"]
+
+
+def test_a_dated_correction_replaces_the_list_above_it(tmp_path):
+    # SWCB #167 / #169: the original list stays as written; the list after the correction is the record's
+    r = _with_corpus_read(tmp_path, "- corpus/a.md\n- corpus/misspelt.md\n\n"
+                                    "**Correction, 2026-10-16** (SWCB #169). The list above names a file the "
+                                    "transcript never opens. The list below is the record's corpus read.\n\n"
+                                    "- corpus/a.md\n- corpus/b.md")
+    assert r.corpus_read == ["corpus/a.md", "corpus/b.md"]
+
+
+def test_the_last_correction_with_a_list_wins_and_none_counts_as_a_list(tmp_path):
+    r = _with_corpus_read(tmp_path, "none\n\n**Correction, 2026-10-15** (one). Wrong.\n\n- corpus/a.md\n\n"
+                                    "**Correction, 2026-10-16** (two). Still wrong.\n\n- corpus/b.md")
+    assert r.corpus_read == ["corpus/b.md"]
+    r = _with_corpus_read(tmp_path, "- corpus/a.md\n\n**Correction, 2026-10-16** (x). It read nothing.\n\nnone")
+    assert r.corpus_read == []
+    # a correction with no list of its own leaves the list above it standing
+    r = _with_corpus_read(tmp_path, "- corpus/a.md\n\n**Correction, 2026-10-16** (x). The list is right.")
+    assert r.corpus_read == ["corpus/a.md"]
+
+
+def test_a_section_without_a_correction_is_read_whole(tmp_path):
+    r = _with_corpus_read(tmp_path, "- corpus/a.md\n\nSome prose, not a correction.\n\n- corpus/b.md")
+    assert r.corpus_read == ["corpus/a.md", "corpus/b.md"]
+
+
 def test_unparseable_record_lands_in_errors(tmp_path):
     d = build(tmp_path / "e")
     p = d / "trace" / "pass-06-insights-analytics-co-sign.md"

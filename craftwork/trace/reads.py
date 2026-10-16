@@ -7,16 +7,21 @@
 The coordinator pastes stdout under the record's `## Corpus read` and never
 types that list. stdout is one `- <path>` line per corpus file the transcript
 shows the pass reading, or `none`. A Claude log (stream-json, an Agent-tool
-subagent JSONL, a session file) and a Codex `--json` log are both read; a
-Codex log's session files in `pass-NN.rollouts/` beside it are read too.
+subagent JSONL, a session file), a Codex `--json` log and the plain-text stdout
+of `codex exec` without `--json` are read; a Codex log's session files in
+`pass-NN.rollouts/` beside it are read too. Any other file is not a log this
+script can read: it exits 2, never `none`.
 
 Calls that name a corpus path the script cannot judge (a heredoc script, an
 unknown program, a failed command) go to stderr, one per line: check each
 against the transcript and say what you found in `## Notes`. They are never
 guessed into the list.
 
+When zsh abandons a line at an unquoted `=word` (`echo =====` prints `==== not
+found`), the commands before it are judged and the rest never ran.
+
 Stdlib only, read-only. Exit 0 when the log was read (whatever it shows), 2
-when it could not be.
+when it could not be (missing, empty, or no format it knows).
 """
 from __future__ import annotations
 

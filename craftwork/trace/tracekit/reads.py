@@ -12,17 +12,22 @@ What counts as a read is what put a corpus file's text in front of the seat:
   session file): a successful `Read`; a `Grep` in `content` mode, for each file
   its output quotes; a successful `Bash` command, judged as below.
 - **Codex** (`codex exec --json`, plus the session files saved in
-  `pass-NN.rollouts/`): every completed `command_execution`, judged as below.
+  `pass-NN.rollouts/`, or the plain-text stdout of `codex exec` without
+  `--json`): every completed command, judged as below.
 - **A shell command** reads the corpus files it hands to a reader (`cat`, `head`,
   `sed -n`, `awk`, `nl` …), and a search (`grep`, `rg` …) reads the files its
   output quotes, or the one file it was given. A listing (`ls`, `find`,
   `rg --files`, `grep -l`, `wc`, `shasum` …) reads nothing. Simple variables
-  (`C=…/corpus/canon; cat $C/x.md`) and `cd` are followed.
+  (`C=…/corpus/canon; cat $C/x.md`) and `cd` are followed. When zsh abandons a
+  line at an unquoted `=word` it cannot look up (`echo =====` prints `==== not
+  found`), the commands before that word ran and are judged as succeeded, unless
+  the output shows an earlier error; the commands after it never ran.
 
 A call that names a corpus path the script cannot judge (a Python heredoc, an
 unknown program, a failed command) is never guessed into the list: it is
 returned in `unjudged`, for the coordinator to check against the transcript and
-say so in `## Notes`. Paths come back studio-prefixed (`devcraft/corpus/…`), the
+say so in `## Notes`. A log with no JSON line that is not Codex's text stdout
+either is an error, never `none`. Paths come back studio-prefixed (`devcraft/corpus/…`), the
 form rung-0 line 5 matches citations against.
 """
 from __future__ import annotations
@@ -35,7 +40,7 @@ from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any, Optional
 
-__all__ = ["Reads", "corpus_path", "shell_reads", "read_log", "read_logs", "format_section"]
+__all__ = ["Reads", "corpus_path", "shell_reads", "read_log", "read_codex_text", "read_logs", "format_section"]
 
 # programs whose every operand is a file they print
 READERS = {"cat", "head", "tail", "nl", "less", "more", "bat", "tac", "strings", "fold", "fmt", "cut", "sort",
@@ -75,6 +80,12 @@ _ASSIGN = re.compile(r"^([A-Za-z_]\w*)=(.*)$", re.S)
 _HEREDOC = re.compile(r"<<-?\s*(['\"]?)(\w+)\1")
 _OUTPUT_PREFIX = re.compile(r"^([\w./~+@-]+):")   # a search's `path:` prefix; prose lines never match
 _DURATION = re.compile(r"^\d+(\.\d+)?[smhd]?$")
+# zsh expands an unquoted word starting with `=` to the path of the command it names (`=====` names `====`);
+# when there is none it prints this and abandons the rest of the line
+_ZSH_EQUALS = re.compile(r"^(?:\(eval\)|zsh):\d+: (\S+) not found$")
+# an error message some earlier command printed, so not everything before the `=word` succeeded
+_EARLIER_ERROR = re.compile(r"^(?:\(eval\)|zsh|bash|sh):\d+: |^[\w./+-]+: .*(?:No such file|Permission denied|"
+                            r"Is a directory|not found|illegal|invalid|unrecognized|cannot open|can't open)")
 
 
 @dataclass
@@ -276,11 +287,60 @@ def _search(prog: str, args: list[str], cwd: Optional[str], output: str, ok: boo
         r.note("search exited non-zero", call)
 
 
+def _unquoted(script: str) -> list[bool]:
+    """For each character of a script, whether it stands outside quotes and escapes."""
+    free, quote, escaped = [], "", False
+    for ch in script:
+        if escaped:
+            free.append(False)
+            escaped = False
+        elif quote == "'":
+            free.append(False)
+            quote = "" if ch == "'" else quote
+        elif ch == "\\":
+            free.append(False)
+            escaped = True
+        elif quote:
+            free.append(False)
+            quote = "" if ch == '"' else quote
+        elif ch in "'\"":
+            free.append(False)
+            quote = ch
+        else:
+            free.append(True)
+    return free
+
+
+def _zsh_equals_stop(script: str, output: str) -> Optional[tuple[str, str, str]]:
+    """When zsh abandoned this line at an unquoted `=word`: (the commands that ran, their output, the word)."""
+    lines = output.rstrip().split("\n")
+    m = _ZSH_EQUALS.match(lines[-1].strip())
+    if not m:
+        return None
+    word = "=" + m.group(1)
+    free = _unquoted(script)
+    for hit in re.finditer(rf"(?:^|(?<=[\s;&|(])){re.escape(word)}(?=[\s;&|)]|$)", script):
+        if free[hit.start()]:
+            cut = max((i for i in range(hit.start()) if free[i] and script[i] in ";&|\n"), default=0)
+            ran = script[:cut]
+            if _HEREDOC.search(ran):
+                return None       # a heredoc body's quotes cannot be trusted to place the word
+            return ran, "\n".join(lines[:-1]), word
+    return None
+
+
 def shell_reads(script: str, cwd: Optional[str] = None, output: str = "", ok: bool = True,
                 call: str = "") -> Reads:
     """The corpus files one shell command line reads. `ok` is whether it succeeded; `output` is what it printed."""
-    r = Reads()
     call = call or script
+    failed = "the command failed"
+    stop = None if ok else _zsh_equals_stop(script, output)
+    if stop:
+        ran, before, word = stop
+        if not any(_EARLIER_ERROR.match(line) for line in before.split("\n")):
+            return shell_reads(ran, cwd, before, True, call)
+        failed = f"the command failed at `{word}`, which zsh reads as a command lookup, after an earlier error"
+    r = Reads()
     body, heredocs = _strip_heredocs(script)
     env: dict[str, str] = {"HOME": os.path.expanduser("~")}
     here = cwd
@@ -334,7 +394,7 @@ def shell_reads(script: str, cwd: Optional[str] = None, output: str = "", ok: bo
             if hits and ok:
                 r.paths |= set(hits)
             elif hits:
-                r.note("the command failed", call)
+                r.note(failed, call)
         elif prog in LISTINGS:
             continue
         elif names_corpus:
@@ -492,14 +552,75 @@ def read_log(text: str, cwd: Optional[str] = None) -> Reads:
     return r
 
 
+_CODEX_TEXT = re.compile(r"^OpenAI Codex v\S+$", re.M)
+_CODEX_MARKERS = {"exec", "codex", "user", "thinking", "apply patch", "tokens used", "context compacted"}
+_CODEX_STATUS = re.compile(r"^ (succeeded|exited (-?\d+)|\w+) in \S+:$")
+_CODEX_IN = re.compile(r"^(.*) in (/[^\n]*)$", re.S)
+
+
+def read_codex_text(text: str, cwd: Optional[str] = None) -> Reads:
+    """Reads from `codex exec` stdout without --json: `exec`, the command ending ` in <dir>`, a status
+    line (` succeeded in 0ms:`, ` exited 1 in 0ms:`), then its output up to the next marker line."""
+    r = Reads()
+    lines = text.split("\n")
+    here = cwd
+    i = 0
+    while i < len(lines):
+        if not cwd and lines[i].startswith("workdir: ") and here is None:
+            here = lines[i][len("workdir: "):].strip()
+        if lines[i] != "exec":
+            i += 1
+            continue
+        j = i + 1                 # the status line; an `exec` before it means this one was output text
+        while j < len(lines) and lines[j] != "exec" and not _CODEX_STATUS.match(lines[j]):
+            j += 1
+        if j >= len(lines) or lines[j] == "exec":
+            i = j
+            continue
+        head, status = "\n".join(lines[i + 1: j]), _CODEX_STATUS.match(lines[j])
+        m = _CODEX_IN.match(head)
+        cmd, where = (m.group(1), m.group(2)) if m else (head, here)
+        k = j + 1
+        while k < len(lines) and lines[k] not in _CODEX_MARKERS:
+            k += 1
+        code = 0 if status.group(1) == "succeeded" else int(status.group(2) or 1)
+        _codex_command(cmd, where, "\n".join(lines[j + 1: k]), code, "completed" if code == 0 else "failed", r)
+        i = k
+    return r
+
+
+def _has_json(text: str) -> bool:
+    for line in text.splitlines():
+        if line.lstrip().startswith("{"):
+            try:
+                if isinstance(json.loads(line), dict):
+                    return True
+            except json.JSONDecodeError:
+                pass
+    return False
+
+
 def read_logs(log: Path, cwd: Optional[str] = None) -> Reads:
-    """A pass's raw log plus, for Codex, the session files saved beside it in `pass-NN.rollouts/`."""
+    """A pass's raw log plus, for Codex, the session files saved beside it in `pass-NN.rollouts/`.
+
+    A log with no JSON line is read as Codex's text stdout when it carries Codex's banner, and is
+    otherwise an error: `none` from a log the script could not parse would be a typed `none` again."""
     r = Reads()
     try:
-        r.merge(read_log(log.read_text(encoding="utf-8"), cwd))
+        text = log.read_text(encoding="utf-8")
     except OSError as exc:
         r.error = f"{log}: {exc.strerror or exc}"
         return r
+    except UnicodeDecodeError:
+        r.error = f"{log}: not UTF-8 text, so not a log reads.py can read"
+        return r
+    if not _has_json(text):
+        if _CODEX_TEXT.search(text):
+            return read_codex_text(text, cwd)
+        r.error = (f"{log}: no JSON lines, and not Codex's plain-text stdout either; reads.py reads a Claude "
+                   f"or Codex JSONL log or `codex exec` text output, so it cannot say what this pass read")
+        return r
+    r.merge(read_log(text, cwd))
     rollouts = log.with_name(log.name[: -len(".jsonl")] + ".rollouts") if log.name.endswith(".jsonl") else None
     if rollouts is not None and rollouts.is_dir():
         for f in sorted(rollouts.glob("*.jsonl")):

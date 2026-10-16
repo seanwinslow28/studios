@@ -358,13 +358,24 @@ def _section(body: str, title: str) -> str:
     return (rest[: nxt.start()] if nxt else rest).strip()
 
 
+_CORRECTION = re.compile(r"^\*\*Correction, \d{4}-\d{2}-\d{2}\*\*")
+
+
 def _list_items(section: str) -> list[str]:
-    items = []
+    """The `- ` items of a section. A dated **Correction** paragraph (SWCB #167, #169) keeps the list above
+    it as written and gives the true list below it: the last correction followed by a list (`none`
+    counts) replaces everything before it."""
+    lists: list[tuple[bool, list[str]]] = [(False, [])]   # (has a list, items) per correction block
     for line in section.split("\n"):
         line = line.strip()
-        if line.startswith("- "):
-            items.append(line[2:].strip())
-    return items
+        if _CORRECTION.match(line):
+            lists.append((False, []))
+        elif line.startswith("- "):
+            lists[-1] = (True, lists[-1][1] + [line[2:].strip()])
+        elif line.lower() == "none":
+            lists[-1] = (True, lists[-1][1])
+    corrected = [items for has, items in lists[1:] if has]
+    return corrected[-1] if corrected else lists[0][1]
 
 
 def _as_str(v: Any) -> str:
