@@ -18,6 +18,8 @@ When Systemcraft's Gate 3 waits on a build, the release gate runs first and feed
 
 Outcomes are typed **PLAN** / **RELEASE** / **SECURITY** / **AUDIT**, each `PASS | PASS WITH ACCEPTANCES | FAIL` and always `— QUALITY VERDICT ONLY`. No verdict here is a merge or a go-live: those take Sean's dated yes, recorded in the ledger. A finding that lies outside the brief's pre-registered threat model is a NOTE with a recorded limit, never MATERIAL ([SWCB #139](https://github.com/seanwinslow28/SWCB/issues/139), ruled 2026-10-13); the model and the P0 rule written from it are frozen by the plan gate beside the exceptions.
 
+**After a release verdict, before go-live.** The verdict covers only the candidate and release surface it reviewed. The coordinator records the full hashes, all release-relevant compared paths and saved comparison output in the release plan's [revision continuity section](release-plan.md). An unchanged surface at a different commit needs no new code review; changed or unestablished continuity stops go-live under [the law](../CLAUDE.md#review-continuity-before-go-live). Route fixes by the existing engagement selection tests and run every gate the change and surface require, including the release gate for unattended work. File the new candidate's required evidence and link its review chain to the original engagement. A re-drill alone does not extend a verdict to changed code, and follow-up work never resets a stopped gate series.
+
 ## The build gates
 
 | | Plan gate | Security pass | Release gate |

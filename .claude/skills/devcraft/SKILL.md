@@ -111,6 +111,12 @@ When each gate fires, what it reads, its vendor and what it attacks are [Devcraf
 
 **Merge and go-live.** No verdict is a merge. After the release gate, Sean gives a dated yes recorded in the ledger, and the merge runs from his own checkout in a session he is driving. On a build Systemcraft's Gate 3 waits on, Release & Reliability and the release gate always run, whatever the type. Release gate PASS → the Gate 3 packet goes out: straight to Systemcraft at once when the design crossed from Systemcraft (the return is the candidate note), or inside the return to Productcraft at Close when the design's copies were forwarded, and Delivery relays it with its candidate note (ruled by Sean 2026-10-11, SWCB #117); **the merge proceeds on Sean's dated yes** without waiting for Gate 3; **go-live waits** for Gate 3's verdict (`gate3-note.md` in the engagement's `handoff/inbound/`) and Sean's go-live yes, and then the coordinator runs the runbook's go-live step in a session Sean is driving.
 
+**Before go-live, including after Close.** Apply [the review-continuity rule](../../../devcraft/CLAUDE.md#review-continuity-before-go-live) in the release plan's [revision continuity section](../../../devcraft/templates/release-plan.md):
+
+1. Record the last reviewed candidate and proposed live revision as full hashes, the complete release-relevant path list, and the comparison command and saved output. If the surface is unchanged, record that result; a new commit hash alone needs no new code review.
+2. If the surface changed, keep go-live stopped. Type the fixes using the selection table at Open, not their size or the fact Sean made them live. A qualifying small ask follows its full running order, including the Planner's audit of both change and tests and the Verifier's final run. Run every gate the type and release surface require; unattended work still requires the release gate. Keep existing self-targeted duties and caps; a follow-up never resets a stopped gate series.
+3. Link every intervening fix commit and its engagement, audit and applicable gate records to the original engagement. File the new candidate's required evidence, repeat the comparison against the now-reviewed candidate, and obtain Sean's dated go-live yes for the proposed live revision before running the runbook. Preserve existing Gate 3 holds. A re-drill alone cannot close this stop.
+
 ### 5 — Close
 
 The coordinator's own session, one `kind: close` pass record. In order:
