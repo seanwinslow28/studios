@@ -104,9 +104,27 @@ Readable at 3 a.m. by someone who did not build this: exact commands, the expect
 - **Dependency check:** the scanner, its command and its result (`evidence/deps-<candidate>.txt`), or `no dependency changed`.
 - **Secret scan:** the command over the build's commit range and its result (`evidence/secrets-<candidate>.txt`).
 
+## Revision continuity before go-live
+
+Completed by the coordinator before go-live, even when the engagement has already Closed, under [the review-continuity rule](../CLAUDE.md#review-continuity-before-go-live). Preserve earlier records: a later comparison or correction is a new dated record.
+
+| Field | Record |
+|---|---|
+| Compared at | <date and time> |
+| Last reviewed candidate | <full commit hash and applicable gate entry> |
+| Proposed live revision | <full commit hash> |
+| Compared paths | <all release-relevant paths, including source, tests, operational files and release instructions> |
+| Comparison | <exact command, for example `git diff <reviewed> <live> -- <paths>`; saved output path and hash> |
+| Result | <UNCHANGED / CHANGED / NOT ESTABLISHED> |
+| Follow-up review chain | <each intervening fix commit → engagement → audit and applicable gate entries; none when unchanged> |
+| Candidate evidence | <tests, drill and automatic-check records required for the new candidate> |
+| Go-live authority | <Sean's dated yes entry for the proposed live revision; pending until given> |
+
+**Stop on CHANGED or NOT ESTABLISHED.** Route changed work through the existing engagement types; use a small ask only when its selection test holds. Run the required review chain and gates, including the release gate for unattended work. File the new candidate's required evidence and a new comparison against the now-reviewed candidate before go-live. A different commit with an unchanged release surface needs no new code review. A successful re-drill alone never establishes review coverage for changed code; existing caps and Gate 3 holds still apply.
+
 ## Go-live step
 
-The exact commands the coordinator runs, in a session Sean is driving, after the release gate and his dated yes. Never run by this seat.
+The exact commands the coordinator runs, in a session Sean is driving, after the release gate, the revision-continuity check above and his dated yes for the proposed live revision. Never run by this seat.
 
 ## Gate packet
 

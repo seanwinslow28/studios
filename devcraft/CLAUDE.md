@@ -69,3 +69,13 @@ Devcraft runs on all of [craftwork/law.md](../craftwork/law.md) and adds to it o
     15. Network is off except the build's allowlist, which the build plan sets before the plan gate. Never send repo content, logs or secrets to an unlisted host.
     16. Never run `sudo`, install global tools (`brew`, `npm -g`, `pipx`), or change system settings.
     17. Never edit, delete or rewrite a run record, a trace, a log or the guard's log. Records are append-only; a correction is a new record.
+
+## Review continuity before go-live
+
+*(Ruled by Sean, 2026-10-16, SWCB #172.)*
+
+A release verdict covers the candidate and release surface it reviewed. Before go-live, compare all release-relevant paths, including source, tests, operational files and release instructions, with the proposed live revision. Record both full commit hashes, the compared paths and the comparison output. A different commit with an unchanged release surface needs no new code review. A missing comparison cannot establish continuity.
+
+If that surface changed after the gate, stop go-live and route the fixes through the existing [engagement types](../.claude/skills/devcraft/SKILL.md#engagement-types-and-routing), including fixes made in Sean's live sessions. A small ask is eligible only under its existing selection test: one slice, no public-interface or data-schema change, and no exception. Other changes take the type their scope requires; a control exception requires a full build. Existing self-targeted duties, budgets and stopping rules still apply. Opening follow-up work never authorizes another round of a stopped gate series.
+
+Run every gate required by the change and its release surface before go-live. A fix to anything that will run unattended still requires the release gate. File tests, drill and automatic-check evidence for the new candidate as required by that process, link its review chain to the original engagement, and record Sean's dated go-live yes for that revision. A live session or a successful re-drill alone does not replace the review chain. The coordinator records the comparison and any follow-up chain in the release plan's [revision continuity section](templates/release-plan.md).
