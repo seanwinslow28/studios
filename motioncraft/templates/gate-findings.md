@@ -1,6 +1,6 @@
 # Gate findings template — the story, appearance and motion gates
 
-The findings file a gate writes: stateless, receiving only the artifacts, the shared [red-team protocol](../../craftwork/templates/red-team-protocol.md) and the gate schedule, never the drafting conversation, on the vendor that did not last write its anchor. Three craft gates on a full train, each a red-team attack and then one decision from Sean: the **story gate** on the animatic, the **appearance gate** on the appearance packet with Finishing's assembled frame attached as proof, and the **motion gate** on the moving test and its one directed revision. A small piece takes only the motion gate. When each fires, and the attack list for each artifact, are the gate schedule's (`gate-schedule.md`, written on its own map ticket). Every gate also writes its ledger entry, naming its vendor and why; this file is the authoritative record of the verdict, and the entry is derived from it. On Productcraft's shape ([productcraft/templates/gate-findings.md](../../productcraft/templates/gate-findings.md)) as Devcraft adapted it ([devcraft/templates/gate-findings.md](../../devcraft/templates/gate-findings.md)).
+The findings file a gate writes: stateless, receiving only the artifacts, the shared [red-team protocol](../../craftwork/templates/red-team-protocol.md) and the gate schedule, never the drafting conversation, on the vendor that did not last write its anchor. Three craft gates on a full train, each a red-team attack and then one decision from Sean: the **story gate** on the animatic, the **appearance gate** on the appearance packet with Finishing's assembled frame attached as proof, and the **motion gate** on the moving test and its one directed revision. A small piece takes only the motion gate. When each fires, and the attack list for each artifact, are the [gate schedule](gate-schedule.md)'s. Every gate also writes its ledger entry, naming its vendor and why; this file is the authoritative record of the verdict, and the entry is derived from it. On Productcraft's shape ([productcraft/templates/gate-findings.md](../../productcraft/templates/gate-findings.md)) as Devcraft adapted it ([devcraft/templates/gate-findings.md](../../devcraft/templates/gate-findings.md)).
 
 | Gate | Anchor | Anchor last written on | Runs on |
 |---|---|---|---|
@@ -16,7 +16,7 @@ Posture is inherited: *find the strongest case that this fails; being unable to 
 
 ```markdown
 ---
-id: mc-eng-001.motion-gate         # story-gate | appearance-gate | motion-gate, -r2 on a re-run
+id: mc-eng-001.motion-gate         # story-gate | appearance-gate | motion-gate; -seed or -world per half on a train in halves; -r2 on a re-run
 engagement: <project>-<YYYY-MM-DD>
 date: 2026-10-26
 seat: motion-gate                  # story-gate | appearance-gate | motion-gate

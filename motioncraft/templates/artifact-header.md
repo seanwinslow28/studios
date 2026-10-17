@@ -128,4 +128,4 @@ The four naming rulings hold in every artifact, check and gate, and in these tem
 
 ## Attack checklists
 
-Every attack a gate runs on an artifact has a named home in the gate schedule, `gate-schedule.md` in this folder, one list per artifact. It is written on the map's **Gate schedule: the story, appearance and motion gates** ticket. Each template ends by pointing at its list. An attack with no home there is a defect in this folder, not in the gate.
+Every attack a gate runs on an artifact has a named home in the [gate schedule](gate-schedule.md#attack-checklists-per-artifact), one list per artifact. Each template ends by pointing at its list. An attack with no home there is a defect in this folder, not in the gate.

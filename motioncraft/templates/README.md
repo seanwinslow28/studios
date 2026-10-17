@@ -23,6 +23,10 @@ Public machinery; filled artifacts are private, in the engagement folder of the 
 - [directed-revision.md](directed-revision.md): the form for Sean's one change, and the motion gate's record of the three held checks.
 - [labels-row.md](labels-row.md): what each column of a pass's row in `trace/labels.md` means here, and why it is never Sean's verdict on the film.
 
-**Still to land here**, on their own map tickets: the gate schedule and its attack lists (**Gate schedule: the story, appearance and motion gates**), and the two bindings with the interim words rule (**The two bindings and the interim words rule**).
+**The gates**
+
+- [gate-schedule.md](gate-schedule.md): when the story, appearance and motion gates fire (once per half on a train in halves), what each reads and may demand, its vendor, Sean's decision after it, FAIL and re-runs, and the attack list for every artifact.
+
+**Still to land here**, on its own map ticket: the two bindings with the interim words rule (**The two bindings and the interim words rule**).
 
 **Shared law, inherited by link from [craftwork/](../../craftwork/README.md):** the [ledger-entry schema](../../craftwork/templates/ledger-entry.md), the [runtime registry](../../craftwork/templates/runtime-registry.md), the [red-team protocol](../../craftwork/templates/red-team-protocol.md), the [close digest](../../craftwork/templates/close-digest.md), the [status vocabulary](../../craftwork/templates/status-vocabulary.md) and the trace kit's [labels template](../../craftwork/trace/labels-template.md).
