@@ -57,6 +57,16 @@ SEAT_FAMILIES = {
     "release-gate": "gate",
     "security-pass": "gate",
     "self-check": "gate",
+    # Motioncraft (the bench ticket on the Motioncraft build map, 2026-10-17): four families of its own,
+    # one per seat, so the Animator's Codex numbers never count toward Devcraft's coding family; its
+    # three gates share the gate family
+    "visual-story-director": "story and staging",
+    "art-pose-designer": "appearance design",
+    "animator": "animation",
+    "finishing-sound-designer": "finishing",
+    "story-gate": "gate",
+    "appearance-gate": "gate",
+    "motion-gate": "gate",
     "coordinator": "coordination",
 }
 

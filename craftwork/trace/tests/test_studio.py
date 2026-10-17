@@ -413,3 +413,23 @@ def test_a_devcraft_full_build_still_checks_its_own_shape(tmp_path):
     ]
     _, line8 = _dc_line8(tmp_path, "full-build", passes)
     assert line8.ok and line8.count == "4 of 4", line8.findings
+
+
+MC_PROFILE = REPO / "motioncraft" / "trace" / "studio.py"
+
+
+def test_motioncraft_profile_matches_its_bench_and_families():
+    """The bench ticket on the Motioncraft build map (2026-10-17): every seat the profile names has a seat file
+    and a family of its own, and the three gates share the gate family."""
+    from tracekit.registry import family_of
+
+    mc = load_profile(MC_PROFILE)
+    assert mc.key == "motioncraft"
+    assert find_profile(REPO / "motioncraft" / "ledger" / "engagements" / "idea-seed-2026-10-17") == MC_PROFILE
+    bench = {p.stem for p in (REPO / "motioncraft" / "bench").glob("*.md") if p.name != "README.md"}
+    stage_seats = set(mc.seat_names) - set(mc.gate_seats) - {"coordinator"}
+    assert stage_seats == bench == {"visual-story-director", "art-pose-designer", "animator", "finishing-sound-designer"}
+    families = {s: family_of(s) for s in bench}
+    assert len(set(families.values())) == 4 and "other" not in families.values()
+    assert "coding" not in families.values()                               # the Animator never counts toward Devcraft's Builder
+    assert {family_of(g) for g in mc.gate_seats} == {"gate"}

@@ -92,7 +92,7 @@ def test_every_bench_seat_has_a_family():
     """A seat file with no family reads `other` in the registry numbers (#287); every studio's bench is covered."""
     from tracekit.registry import family_of
     repo = TRACE.parents[1]
-    seats = [p.stem for studio in ("productcraft", "systemcraft", "devcraft")
+    seats = [p.stem for studio in ("productcraft", "systemcraft", "devcraft", "motioncraft")
              for p in (repo / studio / "bench").glob("*.md") if p.name != "README.md"]
     assert seats, "no bench seat files found"
     assert {s: family_of(s) for s in seats if family_of(s) == "other"} == {}
