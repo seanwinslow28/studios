@@ -433,3 +433,158 @@ def test_motioncraft_profile_matches_its_bench_and_families():
     assert len(set(families.values())) == 4 and "other" not in families.values()
     assert "coding" not in families.values()                               # the Animator never counts toward Devcraft's Builder
     assert {family_of(g) for g in mc.gate_seats} == {"gate"}
+
+
+# --------------------------------------------------------------------------- #
+# Motioncraft's line 8 reads the type and the parts (the master skill, SWCB #193)
+# --------------------------------------------------------------------------- #
+
+STORY, LOOK, MOVE, CUT = ("artifacts/story-packet.md", "artifacts/appearance-packet.md",
+                          "artifacts/scene-record.md", "artifacts/delivery-package.md")
+MC_FILES = {
+    STORY: "# Story packet\n\nB1 holds.\n\n## Moves\n\norigin draft, no upstream — leaned on: the brief\n",
+    LOOK: "# Appearance packet\n\nK1 holds.\n\n## Moves\n\norigin draft, no upstream — leaned on: the brief\n",
+    MOVE: "# Scene record\n\nK1 moves.\n\n## Moves\n\norigin draft, no upstream — leaned on: the brief\n",
+    CUT: "# Delivery package\n\nTC1 passes.\n\n## Moves\n\norigin draft, no upstream — leaned on: the brief\n",
+    "audits/audit.md": "# Audit\n\nIt holds.\n",
+    "audits/gate.md": "# Gate\n\nPASS — QUALITY VERDICT ONLY\n",
+}
+
+
+def _mc_engagement(tmp_path: Path, etype: str, passes: list[tuple], parts: list[str] | None = None) -> Path:
+    """A minimal Motioncraft engagement. A pass is (seat, kind, stage, inputs, outputs[, part])."""
+    root = tmp_path / "toy-2026-10-18"
+    (root / "trace").mkdir(parents=True)
+    header = f"parts: [{', '.join(parts)}]\n" if parts else ""
+    (root / "brief.md").write_text(
+        f"---\nid: mc-eng-900\nname: Toy film\ntype: {etype}\n{header}opened: 2026-10-18\nclosed: null\n"
+        f"pass_budget: 11\nsynthetic: true\n---\n\nA toy.\n")
+    for rel, text in MC_FILES.items():
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_text(text)
+    rows = []
+    for i, (seat, kind, stage, ins, outs, *part) in enumerate(passes, start=1):
+        _sc_record(root, i, seat, kind, stage, ["brief.md", *ins], outs)
+        if part:
+            rec = root / "trace" / f"pass-{i:02d}-{seat}-{kind}.md"
+            rec.write_text(rec.read_text().replace(f"\nstage: {stage}\n", f"\nstage: {stage}\npart: {part[0]}\n", 1))
+        rows.append(f"| pass-{i:02d} | pass | | fine | |")
+    (root / "trace" / "labels.md").write_text(
+        "| pass | verdict | first_failing_stage | critique | failure_code |\n|---|---|---|---|---|\n" + "\n".join(rows) + "\n")
+    return root
+
+
+def _mc_line8(tmp_path: Path, etype: str, passes: list[tuple], parts: list[str] | None = None):
+    eng = load_engagement(_mc_engagement(tmp_path, etype, passes, parts), studio=load_profile(MC_PROFILE))
+    return eng, {c.name: c for c in run_checks(eng)}[eng.studio.structure_check_name]
+
+
+AUDIT, GATE = "audits/audit.md", "audits/gate.md"
+MC_SMALL = [
+    ("animator", "draft", 3, [], [MOVE]),
+    ("art-pose-designer", "audit", 3, [MOVE], [AUDIT]),
+    ("motion-gate", "gate", 3, [MOVE], [GATE]),
+    ("finishing-sound-designer", "draft", 4, [MOVE], [CUT]),
+    ("animator", "audit", 4, [CUT], [AUDIT]),
+]
+MC_CLOSE = [("coordinator", "close", 0, [], [])]
+MC_FULL = [
+    ("visual-story-director", "draft", 1, [], [STORY]),
+    ("finishing-sound-designer", "audit", 1, [STORY], [AUDIT]),
+    ("story-gate", "gate", 1, [STORY], [GATE]),
+    ("art-pose-designer", "draft", 2, [STORY], [LOOK]),
+    ("visual-story-director", "audit", 2, [LOOK], [AUDIT]),
+    ("appearance-gate", "gate", 2, [LOOK], [GATE]),
+    *MC_SMALL[:3],
+    *MC_SMALL[3:],
+]
+
+
+def test_a_motioncraft_small_piece_checks_clean(tmp_path):
+    eng, line8 = _mc_line8(tmp_path, "small-piece", [*MC_SMALL, *MC_CLOSE])
+    assert line8.ok and line8.count == "2 of 2", line8.findings
+    assert all(c.ok for c in run_checks(eng)), [(c.name, c.findings) for c in run_checks(eng) if not c.ok]
+
+
+def test_a_small_piece_in_progress_is_notes_not_findings(tmp_path):
+    _, line8 = _mc_line8(tmp_path, "small-piece", MC_SMALL[:2])
+    assert line8.ok, line8.findings
+    assert any("stage 4 Finish not yet reached" in n for n in line8.notes)
+
+
+def test_motioncraft_small_piece_line_8_holds_its_shape(tmp_path):
+    passes = [
+        ("visual-story-director", "draft", 1, [], [STORY]),                     # a story stage on a small piece
+        ("appearance-gate", "gate", 2, [LOOK], [GATE]),                        # and an appearance gate
+        MC_SMALL[0], MC_SMALL[1],
+        MC_SMALL[3], MC_SMALL[4],                                              # Finishing drafts with no motion gate
+        *MC_CLOSE,
+    ]
+    _, line8 = _mc_line8(tmp_path, "small-piece", passes)
+    text = "\n".join(line8.findings)
+    assert "pass-01: Director draft on a small piece" in text
+    assert "pass-02: Appearance gate gate on a small piece" in text
+    assert "stage 4 Finish: drafted before the motion gate ran" in text
+    assert "closed with no motion gate pass" in text
+
+
+def test_a_closed_small_piece_owes_both_stages(tmp_path):
+    _, line8 = _mc_line8(tmp_path, "small-piece", [*MC_SMALL[:3], *MC_CLOSE])
+    assert not line8.ok
+    assert any("stage 4 Finish: 0 drafts" in f for f in line8.findings)
+
+
+def test_a_motioncraft_one_off_is_not_asserted_and_says_so(tmp_path):
+    _, line8 = _mc_line8(tmp_path, "one-off", [("art-pose-designer", "draft", 2, [], [LOOK])])
+    assert line8.ok and any("one seat pass" in n for n in line8.notes)
+
+
+def test_a_motioncraft_full_train_checks_its_own_shape(tmp_path):
+    _, line8 = _mc_line8(tmp_path, "full-train", [*MC_FULL, *MC_CLOSE])
+    assert line8.ok and line8.count == "4 of 4", line8.findings
+    early = [p for p in MC_FULL if p[0] != "appearance-gate"]                # motion with no appearance gate
+    _, line8 = _mc_line8(tmp_path / "b", "full-train", [*early, *MC_CLOSE])
+    assert any("drafted before the appearance gate ran" in f for f in line8.findings)
+    assert any("closed with no appearance gate pass" in f for f in line8.findings)
+
+
+def test_a_train_in_parts_counts_stages_2_and_3_per_part(tmp_path):
+    split = [
+        *MC_FULL[:3],
+        ("art-pose-designer", "draft", 2, [STORY], [LOOK], "ground"),
+        ("visual-story-director", "audit", 2, [LOOK], [AUDIT], "ground"),
+        ("appearance-gate", "gate", 2, [LOOK], [GATE], "ground"),
+        ("art-pose-designer", "draft", 2, [STORY], [LOOK], "figure"),
+        ("visual-story-director", "audit", 2, [LOOK], [AUDIT], "figure"),
+        ("appearance-gate", "gate", 2, [LOOK], [GATE], "figure"),
+        ("animator", "draft", 3, [LOOK], [MOVE], "ground"),
+        ("art-pose-designer", "audit", 3, [MOVE], [AUDIT], "ground"),
+        ("motion-gate", "gate", 3, [MOVE], [GATE], "ground"),
+        ("animator", "draft", 3, [LOOK], [MOVE], "figure"),
+        ("art-pose-designer", "audit", 3, [MOVE], [AUDIT], "figure"),
+        ("motion-gate", "gate", 3, [MOVE], [GATE], "figure"),
+        *MC_SMALL[3:],
+        *MC_CLOSE,
+    ]
+    _, line8 = _mc_line8(tmp_path, "full-train", split, parts=["ground", "figure"])
+    assert line8.ok and line8.count == "6 of 6", line8.findings
+    # the figure's appearance gate runs only after the first motion draft, and its motion gate never runs
+    late = [p for p in split if not (p[0] == "appearance-gate" and p[-1] == "figure")
+            and not (p[0] == "motion-gate" and p[-1] == "figure")]
+    late.insert(late.index(next(p for p in late if p[0] == "animator" and p[-1] == "figure")),
+                ("appearance-gate", "gate", 2, [LOOK], [GATE], "figure"))
+    _, line8 = _mc_line8(tmp_path / "b", "full-train", late, parts=["ground", "figure"])
+    text = "\n".join(line8.findings)
+    assert "drafted before part figure's appearance gate ran" in text
+    assert "closed with no motion gate pass for part figure" in text
+
+
+def test_an_unsplit_train_flags_a_second_draft_and_a_split_one_flags_a_stray_part(tmp_path):
+    two = [*MC_FULL[:5], ("art-pose-designer", "draft", 2, [STORY], [LOOK])]
+    _, line8 = _mc_line8(tmp_path, "full-train", two)
+    assert any("stage 2 Appearance: 2 drafts" in f for f in line8.findings)
+    stray = [*MC_FULL[:3], ("art-pose-designer", "draft", 2, [STORY], [LOOK], "sky"),
+             ("visual-story-director", "audit", 2, [LOOK], [AUDIT], "sky")]
+    _, line8 = _mc_line8(tmp_path / "b", "full-train", stray, parts=["ground"])
+    text = "\n".join(line8.findings)
+    assert "names part sky" in text and "stage 2 Appearance part ground: 0 drafts" in text

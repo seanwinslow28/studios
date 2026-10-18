@@ -24,12 +24,21 @@ their anchor: the story gate sits at stage 1 (the animatic), the appearance gate
 at stage 2 (the appearance packet, the assembled frame attached as proof), the
 motion gate at stage 3 (the moving test and its one directed revision).
 
-Rung-0 line 8 checks that a full train ran its own shape: per stage reached, one
-draft by the stage's seat and at least one audit by its fixed auditor; no motion
-draft before the appearance gate; and, once the engagement has closed, all three
-gates on the record. A small piece takes only the motion gate; its shape is
-checked once the master skill design rules it, and until then line 8 says it is
-unchecked. Its taxonomy file (`taxonomy.md`, beside this one) is empty until
+Rung-0 line 8 reads the engagement's `type:`, the master skill's three types
+(ruled on the build map's Master skill design ticket, 2026-10-18; written on
+Write the master skill). A full train: per stage reached, one draft by the
+stage's seat and at least one audit by its fixed auditor; no motion draft before
+the appearance gate; and, once the engagement has closed, all three gates on the
+record. A train split into parts (the brief's `parts:` list, split by approval
+state, never by halves of the film) counts one draft per part at stages 2 and 3,
+each record naming its `part:`, its fixed auditor on each, every part's
+appearance gate before any motion draft, and by Close an appearance gate and a
+motion gate per part. A small piece: no stage 1 or 2 pass and no story or
+appearance gate (both are recorded NOT FIRED in the brief, never run); the
+Animator's draft, Art's audit, the motion gate before Finishing drafts, then
+Finishing's draft and the Animator's audit; a stage not yet reached is a note
+until Close, then a finding. A one-off is one seat pass with no order to check,
+and line 8 says so. Its taxonomy file (`taxonomy.md`, beside this one) is empty until
 Motioncraft's own labels earn a seat mode; the shared process-waste family is
 the kit's.
 
@@ -42,6 +51,7 @@ from __future__ import annotations
 import re
 import sys
 from pathlib import Path
+from typing import Optional
 
 HERE = Path(__file__).resolve().parent
 KIT_DIR = HERE.parents[1] / "craftwork" / "trace"
@@ -64,7 +74,7 @@ MOTIONCRAFT_CHECK_IMPLICATIONS = (
     "A cited corpus file the transcript never opened means the citation was not read when it was made.",
     "A move that names nothing upstream means the artifact's history does not add up; an unverifiable move is one an overwritten revision took with it.",
     "An unmeasured pass costs the reading nothing; it only means the token figures here are a subtotal.",
-    "A stage missing its draft or its audit, motion drafted before the appearance gate, or a closed train missing a gate, is a film that did not run its own shape.",
+    "A stage or part missing its draft or its audit, motion drafted before the appearance gate, a closed train missing a gate, or a small piece that ran a stage it has none of, is a film that did not run its own shape.",
     "A blind pair whose runtime is already visible cannot produce an unbiased verdict.",
     "A failure code outside the taxonomy is free text, and free text does not count toward a mode.",
     "A pass whose logs name a different model ran on something the registry never ruled, so its row counts toward the wrong runtime; a pass that started a helper agent did work no record shows and no meter counted.",
@@ -79,6 +89,10 @@ GATE_STAGES = {"story-gate": 1, "appearance-gate": 2, "motion-gate": 3}
 MOTION_STAGE = 3
 
 FULL_TRAIN_TYPES = ("full-train", "full train")
+SMALL_PIECE_TYPES = ("small-piece", "small piece")
+ONE_OFF_TYPES = ("one-off", "one off")
+# the stages a train in parts drafts once per part: Appearance and Motion; the animatic and the cut stay whole
+PART_STAGES = (2, 3)
 
 STUDIO = Studio(
     key="motioncraft",
@@ -103,7 +117,7 @@ STUDIO = Studio(
     withheld_required="the drafting conversation",
     brief_file="brief.md",
     checks_dir="audits",               # audits, gate findings and the check record sit in audits/
-    structure_check_name="Each stage has its draft and its audit, motion comes after the appearance gate, and a closed train ran all three gates",
+    structure_check_name="The film ran its type's shape: each stage its draft and its audit, motion after the appearance gate, every gate its type owes by Close",
     check_implications=MOTIONCRAFT_CHECK_IMPLICATIONS,
     review_prompts=(
         ("draft", "Does its work answer the assigned question within the evidence and constraints?"),
@@ -123,58 +137,151 @@ def _pass_no(pass_id: str) -> int:
     return int(m.group(0)) if m else 0
 
 
-def _stages(eng: Engagement) -> Check:
-    """Motioncraft's structure line: the full train's shape.
+def _part(r) -> str:
+    """The part a record belongs to, from its optional `part:` field; empty on an unsplit train."""
+    return str(r.raw.get("part") or "").strip()
 
-    Per stage reached, exactly one draft by the stage's seat and at least one audit by its fixed
-    auditor. An appearance-gate pass launches before the motion draft. Once the engagement has a
-    close pass, the story, appearance and motion gates are all on the record. A small piece, or any
-    other type, is not yet asserted, and says so. Launch order is the pass number.
+
+def _parts(eng: Engagement) -> list[str]:
+    """The brief's `parts:` list, by name; empty when the train runs unsplit."""
+    raw = eng.brief.get("parts") or []
+    if isinstance(raw, str):
+        raw = [raw]
+    return [str(p).strip() for p in raw if str(p).strip()]
+
+
+def _stages(eng: Engagement) -> Check:
+    """Motioncraft's structure line: the shape the engagement's type owes.
+
+    A small piece and a one-off have their own branches, below. On a full train (or a brief that
+    names no type): per stage reached, exactly one draft by the stage's seat and at least one audit
+    by its fixed auditor; an appearance-gate pass launches before the motion draft; once the
+    engagement has a close pass, the story, appearance and motion gates are all on the record. A
+    train in parts counts stages 2 and 3 per part instead. Launch order is the pass number.
     """
     c = Check(eng.studio.structure_check_name)
-    names = eng.studio.stage_name
     etype = str(eng.brief.get("type") or "").lower().strip()
+    if etype in SMALL_PIECE_TYPES:
+        return _small_piece(eng, c)
+    if etype in ONE_OFF_TYPES:
+        c.notes.append(f"engagement type is {etype}: one seat pass, no order to check, the stage structure is not asserted")
+        return c
     if etype and etype not in FULL_TRAIN_TYPES:
-        c.notes.append(f"engagement type is {etype}: unchecked until the master skill design rules its shape")
+        c.notes.append(f"engagement type is {etype}: not one of the master skill's types, the stage structure is not asserted")
         return c
     if not etype:
         c.notes.append(f"{eng.studio.brief_file} names no type; asserting the full-train structure")
+    parts = _parts(eng)
+    names = eng.studio.stage_name
     stages = sorted({r.stage for r in eng.records if 1 <= r.stage <= 4})
-    c.n_total = len(stages)
     first_draft: dict[int, int] = {}
     for s in stages:
-        ok = True
         rs = [r for r in eng.records if r.stage == s]
-        drafts = [r for r in rs if r.kind == "draft"]
-        if len(drafts) != 1:
-            c.findings.append(f"stage {s} {names(s)}: {len(drafts)} drafts, expected exactly one (repairs are `kind: repair`)")
-            ok = False
-        elif drafts[0].seat != STAGE_SEATS[s]:
-            c.findings.append(f"stage {s}: draft by {drafts[0].seat}; the drafting seat is {STAGE_SEATS[s]}")
-            ok = False
-        if drafts:
-            first_draft[s] = min(_pass_no(r.pass_id) for r in drafts)
-        audits = [r for r in rs if r.kind == "audit"]
-        if not audits:
-            c.findings.append(f"stage {s} {names(s)}: no audit pass (the fixed auditor is {FIXED_AUDITORS[s]})")
-            ok = False
-        for a in audits:
-            if a.seat != FIXED_AUDITORS[s]:
-                c.findings.append(f"stage {s}: audit by {a.seat}; the fixed auditor is {FIXED_AUDITORS[s]}")
-                ok = False
-        c.n_ok += 1 if ok else 0
-    motion = first_draft.get(MOTION_STAGE)
+        if parts and s in PART_STAGES:
+            for p in parts:
+                c.n_total += 1
+                n = _drafted_and_audited(c, eng, s, [r for r in rs if _part(r) == p], f" part {p}")
+                c.n_ok += n is not None
+                if n is not None:
+                    first_draft[s] = min(first_draft.get(s, n), n)
+            for r in rs:
+                if _part(r) not in parts and r.kind in ("draft", "audit", "repair"):
+                    c.findings.append(f"{r.pass_id}: {eng.studio.seat_name(r.seat)} {r.kind} at stage {s} names "
+                                      f"part {_part(r) or '(none)'}; the brief's parts are {', '.join(parts)}")
+            continue
+        c.n_total += 1
+        n = _drafted_and_audited(c, eng, s, rs, "")
+        c.n_ok += n is not None
+        if n is not None:
+            first_draft[s] = n
+    motion = min((_pass_no(r.pass_id) for r in eng.records if r.stage == MOTION_STAGE and r.kind == "draft"), default=None)
     if motion is not None:
-        appearance_gates = [_pass_no(r.pass_id) for r in eng.records if r.seat == "appearance-gate" and r.kind == "gate"]
-        if not appearance_gates or min(appearance_gates) > motion:
-            c.findings.append(f"stage {MOTION_STAGE} {names(MOTION_STAGE)}: drafted before the appearance gate ran")
+        gates = [r for r in eng.records if r.seat == "appearance-gate" and r.kind == "gate"]
+        for p in parts or [None]:
+            mine = [_pass_no(r.pass_id) for r in gates if p is None or _part(r) == p]
+            if not mine or min(mine) > motion:
+                where = f" part {p}'s" if p else " the"
+                c.findings.append(f"stage {MOTION_STAGE} {names(MOTION_STAGE)}: drafted before{where} appearance gate ran")
     if any(r.kind == "close" for r in eng.records):
         for seat, stage in GATE_STAGES.items():
-            if not any(r.seat == seat and r.kind == "gate" for r in eng.records):
-                c.findings.append(f"closed with no {eng.studio.seat_name(seat).lower()} pass (anchor: stage {stage} {names(stage)})")
+            gates = [r for r in eng.records if r.seat == seat and r.kind == "gate"]
+            per_part = parts if parts and stage in PART_STAGES else [None]
+            for p in per_part:
+                if not any(p is None or _part(r) == p for r in gates):
+                    of = f" for part {p}" if p else ""
+                    c.findings.append(f"closed with no {eng.studio.seat_name(seat).lower()} pass{of} (anchor: stage {stage} {names(stage)})")
     missing = [s for s in range(1, 5) if s not in stages]
     if missing:
         c.notes.append(f"stages not yet reached: {', '.join(str(s) for s in missing)}")
+    return c
+
+
+def _drafted_and_audited(c: Check, eng: Engagement, stage: int, rs: list, label: str) -> Optional[int]:
+    """Exactly one draft at `stage` by its seat and at least one audit by its fixed auditor, among `rs`.
+
+    Returns the draft's pass number when both hold, else None; each gap is a finding.
+    """
+    names = eng.studio.stage_name
+    ok = True
+    drafts = [r for r in rs if r.kind == "draft"]
+    n = None
+    if len(drafts) != 1:
+        c.findings.append(f"stage {stage} {names(stage)}{label}: {len(drafts)} drafts, expected exactly one (repairs are `kind: repair`)")
+        ok = False
+    elif drafts[0].seat != STAGE_SEATS[stage]:
+        c.findings.append(f"stage {stage}{label}: draft by {drafts[0].seat}; the drafting seat is {STAGE_SEATS[stage]}")
+        ok = False
+    else:
+        n = _pass_no(drafts[0].pass_id)
+    audits = [r for r in rs if r.kind == "audit"]
+    if not audits:
+        c.findings.append(f"stage {stage} {names(stage)}{label}: no audit pass (the fixed auditor is {FIXED_AUDITORS[stage]})")
+        ok = False
+    for a in audits:
+        if a.seat != FIXED_AUDITORS[stage]:
+            c.findings.append(f"stage {stage}{label}: audit by {a.seat}; the fixed auditor is {FIXED_AUDITORS[stage]}")
+            ok = False
+    return n if ok else None
+
+
+def _small_piece(eng: Engagement, c: Check) -> Check:
+    """A small piece's shape: Animator drafts → Art audits → motion gate → Finishing drafts → Animator audits.
+
+    The look is approved and the staging given, so nothing runs at stages 1 or 2 and neither the
+    story nor the appearance gate runs (the brief records both NOT FIRED). Each of stages 3 and 4 has
+    one draft by its seat and an audit by its fixed auditor launched after it; a motion-gate pass
+    launches after the motion draft and before Finishing's draft; by Close both stages and the motion
+    gate are on the record. A stage not yet reached is a note until Close, then a finding.
+    """
+    names = eng.studio.stage_name
+    closed = any(r.kind == "close" for r in eng.records)
+    for r in eng.records:
+        if r.stage in (1, 2) or r.seat in ("story-gate", "appearance-gate"):
+            c.findings.append(f"{r.pass_id}: {eng.studio.seat_name(r.seat)} {r.kind} on a small piece, which takes no story "
+                              "or appearance stage and no gate but the motion gate; one that needs them is a full train")
+    drafted: dict[int, Optional[int]] = {}
+    for s in (MOTION_STAGE, 4):
+        rs = [r for r in eng.records if r.stage == s]
+        if not rs and not closed:
+            c.notes.append(f"stage {s} {names(s)} not yet reached")
+            continue
+        c.n_total += 1
+        n = _drafted_and_audited(c, eng, s, rs, "")
+        if n is not None:
+            early = [a.pass_id for a in rs if a.kind == "audit" and _pass_no(a.pass_id) < n]
+            if early:
+                c.findings.append(f"stage {s}: {', '.join(early)} audits before the draft it audits")
+                n = None
+        drafted[s] = n
+        c.n_ok += n is not None
+    gates = sorted(_pass_no(r.pass_id) for r in eng.records if r.seat == "motion-gate" and r.kind == "gate")
+    motion, finish = drafted.get(MOTION_STAGE), drafted.get(4)
+    if motion is not None and gates and gates[0] < motion:
+        c.findings.append(f"motion gate pass-{gates[0]:02d} runs before the motion draft it gates")
+    if finish is not None and not any(motion is not None and motion < g < finish for g in gates):
+        c.findings.append(f"stage 4 {names(4)}: drafted before the motion gate ran on the moving test")
+    if closed and not gates:
+        c.findings.append(f"closed with no motion gate pass (anchor: stage {MOTION_STAGE} {names(MOTION_STAGE)})")
     return c
 
 

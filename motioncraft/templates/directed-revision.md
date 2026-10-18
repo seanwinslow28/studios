@@ -9,7 +9,7 @@ Two records, one per half:
 | The form | `<eng>.revision` | `artifacts/directed-revision.md` | the coordinator, from Sean's words, verbatim | after Sean plays the passed version at full speed and names the change |
 | The held checks | `<eng>.revision-check` | `audits/revision-check.md` | the motion gate's second pass, on the vendor that did not write the revision (a fresh-context Opus 5.5 when the Animator revised on Codex), read-only | after the Animator's revision is filed as `artifacts/scene-record-r2.md` |
 
-The Animator's revision is a `repair` pass at stage 3, with `triggered_by` naming the motion gate's pass. It writes a new version folder and fills the scene record's **Directed revision** section ([scene-record.md](scene-record.md)). Which recorded pass files the form, so the hash chain holds it, is the master skill design's to rule; until then the coordinator files it once and never edits it.
+The Animator's revision is a `repair` pass at stage 3, with `triggered_by` naming the motion gate's pass. It writes a new version folder and fills the scene record's **Directed revision** section ([scene-record.md](scene-record.md)). The coordinator files the form once, before the revision runs, and never edits it; it enters the hash chain as an input of the Animator's `repair` pass and of the held-checks gate pass ([the master skill](../../.claude/skills/motioncraft/SKILL.md), § Run).
 
 ## The form
 

@@ -23,7 +23,7 @@ Scaffold only. The studio is being built along the [Motioncraft build map](https
 | `books/` | **private — gitignored** | Guard directory only: purchased ebooks live at `~/Books/motioncraft/`, outside the repo. Nothing should ever sit here |
 | production material | **private — never in this repo** | Sources, media, renders and approved frames live in the approved private production workspace and its companion media folder (SWCB #157), never here and never in the ledger |
 | shared law | public | [`../craftwork/`](../craftwork/README.md): what every -craft team inherits, one copy |
-| master skill | public | `.claude/skills/motioncraft/SKILL.md`, per the house rule, linked for Codex at `.agents/skills/motioncraft`. Designed and written on the map's master-skill tickets; until then the folder holds a placeholder and there is nothing to invoke |
+| master skill | public | [`.claude/skills/motioncraft/SKILL.md`](../.claude/skills/motioncraft/SKILL.md), per the house rule: user-invoked as `/motioncraft`, excluded from export groups, linked for Codex at `.agents/skills/motioncraft`. It owns the process: the three engagement types (`full-train`, `small-piece`, `one-off`) and the handoff and self-targeted modifiers, parts split by approval state, the phases Open → Route → Run → Gate → Close, the sound trigger, the pass budget and launcher caps, and the Open and Close checklists |
 
 ## Inherited law
 
