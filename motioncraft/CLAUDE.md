@@ -16,7 +16,7 @@ Scaffold only. The studio is being built along the [Motioncraft build map](https
 |---|---|---|
 | `bench/` | public | Four seat definitions: Visual Story Director, Art and Pose Designer, Animator, Finishing and Sound Designer, each owning one artifact, with its contract, write zone, audit duty, launch form, toolbelt and never-do lines |
 | `templates/` | public | One artifact template per seat, the evidence-pack fields, the check record and gate findings, the gate schedule (story, appearance and motion gates) and its attack lists, and the two handoff files: the return to Scriptcraft (whose binding is Scriptcraft's to write) and the binding for Devcraft |
-| `lanes/` | public | Four lane manifests: topic-organized tables of contents (title + pointer + one-line when-to-read) into the private corpus, doubling as reading paths. Shelf labels, never the books |
+| `lanes/` | public | Four lane manifests: topic-organized tables of contents (title + pointer + one-line when-to-read) into the private corpus, doubling as reading paths. Shelf labels, never the books. Slugs `story`, `appearance`, `motion`, `finishing` |
 | `trace/` | public | Motioncraft's side of the shared trace kit ([craftwork/trace/](../craftwork/trace/README.md)): `studio.py`, the profile the kit reads, and `taxonomy.md`, empty until Motioncraft's own labels earn a seat failure mode |
 | `corpus/` | **private — gitignored** | The technique guides (principle and tool guides kept separate) and any book-to-skill ingests |
 | `ledger/` | **private — gitignored** | The decision ledger and the approvals ledger, a clone of its own private repo, accreting per engagement. Engagements are `mc-eng-NNN`, entries `mc-eng-NNN.dNN` |

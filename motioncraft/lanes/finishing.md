@@ -1,0 +1,138 @@
+---
+lane: finishing
+seat: finishing-sound-designer
+updated: 2026-10-18
+---
+# Lane manifest — Finishing and Sound Designer
+
+Mandatory first read for the [Finishing and Sound Designer](../bench/finishing-sound-designer.md). Entries are title + pointer + one-line when-to-read — shelf labels, never the books: the content lives in the private corpus (`../corpus/`, gitignored), so pointers resolve only on a machine that has it (`manifest-only` grounding otherwise, per the seat preamble). Follow only the pointers relevant to the finish in hand. Seats stop at `## Reading path`; that section is the owner's.
+
+This shelf is about one delivered film, proven: a cut made for emotion first (the Director decides, this seat executes), a film designed for sound from the start, few sound layers, loudness measured against a written target, correction then a grade in linear light, and texture continuity checked in the composite. This seat is the accountable integrator; the delivered result is its artifact. The order below is vocabulary, principles, technique, then the application chapters last, as the book-to-seat brief fixed it.
+
+## Before the first engagement
+
+The five things this seat holds before mc-eng-001 opens (the book-to-seat brief's bold items), and where each is carried:
+
+- **Cut for emotion before continuity** — rows *Cut*, *Match cut*, *J-cut and L-cut* below; principle 1; the conform and cut sections of [`resolve-finishing-and-delivery.md`](../corpus/guides/resolve-finishing-and-delivery.md).
+- **How many sound layers a listener can follow** — row *Sound layers*; principle 3; no guide yet, so the row carries it.
+- **The loudness target and true peak** — rows *Loudness* and *True peak*; principle 4; the Resolve guide's loudness section.
+- **Linear versus display colour** — rows *Linear and output colour* and *Grade*; principle 5; the Resolve guide's grade section, stated there from the curriculum brief.
+- **Texture continuity checked in the composite** — rows *Texture continuity*, *Texture sliding*, *Image jitter*, *Line boil*; principle 6; [`boil-and-painted-texture-continuity.md`](../corpus/guides/boil-and-painted-texture-continuity.md).
+
+## Vocabulary
+
+The glossary rows this seat owns or shares (curriculum brief, section 1): the plain definition in the brief's words, checked against the named source. Where another seat is first-named, its lane holds the sources.
+
+| Term | Plain definition | Field term and synonyms | Shared with | Source |
+|---|---|---|---|---|
+| Cut | Where one shot ends and the next begins. | Edit; split, in software. | the Director decides, first-named; this seat executes | on [story.md](story.md) |
+| Match cut | A cut joining two shots through a shared shape, colour or motion. | Graphic match; match on action. | the Director plans, first-named; this seat cuts | on [story.md](story.md) |
+| Line boil | A line's small wobble frame to frame, by redrawing or a filter. | Boiling lines; Blender's Noise modifier. | the Animator moves it, first-named; Art designs it; this seat checks it | on [motion.md](motion.md) |
+| Image jitter | A whole layer shaking rigidly, nothing redrawn. | Camera shake, nearest. | — | Toon Boom glossary; the line-boil research on the brain's tracker |
+| Texture sliding | Paint or grain fixed on screen while the picture moves under it. | Shower-door effect; swimming. | — | [Meier 1996](https://media.disneyanimation.com/uploads/production/publication_asset/47/asset/p477-meier_1996.pdf); [Bénard 2010](https://diglib.eg.org/bitstreams/309081b8-5f6e-4fb0-b903-2d80a5421fac/download) |
+| Texture continuity | Texture moving with what it belongs to, changing only as designed. | Temporal coherence. | Art, first-named; the Animator | on [appearance.md](appearance.md) |
+| J-cut and L-cut | In a J-cut the next shot's sound comes first; in an L-cut the last shot's sound carries over. | Split edit; sound bridge. | — | [Adobe](https://www.adobe.com/creativecloud/video/discover/j-cut-and-l-cut.html); [Yale sound](https://filmanalysis.yale.edu/sound/) |
+| Compositing | Layering separate images into one frame. | Merge; alpha; blend mode. | — | [Fusion guide](https://documents.blackmagicdesign.com/UserManuals/DaVinci-Resolve-20-Fusion-Visual-Effects.pdf) |
+| Grade | Correction first balances shots; the grade then sets the look. | Colour correction; primaries. | — | [Blackmagic](https://www.blackmagicdesign.com/products/davinciresolve/color) |
+| Linear and output colour | Light computed in linear values, shown through a transform for one display. | Scene-linear; output transform. | — | [ACES](https://docs.acescentral.com/system-components/output-transforms/) |
+| Loudness | The whole mix's measured loudness, averaged over the film. | Integrated, in LUFS, equal to LKFS; target −23. | — | [EBU R 128](https://tech.ebu.ch/publications/r128) |
+| True peak | The waveform's real highest level, including between samples. | dBTP; at most −1. | — | EBU R 128 |
+| Sound layers | The separate strands of a mix, from the animatic's scratch track on. | Tracks, stems, density. | — | [Murch on Transom](https://transom.org/2005/walter-murch/) |
+
+## Principles, in learning order
+
+Learned after the rows above and before the guides. "Named, not read" means the canon title was not read and no copy is ingested.
+
+1. **Cut for emotion first, then story, then rhythm.** Canon: Murch, *In the Blink of an Eye* (named, not read): rank a cut's reasons and give up emotion last, which is why the Director decides each cut and this seat only executes it. Carried by the conform and cut sections of [`resolve-finishing-and-delivery.md`](../corpus/guides/resolve-finishing-and-delivery.md), until "Cutting for emotion, with J and L cuts" is written.
+2. **Design the film for sound from the start**, after Thom's 1999 essay. No guide yet; the row *Sound layers* and the story packet's "Room for sound" section carry it until "Sound layers, designing for sound" is written.
+3. **Keep layers few:** about two and a half of one kind, up to five spread from speech to music, after Murch on Transom. Same future guide; the row carries it.
+4. **Measure loudness against a written target:** −23 LUFS integrated, true peak at most −1 dBTP, short-term at most −18 LUFS for short-form, per EBU R 128 and R 128 s1, set by hand. Carried by the Resolve guide's loudness section.
+5. **Correct, then grade, in linear light through the output transform.** Carried by the Resolve guide's grade section, stated there from the curriculum brief, until "Correct, then grade" is written.
+6. **Check texture continuity in the composite:** no sliding, no undesigned flicker. Carried by [`boil-and-painted-texture-continuity.md`](../corpus/guides/boil-and-painted-texture-continuity.md).
+
+## Technique
+
+The starred guides by file. This seat owns one tool guide (under Application), checks the composite against a second, and reads a third for its audit.
+
+- **Line boil and painted-texture continuity** — [`boil-and-painted-texture-continuity.md`](../corpus/guides/boil-and-painted-texture-continuity.md) — this seat checks what Art designed and the Animator moved: in the composite, through every push-in and pull-back, paint travels with its subject and line boil runs at Art's cadence; sliding and undesigned flicker are craft fails.
+- **The animatic and staging** — [`animatic-and-staging.md`](../corpus/guides/animatic-and-staging.md) — read for the audit of the story packet: the sound layers begin with the animatic's scratch track, and the beats marked for sound need the frames to land.
+
+Not yet written, so a topic for `thin_lane:` until it exists: **Cutting for emotion, with J and L cuts** (ready now; the Director reads), **Sound layers, designing for sound** and **Correct, then grade** (ready now); **Compositing in Fusion**, a tool guide (ready now; with the Animator); **Foley, room tone, scratch tracks** (waits on a tier B source).
+
+## Application
+
+Last on the path, in the order the book-to-seat brief set: the beginner's guide, then the manual's Edit, Fusion, Color, Fairlight and Deliver parts. This seat operates the Resolve delivery project alone; the Animator's Fusion work arrives as an exported composition.
+
+- **Resolve finishing and delivery** — [`resolve-finishing-and-delivery.md`](../corpus/guides/resolve-finishing-and-delivery.md) — owned: before the conform, before the grade, before the mix and before every delivery; the six technical checks, the loudness record with the targets set by hand, the save-reopen-render comparison, and the scripting calls that are known to fail while the application is busy.
+- **Blackmagic's beginner's guide, then the manual's five parts** — no guide beyond the one above; all rights reserved, read on the page — the application chapters, as the brief ordered them.
+- **The Resolve scripting documents shipped with the installed application** — cited in the Resolve guide — render settings, project colour management, the audio-normalise call whose default is not the target.
+- `ffmpeg` with `ebur128` and `loudnorm`, `ffprobe`, `color-motion` and `beat-sync-editing` are toolbelt ([seat file](../bench/finishing-sound-designer.md#toolbelt)), not corpus.
+
+## Audit duty: the story packet
+
+This seat audits the Director's packet before the story gate (stake: *can this animatic be finished into the film it promises?*): pace, room for sound, and buildability within the limits. Lean on the staging guide above, and look for what the curriculum brief says a reviewer should see in boards and an animatic:
+
+- every panel names its beat and what changes;
+- each panel marks one focal point;
+- screen direction agrees across cuts, or the crossing is motivated;
+- the animatic runs full length with scratch sound, and holds are timed in frames;
+- camera moves are named push-in, pull-back, pan or track;
+- the story reads with the sound off, and the muted copy is there to prove it.
+
+A craft fail is pinned to a panel or a frame in these rows, copied from [story.md](story.md), the primary lane with the sources (*Cut* and *Match cut*, which this seat shares, are above):
+
+| Term | Plain definition | Field term and synonyms |
+|---|---|---|
+| Visual storytelling | Telling the story through shape, size, colour and framing, so it reads without words. | Visual language; show, don't tell. |
+| Beat | The smallest change in the story; major beats are key moments, minor beats the ideas inside them. | Story beat; beat board. |
+| Shot and sequence | A shot is one unbroken piece from one camera; a sequence is the shots making one major beat. | Say shot and sequence, never "scene" for a piece of the film. |
+| Staging | Arranging action and camera so one idea per shot reads at once. | Blocking; flat or in depth. |
+| Shot size | How much of the subject the frame holds, extreme close-up to extreme wide. | Close-up, medium, wide; named by the seed or tree, since "medium" varies. |
+| Screen direction | Which way things move and face, kept steady by not crossing a line between the main elements. | Axis of action; 180-degree rule. |
+| Animatic | The boards played as a timed film with scratch sound, where pace is decided. | Story reel; leica reel. |
+| Layout | Turning boards into staged shots: set, camera and rough positions. | Layout and posing. |
+| Camera move | Moving the camera within a shot to guide the eye. | Pan turns; dolly or track travels; push-in, pull-back. Zoom is a lens change only. |
+
+## Free layer
+
+The free sources this seat's rows, principles and guides draw on, with the licence as the book-to-seat brief saw it on 2026-10-17 and what has become of each. `read-only` is a page a person reads; `open` is a licence that would allow an ingest, none made yet. "Carried by" names the guide that cites the source; "none yet" means a page with no guide behind it, so a decision leaning on it names the page.
+
+| Source | Teaches | Licence, where seen | Status | Carried by |
+|---|---|---|---|---|
+| EBU R 128 (v5.0) and R 128 s1; EBU Tech 3341 to 3343; ITU-R BS.1770-5 | the loudness target, the tolerance, true peak, short-form, no loudness range under a minute | free downloads, licence not checked; ITU all rights reserved | read-only | the Resolve guide |
+| FFmpeg filters documentation: `loudnorm`, `ebur128` | measuring, and the defaults that do not match the target | project documentation, licence not checked | read-only | the Resolve guide |
+| Blackmagic's Resolve colour page and Fairlight page; the Resolve 20 and 21 guides and the Fusion guide | edit, colour, Fairlight, Fusion, deliver | all rights reserved | read-only | the Resolve guide (the two pages); the guides none yet |
+| The Resolve scripting documents shipped with the installed application | render and project calls, the audio-normalise default | shipped with the application; read only, local | local, read-only | the Resolve guide |
+| ACES documentation, output transforms | linear and output colour | CC BY 4.0 | open, not ingested | the Resolve guide |
+| Meier 1996; the Paperman talk; Bénard 2010; Disney's SIGGRAPH 2024 page | texture continuity and its failures in the composite | all rights reserved, or the authors' and the Eurographics Association's | read-only | the texture guide |
+| Thom, "Designing a Movie for Sound" (filmsound.org) | designing for sound from the start | © Randy Thom 1999, on a tier C host | read-only | none yet |
+| Murch on Transom; Murch on Web of Stories, segments 293 to 295 | sound layers; emotion first | no terms stated; automatic captions | read-only | none yet |
+| Yale Film Analysis, editing and sound; Adobe's J-cut and L-cut page | cuts, split edits, sound bridges | no licence stated; Adobe's | read-only | none yet |
+
+## Canon
+
+No book is ingested: `../corpus/books/` is empty, and every canon line in a guide says "named, not read" until an ingest lands there on its own ticket.
+
+- **Murch, *Suddenly Something Clicked* (2025)** — the seat's primary: picture rhythm, sound design and mixing in one volume, the one Murch title the brief found unlocked. Named, not read.
+- **Murch, *In the Blink of an Eye*** — the emotion-first cut: rank a cut's reasons and give up emotion last. Named, not read; it also survives as audio, on the reading path.
+
+## Reading path
+
+Corpus states are as of the `updated:` date in the header. Format and audio facts are the book-to-seat brief's, checked 2026-10-17.
+
+| # | Title | Read this when | Format | Audio | Corpus |
+|---|---|---|---|---|---|
+| 1 | ACES getting-started pages | first on this path: the colour vocabulary | web | — | open, not ingested |
+| 2 | Blackmagic's beginner's guide to Resolve | the application's vocabulary | PDF | — | read-only |
+| 3 | Murch, *Suddenly Something Clicked* (2025) | the seat's canon, after the vocabulary: rhythm, sound and the mix in one book | EPUB (unlocked at one store, per the brief) | none found | named · on hand, not ingested |
+| 4 | Thom, "Designing a Movie for Sound" (1999) | principles: sound planned from the start | web | — | read-only |
+| 5 | Murch on Transom | principles: how many layers a listener can follow | web, with audio | by ear | read-only · listen |
+| 6 | EBU R 128 and R 128 s1 | the target and true peak, before the first mix | PDF | — | read-only |
+| 7 | Murch, *In the Blink of an Eye* (2001) | the emotion-first idea, as audio if preferred | locked ebook | unabridged, read by Chris Brinkley, 3 hours 48 minutes (Apple); optional | named · on hand, not ingested |
+| 8 | The Resolve manual: Edit, Fusion, Color, Fairlight, Deliver | the application chapters, last | PDF | — | read-only |
+| 9 | Van Hurkman, *Color Correction Handbook* (2nd ed.) | when the first grade shows a need the free colourist guide does not meet (Sean's ruling, 2026-10-17) | EPUB and PDF, unlocked (InformIT) | — | on hand, not ingested |
+| 10 | Murch on Web of Stories 293 to 295, 13 minutes; Bancroft Brothers, editing with Tom Scott, 78 minutes; Twenty Thousand Hertz, "Inside Movie Soundtracks", 15 minutes, then Murch's Krotos interview, 28 minutes; Tonebenders 231 on sound for feature animation, 41 minutes; Twenty Thousand Hertz, "The Loudness War", 32 minutes | the listening order's finishing items, in sessions under an hour | audio | by ear | listen |
+
+### Next
+
+- None held in reserve. Van Hurkman, the brief's one optional extra for this seat, is on the path above.
