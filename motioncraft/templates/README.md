@@ -27,6 +27,9 @@ Public machinery; filled artifacts are private, in the engagement folder of the 
 
 - [gate-schedule.md](gate-schedule.md): when the story, appearance and motion gates fire (once per half on a train in halves), what each reads and may demand, its vendor, Sean's decision after it, FAIL and re-runs, and the attack list for every artifact.
 
-**Still to land here**, on its own map ticket: the two bindings with the interim words rule (**The two bindings and the interim words rule**).
+**Handoffs**, under [the handoff contract](../../craftwork/handoff-contract.md), written on the map's **The two bindings and the interim words rule** ticket (2026-10-18). A binding sits in the sending team's `templates/`, and its mirror in the receiving team's.
+
+- [handoff-binding-devcraft.md](handoff-binding-devcraft.md): Motioncraft's one crossing out, a tool brief with synthetic samples for pipeline software, sent at Close while the film carries on by hand, and the home of Motioncraft's strip list. Its mirror is Devcraft's [handoff-return-motioncraft.md](../../devcraft/templates/handoff-return-motioncraft.md), one line per request.
+- [handoff-return-scriptcraft.md](handoff-return-scriptcraft.md): the return to a locked script, one line per script id (boarded, cut, needs rewrite) with its duration from the approved animatic, fired at the story gate. Its binding is Scriptcraft's to write once Scriptcraft exists; until then the interim words rule holds ([`motioncraft/CLAUDE.md`](../CLAUDE.md), rule 8).
 
 **Shared law, inherited by link from [craftwork/](../../craftwork/README.md):** the [ledger-entry schema](../../craftwork/templates/ledger-entry.md), the [runtime registry](../../craftwork/templates/runtime-registry.md), the [red-team protocol](../../craftwork/templates/red-team-protocol.md), the [close digest](../../craftwork/templates/close-digest.md), the [status vocabulary](../../craftwork/templates/status-vocabulary.md) and the trace kit's [labels template](../../craftwork/trace/labels-template.md).

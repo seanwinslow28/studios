@@ -68,7 +68,7 @@ Only on `returned-partial`: the part of the ask not built, why, and its rule-8 t
 
 ## What is stripped from the copies
 
-Devcraft's process parts, the same list as [Devcraft's binding for Systemcraft](handoff-binding-systemcraft.md#what-is-stripped-from-the-copies), where it is explained. A change to one is made to all three.
+Devcraft's process parts, the same list as [Devcraft's binding for Systemcraft](handoff-binding-systemcraft.md#what-is-stripped-from-the-copies), where it is explained. A change to one is made to all four.
 
 ```strip
 heading: ## Moves

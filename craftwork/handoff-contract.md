@@ -12,6 +12,8 @@ The law every crossing between two -craft teams shares. One team frames a questi
 | Productcraft → Devcraft | [productcraft/templates/handoff-binding-devcraft.md](../productcraft/templates/handoff-binding-devcraft.md) | [devcraft/templates/handoff-return-productcraft.md](../devcraft/templates/handoff-return-productcraft.md) |
 | Systemcraft → Devcraft | [systemcraft/templates/handoff-binding-devcraft.md](../systemcraft/templates/handoff-binding-devcraft.md) | [devcraft/templates/handoff-return-systemcraft.md](../devcraft/templates/handoff-return-systemcraft.md) |
 | Devcraft → Systemcraft (one-off ask) | [devcraft/templates/handoff-binding-systemcraft.md](../devcraft/templates/handoff-binding-systemcraft.md) | [systemcraft/templates/handoff-return-one-off.md](../systemcraft/templates/handoff-return-one-off.md) |
+| Motioncraft → Devcraft (tool brief) | [motioncraft/templates/handoff-binding-devcraft.md](../motioncraft/templates/handoff-binding-devcraft.md) | [devcraft/templates/handoff-return-motioncraft.md](../devcraft/templates/handoff-return-motioncraft.md) |
+| Scriptcraft → Motioncraft | not yet written: Scriptcraft's to write once it exists, and until then no crossing can be taken | [motioncraft/templates/handoff-return-scriptcraft.md](../motioncraft/templates/handoff-return-scriptcraft.md) |
 
 The reverse crossing, Systemcraft handing Productcraft a product-framing ask, is a second binding when an engagement first needs it, not a new contract.
 

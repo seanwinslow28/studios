@@ -62,7 +62,7 @@ A flattened render is not a source. A revision is made in the source.
 
 The command that burned the numbers, pasted.
 
-## Moves and their timing charts
+## Timing charts, move by move
 
 One row per move, from key to key, in the appearance packet's poses. Name the pose and the direction ("slow into the rest", "fast out of the anticipation"), never bare "ease in". The chart is the spacing drawn frame by frame: positions per frame, or a chart image beside the row.
 

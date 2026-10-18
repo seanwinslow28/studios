@@ -79,7 +79,7 @@ For Systemcraft's one-off: the plan finished around the answer and passing the p
 
 ## What is stripped from the copies
 
-The process parts of Devcraft's seat artifacts, from [artifact-header.md](artifact-header.md): the closing `## Moves` and `meter:` line, the process notes (`**Repair note …**` paragraphs, `## Loopbacks`, `## Audit dispositions`), the coordinator's `audit:` and `stale_from:` history, the `thin_lane` key, the plan's `## Budget` and the release plan's `## Sean's yes`. The `## Exit` section stays, because it carries the call. The same list strips Devcraft's copies in both return templates ([to Productcraft](handoff-return-productcraft.md), [to Systemcraft](handoff-return-systemcraft.md)), and a change to one is made to all three. Tested on 2026-10-11 against a filled build plan and release plan from the templates, with every process-note form added: every named part stripped, and nothing else.
+The process parts of Devcraft's seat artifacts, from [artifact-header.md](artifact-header.md): the closing `## Moves` and `meter:` line, the process notes (`**Repair note …**` paragraphs, `## Loopbacks`, `## Audit dispositions`), the coordinator's `audit:` and `stale_from:` history, the `thin_lane` key, the plan's `## Budget` and the release plan's `## Sean's yes`. The `## Exit` section stays, because it carries the call. The same list strips Devcraft's copies in its three return templates ([to Productcraft](handoff-return-productcraft.md), [to Systemcraft](handoff-return-systemcraft.md), [to Motioncraft](handoff-return-motioncraft.md)), and a change to one is made to all four. Tested on 2026-10-11 against a filled build plan and release plan from the templates, with every process-note form added: every named part stripped, and nothing else.
 
 ```strip
 heading: ## Moves
@@ -94,4 +94,4 @@ paragraph: **Repair note
 paragraph: meter:
 ```
 
-A note that leaks anyway is the outbound gate's *reasoning that crossed* finding, and the fix is a new line here and in both return templates.
+A note that leaks anyway is the outbound gate's *reasoning that crossed* finding, and the fix is a new line here and in the three return templates.

@@ -15,7 +15,7 @@ Scaffold only. The studio is being built along the [Motioncraft build map](https
 | Path | Lane | What lives here |
 |---|---|---|
 | `bench/` | public | Four seat definitions: Visual Story Director, Art and Pose Designer, Animator, Finishing and Sound Designer, each owning one artifact, with its contract, write zone, audit duty, launch form, toolbelt and never-do lines |
-| `templates/` | public | One artifact template per seat, the evidence-pack fields, the check record and gate findings, the gate schedule (story, appearance and motion gates) and its attack lists, and the two bindings (receiving from Scriptcraft, sending to Devcraft) |
+| `templates/` | public | One artifact template per seat, the evidence-pack fields, the check record and gate findings, the gate schedule (story, appearance and motion gates) and its attack lists, and the two handoff files: the return to Scriptcraft (whose binding is Scriptcraft's to write) and the binding for Devcraft |
 | `lanes/` | public | Four lane manifests: topic-organized tables of contents (title + pointer + one-line when-to-read) into the private corpus, doubling as reading paths. Shelf labels, never the books |
 | `trace/` | public | Motioncraft's side of the shared trace kit ([craftwork/trace/](../craftwork/trace/README.md)): `studio.py`, the profile the kit reads, and `taxonomy.md`, empty until Motioncraft's own labels earn a seat failure mode |
 | `corpus/` | **private — gitignored** | The technique guides (principle and tool guides kept separate) and any book-to-skill ingests |
@@ -37,7 +37,7 @@ Motioncraft runs on all of [craftwork/law.md](../craftwork/law.md) and adds to i
 - **Model delegation:** [craftwork § Model delegation](../craftwork/law.md#model-delegation).
 - **The alias probe at Route:** [craftwork § The alias probe at Route](../craftwork/law.md#the-alias-probe-at-route).
 - **Checks converge:** [craftwork § Checks converge](../craftwork/law.md#checks-converge-and-the-ladder-has-brakes).
-- **Handoffs:** [the handoff contract](../craftwork/handoff-contract.md), and the sender's binding for each pair.
+- **Handoffs:** [the handoff contract](../craftwork/handoff-contract.md), and the sender's binding for each pair: [Motioncraft's for Devcraft](templates/handoff-binding-devcraft.md), and Scriptcraft's once it exists, answered on [the Scriptcraft return](templates/handoff-return-scriptcraft.md).
 
 ## Non-negotiable rules
 
@@ -63,3 +63,4 @@ Motioncraft runs on all of [craftwork/law.md](../craftwork/law.md) and adds to i
     12. Never name the employer, or let day-job material in except as lessons Sean states himself: [SWCB AGENTS.md § Trust](https://github.com/seanwinslow28/SWCB/blob/main/AGENTS.md#trust).
     13. Never let a cloud-generated asset be the only copy. Download it to the companion media folder on creation.
     14. Never present a version to Sean without its id, its status and his prior note on it.
+8. **The interim words rule.** Every on-screen or spoken word is Sean's until Scriptcraft exists, and then Sean's or Scriptcraft's, arriving locked on its binding: a placeholder is marked (`WP<n>`) and never shipped, and a word change goes back on [the return's line](templates/handoff-return-scriptcraft.md), never rewritten here.

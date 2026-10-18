@@ -77,6 +77,7 @@ Rung 0 of the trace kit finds an item by its id, in one shape: one to four capit
 | Id | Item | Written in |
 |---|---|---|
 | `ASK<n>` | a line of the brief, numbered at Open | the brief |
+| `RQ<n>` | a request for a tool, sent to Devcraft | the tool brief ([handoff-binding-devcraft.md](handoff-binding-devcraft.md)) |
 | `B<n>` | a beat | story packet |
 | `P<n>` | a board panel | story packet |
 | `SH<n>` | a shot | story packet |
@@ -123,7 +124,7 @@ The four naming rulings hold in every artifact, check and gate, and in these tem
 
 - Name the pose and the direction ("slow into the rest", "fast out of the anticipation"), never bare "ease in" or "ease out".
 - Say line boil, paper boil, pigment variation, smear or image jitter, never bare "boil" or "jitter".
-- Say shot and sequence for a piece of the film, never "scene". A Blender or Fusion file keeps the application's own word, which is the one use here: the Animator's editable source, and this folder's `scene-record.md`.
+- Say shot and sequence for a piece of the film, never "scene". A Blender or Fusion file keeps the application's own word, which is the one use here: the Animator's editable source, and this folder's `scene-record.md`. A script's scene is Scriptcraft's word and stays inside its script id ([handoff-return-scriptcraft.md](handoff-return-scriptcraft.md)).
 - Say push-in and pull-back for camera travel, pan for a turn, track for a move alongside; zoom only for a lens change.
 
 ## Attack checklists
