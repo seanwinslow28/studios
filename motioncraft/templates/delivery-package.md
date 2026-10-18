@@ -30,7 +30,7 @@ story: mc-eng-001.story            # the animatic every cut comes from
 motion: mc-eng-001.motion          # the scene record conformed, by its latest filed revision
 frame_rate: 24
 frames: <n>
-delivery: "<container>, <codec>, <width>x<height>, <rate> fps, <audio format>"   # the targets from the delivery decision
+delivery: "master: mov, prores 422 hq, 1920x1080, 24 fps, pcm 48 kHz 24-bit stereo; web: mp4, h.264 high, 1920x1080, 24 fps, aac 48 kHz stereo 320 kb/s"   # source-contract.md § 8; an exercise names its source's settings
 ---
 
 ## Conformed cut
@@ -92,8 +92,8 @@ The six technical checks of the quality bar, by row, each with the command or me
 | TC2 | Picture integrity: no unintended black frames, freezes, flicker, missing elements, broken edges or export artifacts | `blackdetect` and `freezedetect` over the file; frame review at the flagged frames | `evidence/tc2-<version>.txt` | |
 | TC3 | Text and framing: any text readable at viewing size; nothing cropped or hidden | frames at viewing size, by shot | | |
 | TC4 | Audio integrity: no clipping, clicks, cutoffs, unintended gaps or sync errors; accents land on their frames | `ebur128` true peak; each `SP<n>` checked at its frame | | |
-| TC5 | Source integrity: the project opens with every asset and font; the export matches the approved version | the save, reopen and render comparison below | | |
-| TC6 | Delivery compliance: resolution, frame rate, format and audio meet the delivery targets | `ffprobe` against `delivery:` in the header | | |
+| TC5 | Source integrity: the project opens with every asset and font; the export matches the approved version; every version in the chain has its manifest | the save, reopen and render comparison below, by [source-contract.md § 7](source-contract.md#7-tc5-save-reopen-and-render-again) | | |
+| TC6 | Delivery compliance: resolution, frame rate, format and audio meet the delivery targets ([source-contract.md § 8](source-contract.md#8-delivery-targets)), on each delivered file | `ffprobe` against `delivery:` in the header | | |
 
 **Loudness record**, set by hand, never `loudnorm`'s defaults (−24, −2, which fail):
 
@@ -112,7 +112,7 @@ ffmpeg -nostats -i <delivery file, full path> -af ebur128=peak=true -f null -
 
 **Frames, rate and duration** from `ffprobe`, pasted, against the scene record and the animatic. A mismatch is a technical fail before any look is judged.
 
-**Save, reopen and render comparison:** the project saved, reopened in a fresh session, rendered again; the two renders compared frame by frame, commands and output pasted, with the count of frames that differ.
+**Save, reopen and render comparison:** the project saved, reopened in a fresh session, rendered again; the two renders compared frame by frame by [the source contract's commands](source-contract.md#7-tc5-save-reopen-and-render-again), output pasted, with the count of frames that differ and the largest difference. Any frame that differs is a technical fail until its cause is found.
 
 ## Renders and caches deleted
 

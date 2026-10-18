@@ -23,6 +23,10 @@ Public machinery; filled artifacts are private, in the engagement folder of the 
 - [directed-revision.md](directed-revision.md): the form for Sean's one change, and the motion gate's record of the three held checks.
 - [labels-row.md](labels-row.md): what each column of a pass's row in `trace/labels.md` means here, and why it is never Sean's verdict on the film.
 
+**Sources, versions and delivery**
+
+- [source-contract.md](source-contract.md): version folders and ids, the manifest every version carries, saving and freezing, backup, restore and relink, the revision drill, the TC5 comparison and the film's delivery targets (SWCB #165).
+
 **The gates**
 
 - [gate-schedule.md](gate-schedule.md): when the story, appearance and motion gates fire (once per half on a train in halves), what each reads and may demand, its vendor, Sean's decision after it, FAIL and re-runs, and the attack list for every artifact.
