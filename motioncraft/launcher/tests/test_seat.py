@@ -76,6 +76,7 @@ skills = ["desk:2d-animation-principles", "agents:animation-principles"]
 apps = ["blender", "resolve"]
 [seats.finishing-sound-designer]
 apps = ["resolve"]
+sound = true
 [apps]
 blender = "{BLENDER}"
 python = "{sys.executable}"
@@ -284,7 +285,7 @@ def test_claude_settings_fence_a_drafting_seat(world):
         assert f"Read(/{os.path.expanduser(root)}/**)" in deny and os.path.expanduser(root) in sb["filesystem"]["denyRead"]
 
 
-@pytest.mark.parametrize("seat_name,extra", [("finishing-sound-designer", ()), ("art-pose-designer", ("--read-only",)),
+@pytest.mark.parametrize("seat_name,extra", [("finishing-sound-designer", ("--read-only",)), ("art-pose-designer", ("--read-only",)),
                                              ("motion-gate", CODEX_ANCHOR)])
 def test_no_other_claude_pass_has_a_way_out_of_the_sandbox(world, seat_name, extra):
     ctx = context(world, seat_name, f"9{len(extra)}{seat_name[:3]}", *extra)
@@ -292,7 +293,27 @@ def test_no_other_claude_pass_has_a_way_out_of_the_sandbox(world, seat_name, ext
     assert s["sandbox"]["allowUnsandboxedCommands"] is False
     # ffmpeg and ffprobe are let past the name=value hold, and stay sandboxed: nothing here lets a command out
     assert [r for r in s["permissions"]["allow"] if r.startswith("Bash(")] == ["Bash(ffmpeg:*)", "Bash(ffprobe:*)"]
-    assert ctx_data(ctx)["toolbelt"]["image"] is False
+    assert ctx_data(ctx)["toolbelt"]["image"] is False and ctx_data(ctx)["toolbelt"]["sound"] is False
+
+
+def test_finishing_has_one_way_out_the_sound_doorway_and_no_ffmpeg_rule(world):
+    ctx = context(world, "finishing-sound-designer", "fs1")
+    s = json.loads(Path(seat(world, "claude-settings", ctx)).read_text())
+    assert s["sandbox"]["allowUnsandboxedCommands"] is True and ctx_data(ctx)["toolbelt"]["sound"] is True
+    # its one way out, for its own context; ffmpeg and ffprobe lose their allow rule, which would let them out too
+    assert [r for r in s["permissions"]["allow"] if r.startswith("Bash(")] == [f"Bash({LAUNCHER / 'sound.py'} --context {ctx}:*)"]
+    keys = os.path.expanduser("~/.config/audio-keys")
+    assert f"Read(/{keys}/**)" in s["permissions"]["deny"] and keys in s["sandbox"]["filesystem"]["denyRead"]
+
+
+def test_only_finishing_may_have_the_sound_path(world):
+    toml = world["root"] / "toolbelts-sound.toml"
+    toml.write_text((world["root"] / "toolbelts.toml").read_text().replace(
+        '[seats.animator]\n', '[seats.animator]\nsound = true\n'))
+    env = dict(world["env"], MOTIONCRAFT_TOOLBELTS=str(toml))
+    r = subprocess.run([sys.executable, str(SEAT), "context", "--seat", "animator", "--engagement", str(world["eng"]),
+                        "--pass", "fs2"], env=env, capture_output=True, text=True)
+    assert r.returncode != 0 and "Finishing alone generates sound" in r.stderr
 
 
 def test_a_read_only_claude_pass_writes_nothing_but_scratch(world):
@@ -412,6 +433,12 @@ if Path(sys.argv[0]).name == "claude":
         out({"type": "assistant", "message": {"model": b.get("stamp", model), "content": [{"type": "tool_use", "id": f"t{i}", "name": name}]}})
         time.sleep(b.get("pause", 0))
     time.sleep(b.get("sleep", 0))
+    if b.get("progress"):  # a long Bash call's progress, as Claude Code logs it
+        out({"type": "system", "subtype": "task_started", "task_id": "b1", "description": "a long command"})
+        out({"type": "tool_progress", "tool_use_id": "t0", "parent_tool_use_id": "t0", "elapsed_time_seconds": 31})
+        out({"type": "system", "subtype": "task_notification", "task_id": "b1", "status": "completed"})
+    if b.get("child"):  # a helper's own message under its parent's tool use
+        out({"type": "assistant", "parent_tool_use_id": "t0", "message": {"model": model, "content": [{"type": "text", "text": "x"}]}})
     out({"type": "assistant", "message": {"model": b.get("stamp", model), "content": [{"type": "text", "text": "done"}]}})
     for r in [argv[j + 1] for j, x in enumerate(argv) if x == "--add-dir"] + [os.getcwd()]:
         if b.get("claude_dirs_under") and r.startswith(b["claude_dirs_under"]):
@@ -569,6 +596,20 @@ def test_launch_catches_a_codex_helper_agent(world, codex_home, fake):
     assert (world["eng"] / rec["discarded_output"]).exists() and "outputs" not in rec
 
 
+def test_a_long_commands_progress_is_no_helper_but_a_helpers_message_is(world, fake):
+    behave(fake, calls=1, progress=True)
+    ctx = context(world, "finishing-sound-designer", "hp1")
+    seat(world, "claude-settings", ctx)
+    r = launch(world, ctx, "--run")
+    assert r.returncode == 0, r.stderr
+    assert "helper_agent" not in record(world, "hp1")
+    behave(fake, calls=1, child=True)
+    ctx = context(world, "finishing-sound-designer", "hp2")
+    seat(world, "claude-settings", ctx)
+    r = launch(world, ctx, "--run")
+    assert r.returncode == 3 and record(world, "hp2")["helper_agent"] == ["a helper agent's message (parent tool use t0)"]
+
+
 def test_launch_catches_a_claude_helper_agent(world, fake):
     behave(fake, calls=1, tool="Task", answer="GATE FINDINGS")
     ctx = context(world, "motion-gate", "68", *CODEX_ANCHOR)
@@ -673,7 +714,7 @@ def test_the_context_fixes_the_toolbelt(world):
     assert ctx_data(context(world, "visual-story-director", "t2"))["toolbelt"]["image"] is True
     assert ctx_data(context(world, "visual-story-director", "t3", "--read-only"))["toolbelt"]["image"] is False
     assert ctx_data(context(world, "story-gate", "t4", *CLAUDE_ANCHOR))["toolbelt"] == {
-        "dir": "", "skills": [], "manifest_sha256": "", "image": False, "apps": []}
+        "dir": "", "skills": [], "manifest_sha256": "", "image": False, "sound": False, "apps": []}
     assert data["toolbelt"]["apps"] == ["blender", "resolve"], "the Animator's apps, through the doorway"
     assert ctx_data(context(world, "animator", "t5b", "--read-only"))["toolbelt"]["apps"] == [], "an audit runs no app"
 
@@ -720,6 +761,8 @@ def test_a_claude_prompt_names_the_image_door_only_for_the_director_and_art(worl
     finishing = seatmod.load(context(world, "finishing-sound-designer", "t9"))
     prompt = seatmod.launch_argv(finishing, "do the work")[-1]
     assert prompt.startswith("do the work") and "image.py" not in prompt and "apps.py ask resolve" in prompt
+    assert f"{LAUNCHER / 'sound.py'} --context {finishing['source']}" in prompt and "-/af <file>" in prompt
+    assert "sound.py" not in seatmod.launch_argv(director, "do the work")[-1]
     gate = seatmod.load(context(world, "motion-gate", "t10", "--anchor", "artifacts/scene-record.md"))
     assert seatmod.launch_argv(gate, "do the work")[-1] == "do the work", "a gate gets neither door"
 
@@ -764,6 +807,15 @@ def test_a_codex_pass_reads_its_toolbelt_and_no_other_skill_folder(world, codex_
         if outside.is_dir() else None
     if probe:
         assert not sandboxed(world, codex_home, profile, f"head -1 '{probe}' && echo WROTE")
+
+
+@pytest.mark.skipif(not CODEX or not os.path.isfile(os.path.expanduser("~/.config/audio-keys/keys.env")),
+                    reason="codex or the audio keys file not on this machine")
+def test_no_codex_pass_reads_the_audio_keys(world, codex_home):
+    codex_pass(world, codex_home, "u6")  # every Codex pass has the same credential wall; the Animator's is one
+    keys = os.path.expanduser("~/.config/audio-keys/keys.env")
+    # the file is read into /dev/null: nothing of it is printed, whatever the sandbox does
+    assert not sandboxed(world, codex_home, f"{world['eng'].name}-pass-u6", f"cat '{keys}' > /dev/null && echo WROTE")
 
 
 # --- the image doorway (launcher/image.py) ----------------------------------------------------

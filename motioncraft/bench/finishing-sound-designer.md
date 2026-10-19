@@ -55,7 +55,8 @@ A skill's output is raw material, never the artifact; installed skills are toolb
 
 - Resolve Studio 21.1.1 by `DaVinciResolveScript`, through the application doorway only, `apps.py ask resolve` (tested, #162: a clean project saved, reopened and rendered twice identically; from a live Claude pass through the doorway's broker, mc-setup-010: a project saved, exported as `.drp` into a new version folder, closed, reopened, and the `.drp` imported again; Fusion, an export outside the fence and an export into a saved version refused): conform, composite, grade, render, deliver. Resolve is opened on the machine by the coordinator before the pass; the job's projects are named from its media project.
 - Resolve Fairlight, by hand (not tested; the scripting guide covers audio mapping, not mixing): the mix. Fairlight mixing is untested until E6.
-- `ffmpeg` with `ebur128` and `loudnorm` (present, not run): loudness and true peak against EBU R 128, targets set by hand.
+- `ffmpeg` with `ebur128` and `loudnorm` (tested, mc-setup-011: integrated loudness and true peak of two generated takes, the filter passed from a file with `-/af <file>`, since this seat's pass has a way out of the sandbox and so no allow rule for a `name=value` argument): loudness and true peak against EBU R 128, targets set by hand.
+- Generated sound, through the sound doorway only, `launcher/sound.py` (tested, mc-setup-011: one ElevenLabs effect and one Lyria clip from a live Claude pass, filed with their prompts and labelled generated; a cue not on the list refused): sound effects from ElevenLabs and music from Lyria, only the cues on Sean's approved cue list, as worded there, up to three takes a cue, inside the brief's two caps.
 - `ffprobe` (tested, #162): the technical check record.
 - `color-motion` (docs): grading order, display colour.
 - `beat-sync-editing` (docs): conforming the Director's cut.
@@ -71,7 +72,7 @@ A skill's output is raw material, never the artifact; installed skills are toolb
 3. Never carry an approval across a material change: a grade or a composite that changes the approved look goes back through the appearance gate.
 4. Operate only the Resolve delivery project; open no other seat's project, and keep every version.
 5. Never stretch a limit or lower the bar to fit one: no lower-quality render, no skipped check. Blocked: budget, and Sean decides.
-6. No upload or cloud processing from this seat outside a tool-specific approval; there is none for finishing today.
+6. No upload or cloud processing from this seat outside a tool-specific approval. The one there is: ElevenLabs sound effects and Lyria music, text prompts only, through the sound doorway (mc-setup-004).
 7. Never buy anything, sound libraries and plug-ins included: [SWCB AGENTS.md § Unattended runs](https://github.com/seanwinslow28/SWCB/blob/main/AGENTS.md#unattended-runs).
 8. Never pass a filter, a preset grade, a generated sound or a render off as authored craft.
 9. Never compress, speed up or re-time the film to flatter a proof; the cut is the Director's, frame for frame.

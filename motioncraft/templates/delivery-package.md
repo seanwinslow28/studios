@@ -70,6 +70,12 @@ Every sound has a moment and a reason; silence is a choice and is planned too. T
 |---|---|---|---|---|
 | SP<n> | <a>–<b> | | | SN<n> from mc-eng-001.story, or none |
 
+**Cues to generate**, when a layer is a generated sound: one row per cue, its prompt word for word, and the same cues as `cues.json` in a `sound-plan-vNN-<date>` version folder in `finish/`, in [the sound doorway's form](../launcher/README.md#the-sound-doorway). Sean approves the list in one decision; the doorway sends only cues from its approved copy, as worded there.
+
+| Cue | Moment | Tool | Prompt | Takes kept |
+|---|---|---|---|---|
+| FX<n> or MU<n> | SP<n> | effect (ElevenLabs) or music (Lyria, its model) | | `media:…/finish/<version>/<file>`, sha256 |
+
 ## Mix
 
 The mix, by file and sha256, and the tool that made it (Fairlight by hand until a scripted path is tested).

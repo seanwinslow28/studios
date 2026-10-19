@@ -19,6 +19,9 @@ watch = "~/.claude/plugins/cache/claude-video/watch/*/skills"
 
 # `image = true`: the pass may call the Codex image path through `launcher/image.py`.
 # Only the Director and Art; only on Claude, and never on a read-only pass.
+# `sound = true`: the pass may call ElevenLabs (sound effects) and Lyria (music)
+# through `launcher/sound.py`, for the cues on Sean's approved cue list. Finishing
+# alone; only on Claude, and never on a read-only pass.
 [seats.visual-story-director]
 skills = ["agents:motion-art-direction", "agents:shot-composition", "agents:beat-sync-editing",
           "agents:animation-vocabulary", "watch:watch"]
@@ -35,6 +38,7 @@ apps = ["blender", "resolve"]
 [seats.finishing-sound-designer]
 skills = ["agents:color-motion", "agents:beat-sync-editing"]
 apps = ["resolve"]
+sound = true
 
 # `apps`: the applications a seat's drafting pass may run through the application
 # doorway (`launcher/apps.py`), on either vendor: the Animator's Blender scene and

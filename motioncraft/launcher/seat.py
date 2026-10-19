@@ -35,7 +35,9 @@ skills come only from bench/toolbelts.toml, copied per machine and fixed in the
 context by hash; every other skill folder is denied; a Codex pass gets the studios
 AGENTS.md and its skills by path in its prompt; the Director's and Art's Claude
 passes reach the Codex image path only through launcher/image.py; and seat-probe
-shows each seat loads only its toolbelt.
+shows each seat loads only its toolbelt. Finishing's Claude pass reaches ElevenLabs
+and Lyria only through launcher/sound.py (the map's "Finishing's sound doorway"
+ticket, 2026-10-19).
 """
 from __future__ import annotations
 
@@ -117,6 +119,7 @@ CODEX_FEATURES_OFF = (
 
 CREDENTIAL_PATHS = tuple(str(HOME / p) for p in (
     ".ssh", ".aws", ".gnupg", ".config/gh", ".config/swcb/secrets", ".config/devcraft", ".config/motioncraft",
+    ".config/audio-keys",
     ".codex/auth.json", ".codex-devcraft/auth.json", ".codex-motioncraft/auth.json", ".claude/.credentials.json",
     ".netrc", ".git-credentials", ".docker/config.json", ".npmrc", ".pypirc",
     ".kube/config", ".config/gcloud", ".azure", "Library/Keychains",
@@ -139,6 +142,9 @@ TOOLBELTS = Path(os.environ.get("MOTIONCRAFT_TOOLBELTS", str(MOTIONCRAFT / "benc
 TOOLBELT_ROOT = Path(os.path.expanduser(os.environ.get("MOTIONCRAFT_TOOLBELT_ROOT", "~/.local/share/motioncraft/toolbelt")))
 # The Director's and Art's one way to the Codex image path, let out of the Claude sandbox by its own rule.
 IMAGE_DOOR = HERE / "image.py"
+# Finishing's one way to generated sound (ElevenLabs effects, Lyria music), let out the same way.
+SOUND_DOOR = HERE / "sound.py"
+SOUND_SEAT = "finishing-sound-designer"
 # Every other place skills live on these Macs: no pass reads them, so a pass's skills are its toolbelt's.
 SKILL_ROOTS = tuple(str(HOME / p) for p in (
     ".agents/skills", ".claude/skills", ".claude/plugins", "Library/Application Support/Claude",
@@ -148,7 +154,8 @@ SKILL_ROOTS = tuple(str(HOME / p) for p in (
 CLAUDE_DENIED_COMMANDS = ("codex", "higgsfield", "nlm", "hyperframes")
 # Claude Code holds an ffmpeg or ffprobe call with a name=value argument (`stream=width`, `ebur128=peak=true`) for
 # an approval no one is there to give (live passes, 2026-10-19). An allow rule lets them run, still sandboxed, on a
-# pass with no way out of the sandbox; on the Director's and Art's, the same rule would let them out, so not there.
+# pass with no way out of the sandbox; on a pass with a doorway (the Director's, Art's and Finishing's drafting
+# passes) the same rule would let them out, so not there: those passes put a filter in a file instead.
 CLAUDE_HELD_COMMANDS = ("ffmpeg", "ffprobe")
 # Blender and Resolve run for a pass only through the application doorway (launcher/apps.py), on the launcher's
 # side of the sandbox under a lock written from the pass's context; neither vendor's sandbox lets them work inside.
@@ -206,14 +213,16 @@ def toolbelts() -> Dict:
 
 
 def seat_belt(seat: str) -> Dict:
-    """A seat's allowlist line: its skills as (source, name), whether it may call the image path, and its apps."""
+    """A seat's allowlist line: its skills as (source, name), whether it may call the image or sound path, and its apps."""
     line = toolbelts().get("seats", {}).get(seat, {})
     skills = [tuple(s.split(":", 1)) for s in line.get("skills", [])]
     apps = list(line.get("apps", []))
     bad = [x for x in apps if x not in SEAT_APPS]
     if bad:
         die(f"the allowlist gives {seat} {', '.join(bad)}; the application doorway runs only {', '.join(SEAT_APPS)}")
-    return {"skills": skills, "image": bool(line.get("image")), "apps": apps}
+    if line.get("sound") and seat != SOUND_SEAT:
+        die(f"the allowlist gives {seat} the sound path; Finishing alone generates sound")
+    return {"skills": skills, "image": bool(line.get("image")), "sound": bool(line.get("sound")), "apps": apps}
 
 
 def source_dir(source: str) -> Optional[Path]:
@@ -296,6 +305,7 @@ def context_belt(seat: str, vendor: str, read_only: bool) -> Dict:
     return {"dir": str(belt_dir(seat)) if skills else "", "skills": skills,
             "manifest_sha256": sha256(belt_dir(seat) / "manifest.json") if skills else "",
             "image": belt["image"] and vendor == "claude" and not read_only,
+            "sound": belt["sound"] and vendor == "claude" and not read_only,
             # Blender and Resolve, through the application doorway: a drafting pass's, on either vendor
             "apps": [] if read_only else belt["apps"]}
 
@@ -615,6 +625,16 @@ def image_rule(ctx: Dict) -> str:
     return f"Bash({IMAGE_DOOR} --context {ctx['source']}:*)"
 
 
+def sound_rule(ctx: Dict) -> str:
+    """The one command a Finishing pass may run outside the sandbox: the sound doorway, for this pass."""
+    return f"Bash({SOUND_DOOR} --context {ctx['source']}:*)"
+
+
+def door_rules(ctx: Dict) -> List[str]:
+    """The doorways this pass may run outside the sandbox, each for this pass's own context; none for most."""
+    return [image_rule(ctx)] * bool(ctx["toolbelt"]["image"]) + [sound_rule(ctx)] * bool(ctx["toolbelt"].get("sound"))
+
+
 def claude_no_write(ctx: Dict) -> List[str]:
     """Everything in the folders a Claude pass sees that the fence does not let it write."""
     writes, frozen = ctx["fence"]["write"], ctx["fence"]["frozen"]
@@ -648,11 +668,11 @@ def claude_settings(ctx: Dict) -> Dict:
     deny += ["WebFetch", "WebSearch", *CLAUDE_HELPER_TOOLS]
     # Reads outside the working folders need a rule, or headless Read, Glob and Grep are refused there.
     allow = [r for p in claude_reads(ctx) for r in rule("Read", p)]
-    # The image doorway: the pass asks to run it outside the sandbox, and this rule is the only one that
+    # A doorway (image or sound): the pass asks to run it outside the sandbox, and its rule is the only one that
     # lets a command out. Every other command asking the same needs an approval no one is there to give.
-    door = ctx["toolbelt"]["image"]
+    door = bool(door_rules(ctx))
     if door:
-        allow.append(image_rule(ctx))
+        allow += door_rules(ctx)
     else:
         allow += [f"Bash({c}:*)" for c in CLAUDE_HELD_COMMANDS]
     return {
@@ -784,18 +804,31 @@ def launch_argv(ctx: Dict, prompt: str, profile: str = "", output: str = "") -> 
 
 
 def claude_prompt(ctx: Dict, prompt: str) -> str:
-    """A Claude pass's prompt: the coordinator's, for the Director and Art the one way to the image path, and the apps."""
+    """A Claude pass's prompt: the coordinator's, its doorway (image for the Director and Art, sound for Finishing), the apps."""
     apps = [apps_note(ctx)] * bool(ctx["toolbelt"].get("apps"))
-    if not ctx["toolbelt"]["image"]:
+    doors = []
+    if ctx["toolbelt"]["image"]:
+        doors.append(f"The image path, for board roughs and style targets under the bench README's conditions: run "
+                     f"`{IMAGE_DOOR} --context {ctx['source']} --out <your stage>/<version folder>/<name>.png "
+                     "--prompt-file <a file you wrote> [--ref <an image in the media project>]...` with the Bash tool's "
+                     "dangerouslyDisableSandbox set to true, alone, never chained. It files the image and its prompt "
+                     "beside it, labelled generated.")
+    if ctx["toolbelt"].get("sound"):
+        doors.append(f"The sound path, for the cues on Sean's approved cue list and nothing else: run "
+                     f"`{SOUND_DOOR} --context {ctx['source']} --cue <FXn or MUn> --out <your stage>/<version folder>/"
+                     "<name>.mp3` with the Bash tool's dangerouslyDisableSandbox set to true, alone, never chained. It "
+                     "sends the cue's approved prompt as it stands (a reworded cue goes back to Sean as a new list), makes "
+                     "one take, and files it with its prompt beside it, labelled generated: up to three takes a cue, "
+                     "inside the job's spend caps, and a refusal at a cap is a checkpoint for Sean. "
+                     f"`{SOUND_DOOR} --context {ctx['source']} --status` lists the approved cues, the takes used and "
+                     "the spend, and makes nothing.")
+    if not doors:
         return "\n\n---\n\n".join([prompt] + apps)
-    door = (f"The image path, for board roughs and style targets under the bench README's conditions: run "
-            f"`{IMAGE_DOOR} --context {ctx['source']} --out <your stage>/<version folder>/<name>.png "
-            "--prompt-file <a file you wrote> [--ref <an image in the media project>]...` with the Bash tool's "
-            "dangerouslyDisableSandbox set to true, alone, never chained. It is the only command that may run "
-            "outside the sandbox; it files the image and its prompt beside it, labelled generated. In this pass an "
-            "ffmpeg or ffprobe argument shaped name=value is held for an approval no one gives: put a filter in a file "
-            "and pass it with `-/vf <file>` or `-/af <file>`, and read stream facts with `-of json -show_streams`.")
-    return "\n\n---\n\n".join([prompt, door] + apps)
+    held = ("Those are the only commands that may run outside the sandbox. In this pass an ffmpeg or ffprobe argument "
+            "shaped name=value is held for an approval no one gives: put a filter in a file and pass it with "
+            "`-/vf <file>` or `-/af <file>` (a loudness check: a file holding `ebur128=peak=true`, then "
+            "`ffmpeg -i <mix> -/af <file> -f null -`), and read stream facts with `-of json -show_streams`.")
+    return "\n\n---\n\n".join([prompt, " ".join(doors + [held])] + apps)
 
 
 def apps_note(ctx: Dict) -> str:
@@ -909,7 +942,9 @@ class Watch:
                     if isinstance(v, int):
                         self.usage[k] = self.usage.get(k, 0) + v
             return
-        if e.get("parent_tool_use_id"):
+        # A helper speaks in assistant or user messages under its parent's tool use. A long Bash call's own progress
+        # lines carry the same field (`tool_progress`, a sound doorway take, live 2026-10-19), and are no helper.
+        if e.get("parent_tool_use_id") and t in ("assistant", "user"):
             self.helpers.append(f"a helper agent's message (parent tool use {e['parent_tool_use_id']})")
         if t == "assistant":
             msg = e.get("message") or {}
@@ -1358,7 +1393,8 @@ def probe_seat(seat: str, home: Path, logs: Optional[Path], builtins: Optional[D
     ctx = job["ctx"]
     env = scrubbed_env(ctx, home)
     belt = [s["skill"] for s in ctx["toolbelt"]["skills"]]
-    res = {"seat": seat, "vendor": ctx["vendor"], "toolbelt": belt, "image": ctx["toolbelt"]["image"]}
+    res = {"seat": seat, "vendor": ctx["vendor"], "toolbelt": belt, "image": ctx["toolbelt"]["image"],
+           "sound": ctx["toolbelt"].get("sound", False)}
     if ctx["vendor"] == "claude":
         settings = claude_settings(ctx)
         write_once(wall_file(ctx), json.dumps(settings, indent=2) + "\n")
@@ -1371,6 +1407,7 @@ def probe_seat(seat: str, home: Path, logs: Optional[Path], builtins: Optional[D
                    plugins=[p.get("name") for p in init.get("plugins", [])],
                    stamps=sorted(set(CLAUDE_STAMP.findall(r.stdout))),
                    image_rule=image_rule(ctx) in settings["permissions"]["allow"],
+                   sound_rule=sound_rule(ctx) in settings["permissions"]["allow"],
                    unsandboxed_allowed=settings["sandbox"]["allowUnsandboxedCommands"],
                    problems=judge_claude(init, argv, seat, builtins) if init else ["no init line in the log"])
     else:
@@ -1475,6 +1512,20 @@ def cmd_check(a) -> None:
             gaps.append("no /usr/bin/sandbox-exec, which the application doorway's locks run under")
         gaps += [f"the allowlist's [apps] has no `{k}` path" for k in ("blender", "python") if k not in door]
         gaps += [f"the doorway's {k} {p} is not on this machine" for k, p in door.items() if not os.access(p, os.X_OK)]
+    # The sound doorway: the keys file it reads, and the two keys, by name only.
+    if any(seat_belt(s)["sound"] for s in SEATS):
+        import sound as sounddoor  # noqa: E402  launcher/sound.py, beside this file
+        keys = sounddoor.KEYS
+        if not keys.is_file():
+            gaps.append(f"no audio keys file at {keys}, which the sound doorway reads")
+        else:
+            if keys.stat().st_mode & 0o077:
+                gaps.append(f"{keys} is readable by others; it is mode 600")
+            names = {ln.strip().removeprefix("export ").partition("=")[0].strip()
+                     for ln in keys.read_text(encoding="utf-8").splitlines() if "=" in ln}
+            gaps += [f"{keys} has no {k}" for k in ("ELEVENLABS_API_KEY", "GEMINI_API_KEY") if k not in names]
+        if not any(under(str(keys), c) for c in CREDENTIAL_PATHS):
+            gaps.append(f"{keys} is not in a folder every pass is denied")
     for g in gaps:
         print(f"GAP: {g}")
     print(f"preflight on {machine()}: " + ("clean" if not gaps else f"{len(gaps)} gap(s)"))
