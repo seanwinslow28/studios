@@ -41,8 +41,9 @@ apps = ["resolve"]
 sound = true
 
 # `apps`: the applications a seat's drafting pass may run through the application
-# doorway (`launcher/apps.py`), on either vendor: the Animator's Blender scene and
-# its isolated Fusion project, Finishing's delivery project. The Director's
+# doorway (`launcher/apps.py`), on either vendor: the Animator's Blender scene,
+# Finishing's delivery project. Fusion is closed for every seat (2026-10-19), so the
+# Animator's `resolve` line has no work until a Fusion slice opens. The Director's
 # animatic sequencer joins here once the tool-ownership ticket names its application.
 # The paths below are what the doorway's locks run; a missing one is a gap in `seat.py check`.
 [apps]

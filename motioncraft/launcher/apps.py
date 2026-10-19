@@ -28,7 +28,7 @@ socket, to a broker the launcher starts outside the lock, which alone holds the
 connection. The script imports a stand-in `DaVinciResolveScript` whose objects
 forward each attribute and call to the broker. The broker allows only the methods
 in Resolve's own API file (`DaVinciResolveScript.pyi`, read from the installed
-version), less the ones that run code or reach Fusion's object graph, change Sean's
+version), less the ones that run code or reach Fusion at all, change Sean's
 Resolve settings and presets, switch the database, delete, archive or restore
 projects, touch cloud projects, or quit. It allows work only in projects whose names
 start with the media project's name, refuses a path argument outside the media
@@ -255,8 +255,13 @@ def resolve_state(env: Dict[str, str], python: str) -> Dict:
 RESOLVE_API = Path("/Library/Application Support/Blackmagic Design/DaVinci Resolve/Developer/Scripting/DaVinciResolveScript.pyi")
 # Never through the doorway, whatever the API file lists: code run inside Resolve or Fusion's object graph, Sean's
 # own settings and presets, the database, deleting, archiving or restoring projects, cloud projects, and quitting.
+# Fusion is closed for every seat (ruled 2026-10-19 on "Fusion through the doorway"): beside these names, every method
+# whose name holds "Fusion" is refused (`FUSION`), so the three that put a Fusion title, generator or composition on a
+# timeline, `CreateFusionClip`, and any Fusion method a later Resolve adds stay shut. DCTL is code: never validated
+# or encrypted for a pass.
 RESOLVE_DENY = frozenset("""
 Fusion GetFusionCompByIndex GetFusionCompByName AddFusionComp ImportFusionComp LoadFusionCompByName EncryptDCTL
+InsertFusionTitleIntoTimeline InsertFusionGeneratorIntoTimeline InsertFusionCompositionIntoTimeline ValidateDCTL
 DeleteBurnInPreset DeleteKeyboardPreset DeleteLayoutPreset DeleteUserPreferencesPreset DeleteRenderPreset
 DeleteProjectSettingsPreset ImportBurnInPreset ImportKeyboardPreset ImportLayoutPreset ImportUserPreferencesPreset
 ImportRenderPreset ImportProjectSettingsPreset LoadKeyboardPreset LoadLayoutPreset LoadUserPreferencesPreset
@@ -265,6 +270,7 @@ SaveAsNewRenderPreset SaveCurrentProjectSettingsAsNewPreset SetQuickExportEnable
 DisableBackgroundTasksForCurrentResolveSession SetCurrentDatabase DeleteProject DeleteFolder ArchiveProject
 RestoreProject CreateCloudProject ImportCloudProject LoadCloudProject RestoreCloudProject Quit
 """.split())
+FUSION = re.compile(r"Fusion")
 # Methods whose path arguments name a file Resolve writes: those go only into the pass's fence.
 RESOLVE_WRITES = frozenset("""
 Export ExportBurnInPreset ExportCurrentFrameAsStill ExportFusionComp ExportKeyboardPreset ExportLUT ExportLayoutPreset
@@ -273,9 +279,13 @@ SetRenderSettings RenderWithQuickExport
 """.split())
 # Methods that name a project by their first argument: only the job's own projects.
 RESOLVE_NAMED_PROJECT = frozenset({"CreateProject", "LoadProject", "ExportProject"})
-# Methods that load a project, timeline or bin file, which can carry Fusion compositions and so code: only a file
-# saved before this pass, or one Resolve itself exported in this call, never a file the pass wrote.
-RESOLVE_IMPORTS = frozenset({"ImportProject", "ImportTimelineFromFile", "ImportFolderFromFile", "ImportIntoTimeline"})
+# Methods that load a project, timeline or bin file, which can carry Fusion compositions and so code, or a grade or
+# LUT: only a file saved before this pass, or one Resolve itself exported in this call, never a file the pass wrote.
+# A grade file (`.drx`, by `ApplyGradeFromDRX` or a gallery's `ImportStills`) holds the node graph as one compressed
+# binary blob the doorway cannot read, naming each node's tools (LUTs and DCTLs by name, ResolveFX); a LUT may be a
+# DCTL, which is code. Found 2026-10-19 on Resolve 21.1.1; see the launcher README.
+RESOLVE_IMPORTS = frozenset({"ImportProject", "ImportTimelineFromFile", "ImportFolderFromFile", "ImportIntoTimeline",
+                             "ApplyGradeFromDRX", "ImportStills", "SetLUT"})
 # Calls on Resolve or the project manager that do not act on the open project, so may run whichever is open.
 RESOLVE_ANY_PROJECT = frozenset({"CreateProject", "LoadProject", "ImportProject", "ExportProject", "OpenPage",
                                  "GotoRootFolder", "GotoParentFolder", "OpenFolder", "CreateFolder"})
@@ -294,7 +304,7 @@ def resolve_api(path: Path = RESOLVE_API) -> frozenset:
         text = readme.read_text(encoding="utf-8")
         old = text[text.find("## Deprecated Resolve API Functions"):] if "## Deprecated Resolve API Functions" in text else ""
         names |= set(re.findall(r"^(?:[A-Z]\w*\.)?([A-Z][A-Za-z0-9]*)\(", old, re.M))
-    return frozenset(names - RESOLVE_DENY)
+    return frozenset(n for n in names - RESOLVE_DENY if not FUSION.search(n))
 
 
 class Refused(Exception):
@@ -317,6 +327,10 @@ class Broker:
         self.meta: Dict[int, Dict] = {0: {"name": "Resolve", "project": None}}
         self.calls: List[Dict] = []
         self.exported: set = set()  # files Resolve wrote for this call, which it may load again
+
+    def open(self, name: str) -> bool:
+        """Listed open, and never a refused or Fusion name, whatever list the broker was given."""
+        return name in self.allowed and name not in RESOLVE_DENY and not FUSION.search(name)
 
     def ours(self, project: Optional[str]) -> bool:
         return project is None or project.startswith(self.prefix)
@@ -389,7 +403,7 @@ class Broker:
                 if not isinstance(v, (int, float, str, bool)) and v is not None:
                     raise Refused(f"{name} is not a constant")
                 return v
-            if name not in self.allowed:
+            if not self.open(name):
                 raise Refused(f"{name} is not open to a pass (Resolve's API file, less what the doorway refuses)")
             if not self.ours(meta["project"]) and name != "GetName":
                 raise Refused(f"the project {meta['project']!r} is not this job's; its projects start {self.prefix!r}")
@@ -400,7 +414,7 @@ class Broker:
         if kind == "call":
             name = meta["name"]
             args = self.decode(op.get("args") or [])
-            if name not in self.allowed:
+            if not self.open(name):
                 raise Refused(f"{name} is not open to a pass")
             if not self.ours(meta["project"]) and name != "GetName":
                 raise Refused(f"the project {meta['project']!r} is not this job's")

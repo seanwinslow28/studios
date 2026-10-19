@@ -168,6 +168,66 @@ def test_the_broker_holds_a_resolve_script_to_its_own_projects_and_the_fence(env
     assert all("ms" in r for r in b.calls) and any(r.get("refused") for r in b.calls)
 
 
+FUSION_ON_A_TIMELINE = ("InsertFusionTitleIntoTimeline", "InsertFusionGeneratorIntoTimeline",
+                       "InsertFusionCompositionIntoTimeline")
+
+
+def test_fusion_never_reaches_a_timeline_through_the_broker(env_of):
+    """The three calls that put a Fusion-built item on a timeline, and every other Fusion name, are refused."""
+    c = ctx_of(env_of, "finishing-sound-designer", "a21")
+    prefix = os.path.basename(c["media_project"])
+    root, state = fake_resolve(prefix)
+    ran = []
+    timeline = Fake("Timeline", **{n: (lambda *a, n=n: ran.append(n) or Fake("TimelineItem"))
+                                   for n in FUSION_ON_A_TIMELINE + ("CreateFusionClip", "InsertTitleIntoTimeline")})
+    mine = Fake("Project", GetName=lambda: f"{prefix}-cut", GetCurrentTimeline=lambda: timeline)
+    state["open"] = mine
+    real = apps.resolve_api() if apps.RESOLVE_API.is_file() else frozenset()
+    # the installed API's own list where Resolve is installed; else a list that wrongly opens them, which the broker still refuses
+    api = (real or frozenset(FUSION_ON_A_TIMELINE + ("CreateFusionClip", "ValidateDCTL"))) | {
+        "GetProjectManager", "GetCurrentProject", "GetCurrentTimeline", "GetName", "InsertTitleIntoTimeline"}
+    b = apps.Broker(root, c, api, prefix)
+    pm = call(b, 0, "GetProjectManager")["ok"]["__h__"]
+    p = call(b, pm, "GetCurrentProject")["ok"]["__h__"]
+    tl = call(b, p, "GetCurrentTimeline")["ok"]["__h__"]
+    for name in FUSION_ON_A_TIMELINE + ("CreateFusionClip",):
+        assert "not open to a pass" in call(b, tl, name, "Text+")["refused"], name
+    assert "not open to a pass" in call(b, 0, "ValidateDCTL", "__DEVICE__ float3 transform() {}")["refused"]
+    assert ran == [], "no Fusion call reached Resolve"
+    assert "ok" in call(b, tl, "InsertTitleIntoTimeline", "Text") and ran == ["InsertTitleIntoTimeline"], \
+        "a plain title still goes on"
+    if real:
+        assert not {n for n in real if "Fusion" in n} and "ValidateDCTL" not in real
+        assert {"InsertTitleIntoTimeline", "SetLUT", "ApplyGradeFromDRX", "SetCDL"} <= real
+
+
+def test_a_grade_or_lut_the_pass_wrote_never_loads(env_of):
+    """A .drx holds the grade as a blob the doorway cannot read, and a LUT may be a DCTL: only files saved before the pass."""
+    c = ctx_of(env_of, "finishing-sound-designer", "a22")
+    prefix = os.path.basename(c["media_project"])
+    root, state = fake_resolve(prefix)
+    graph = Fake("Graph", ApplyGradeFromDRX=lambda path, mode, layers=False: True, SetLUT=lambda i, path: True)
+    album = Fake("GalleryStillAlbum", ImportStills=lambda paths: True)
+    mine = Fake("Project", GetName=lambda: f"{prefix}-cut", GetNodeGraph=lambda: graph, GetCurrentStillAlbum=lambda: album)
+    state["open"] = mine
+    api = frozenset({"GetProjectManager", "GetCurrentProject", "GetNodeGraph", "GetCurrentStillAlbum",
+                     "ApplyGradeFromDRX", "SetLUT", "ImportStills"})
+    b = apps.Broker(root, c, api, prefix)
+    pm = call(b, 0, "GetProjectManager")["ok"]["__h__"]
+    p = call(b, pm, "GetCurrentProject")["ok"]["__h__"]
+    g = call(b, p, "GetNodeGraph")["ok"]["__h__"]
+    a = call(b, p, "GetCurrentStillAlbum")["ok"]["__h__"]
+    new = f"{c['fence']['write'][1]}/finish-v01-2026-10-19/sources"
+    scratch = c["scratch"]
+    assert "written in this pass" in call(b, g, "ApplyGradeFromDRX", f"{new}/grade.drx", 0)["refused"]
+    assert "written in this pass" in call(b, g, "ApplyGradeFromDRX", f"{scratch}/grade.drx", 0)["refused"]
+    assert "written in this pass" in call(b, a, "ImportStills", [f"{new}/grade.drx"])["refused"]
+    assert "written in this pass" in call(b, g, "SetLUT", 1, f"{scratch}/invert.dctl")["refused"]
+    saved = [f for f in c["fence"]["frozen"] if "/finish/" in f] or [str(env_of["project"])]
+    assert call(b, g, "ApplyGradeFromDRX", f"{saved[0]}/grade.drx", 0) == {"ok": True}, "a grade saved before the pass loads"
+    assert call(b, g, "SetLUT", 1, "LMT Day for Night.xml") == {"ok": True}, "a LUT Resolve already lists, by name"
+
+
 def test_the_open_api_is_resolves_documented_one_less_the_refused(tmp_path):
     (tmp_path / "DaVinciResolveScript.pyi").write_text(
         "class Project:\n\tdef GetName(self) -> str:\n\t\t...\n\tdef SetSettings(self, s) -> bool:\n\t\t...\n"
@@ -285,7 +345,11 @@ def test_blender_renders_on_the_graphics_chip_inside_the_fence_and_nowhere_else(
 RESOLVE_SCRIPT = r'''
 import DaVinciResolveScript as d, socket, sys
 r = d.scriptapp("Resolve"); print("RESOLVE", r.GetVersionString())
-for name, go in (("FUSION", lambda: r.Fusion()), ("DELETE", lambda: r.GetProjectManager().DeleteProject("x"))):
+p = r.GetProjectManager().GetCurrentProject()
+for name, go in (("FUSION", lambda: r.Fusion()), ("DELETE", lambda: r.GetProjectManager().DeleteProject("x")),
+                 ("FUSION-TITLE", lambda: p.InsertFusionTitleIntoTimeline("Text+")),
+                 ("FUSION-GENERATOR", lambda: p.InsertFusionGeneratorIntoTimeline("Contours")),
+                 ("FUSION-COMPOSITION", lambda: p.InsertFusionCompositionIntoTimeline())):
     try:
         go(); print(name, "RAN")
     except d.Refused as e: print(name, "REFUSED")
@@ -313,8 +377,10 @@ def test_resolve_is_reached_only_through_the_broker_and_its_writes_are_recorded(
     log = Path(res["log"]).read_text()
     assert res["ok"], log[-2000:] + str(entry.get("error"))
     assert "RESOLVE 2" in log and "FUSION REFUSED" in log and "DELETE REFUSED" in log
+    for name in ("FUSION-TITLE", "FUSION-GENERATOR", "FUSION-COMPOSITION"):
+        assert f"{name} REFUSED" in log, f"{name}: a Fusion item never goes on a timeline"
     assert "RESOLVE-PORT REFUSED" in log and "FUSCRIPT-PORT REFUSED" in log, "the script never reaches Resolve itself"
-    assert entry["broker"]["calls"] >= 3 and len(entry["broker"]["refused"]) == 2
+    assert entry["broker"]["calls"] >= 3 and len(entry["broker"]["refused"]) == 5
     assert entry["resolve"]["running"] is True
     assert set(entry["written"]) == {"fence", "frozen", "resolve_own", "launcher", "other_programs", "outside"}
     os.close(srv.fd)

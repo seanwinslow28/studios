@@ -42,14 +42,14 @@ The starred guides by file. This seat owns one principle guide and one tool guid
 - **Smears as designed poses** — [`smears-as-designed-poses.md`](../corpus/guides/smears-as-designed-poses.md) — this seat times what Art designed: each smear on the frames, between the keys and along the arc the plan lists, one to three frames until a team test settles it.
 - **Line boil and painted-texture continuity** — [`boil-and-painted-texture-continuity.md`](../corpus/guides/boil-and-painted-texture-continuity.md) — this seat moves what Art designed: paint travels with the subject, line boil at Art's cadence, pigment variation held steady, nothing sliding.
 
-Not yet written, so a topic for `thin_lane:` until it exists: **Timing and spacing on a chart**, **Anticipation, follow-through, overlap**, **Squash, stretch, constant volume** (with Art) and **Holds and cadence** (all ready now); **Compositing in Fusion**, a tool guide (ready now; with Finishing); **Straight ahead and pose to pose** and **Secondary action, exaggeration, appeal** (after the first film); **Multiples** (waits on a team test); **Staggers** (waits on Williams); **Kinetic type** (parked for a type engagement).
+Not yet written, so a topic for `thin_lane:` until it exists: **Timing and spacing on a chart**, **Anticipation, follow-through, overlap**, **Squash, stretch, constant volume** (with Art) and **Holds and cadence** (all ready now); **The scene by script for a painted 2D film**, a tool guide on its own ticket (the build map's **Two Blender tool guides for the Animator**), in place of the dropped "Compositing in Fusion"; **Straight ahead and pose to pose** and **Secondary action, exaggeration, appeal** (after the first film); **Multiples** (waits on a team test); **Staggers** (waits on Williams); **Kinetic type** (parked for a type engagement).
 
 ## Application
 
-Last on the path, in the order the book-to-seat brief set. Grease Pencil was rewritten in Blender 4.3, so tutorials older than that, Blender Studio's free course included, are out of date. Blender is absent on the Mac today and its install is Sean's decision on its own ticket; Fusion work lives in an isolated project of this seat's own and crosses to Finishing as an exported composition.
+Last on the path, in the order the book-to-seat brief set. Grease Pencil was rewritten in Blender 4.3, so tutorials older than that, Blender Studio's free course included, are out of date. Blender 5.2.2 LTS is the scene tool on both machines, run by script through the application doorway. Fusion is closed for every seat (Sean, 2026-10-19): the scene crosses to Finishing as its CPU renders plus the `.blend`, never an exported composition, and since Resolve's API cannot keyframe, anything that moves, layered elements and the camera included, is animated in Blender.
 
 - **Grease Pencil 4.3 and later** — [`grease-pencil-4-3-and-later.md`](../corpus/guides/grease-pencil-4-3-and-later.md) — owned: the introduction, draw mode, layers and onion skinning, animation and interpolation, the dope sheet, then the Noise and Time Offset modifiers, in that order; the Python reference last, read on the page (its licence is unconfirmed, so it is read-only).
-- **Fusion in an isolated project** — no guide yet; the Resolve 20 Fusion guide is all rights reserved and read on the page — part animation in Fusion, until "Compositing in Fusion" is written.
+- **The scene by script, and Grease Pencil by script** — no guides yet; both are written on the build map's **Two Blender tool guides for the Animator** ticket, every snippet run on Blender 5.2.2 through the doorway. Until then, `thin_lane:`.
 - Blender's built-in Python, `DaVinciResolveScript`, `ffmpeg` and `ffprobe` are toolbelt ([seat file](../bench/animator.md#toolbelt)), not corpus.
 
 ## Audit duty: the delivery package and check record
@@ -81,7 +81,6 @@ The free sources this seat's rows, principles and guides draw on, with the licen
 | Krita manual: the animation page, the walk cycle | in-betweens | GFDL 1.3 or later | open, not ingested | none yet |
 | Meier 1996; the Paperman talk; Bénard 2010; the Jam Filled interview | line boil and painted texture in motion | all rights reserved; Toon Boom copyright | read-only | the texture guide (all four); the Grease Pencil guide (the interview) |
 | Avender on Cartoon Research; AnimSchool's smear basics | smear terms, when to use one, multiples | no reuse licence; no licence shown | read-only | the smear guide |
-| The Resolve 20 Fusion guide | compositing in an isolated project | all rights reserved | read-only | none yet |
 | The earlier practical tests' checkpoints on the brain's private tracker | the contact that hovered, the landing that snapped: history, not an example | private | private tracker | the contact guide, the smear guide |
 
 ## Canon

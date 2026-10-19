@@ -1,6 +1,6 @@
 # Scene record template — the moving test and its evidence pack
 
-Owned by the **Animator** ([seat file](../bench/animator.md)). Stage 3 of a full train, and the whole of a small piece: the moving test as an editable source plus its render, and the **evidence pack** that every motion claim ships with (never-do 2; brief 5, section 2). The anchor of the **motion gate**, with its one directed revision ([directed-revision.md](directed-revision.md)). Audited by **Art and Pose** before the gate. Header fields per [artifact-header.md](artifact-header.md). "Scene" here is the application's word for the editable file (Blender's scene, a Fusion composition), the one use the naming rulings allow; a piece of the film is a shot.
+Owned by the **Animator** ([seat file](../bench/animator.md)). Stage 3 of a full train, and the whole of a small piece: the moving test as an editable source plus its render, and the **evidence pack** that every motion claim ships with (never-do 2; brief 5, section 2). The anchor of the **motion gate**, with its one directed revision ([directed-revision.md](directed-revision.md)). Audited by **Art and Pose** before the gate. Header fields per [artifact-header.md](artifact-header.md). "Scene" here is the application's word for the editable file (Blender's scene), the one use the naming rulings allow; a piece of the film is a shot.
 
 **This record is the pass's final message.** The Animator runs on Codex, so the launch form's `-o` saves the final message and the coordinator files it as `artifacts/scene-record.md`, byte for byte; a repair or a directed revision is filed as `artifacts/scene-record-r2.md`. Write it as one message: the frontmatter first, then the sections, no preamble and no sign-off. The moving test, its render and every evidence file live in the version folder under the media folder's `motion/`, cited here by path and sha256. Commands are pasted with their exact output; a field with no pasted output is a claim, and a claim is not evidence.
 
@@ -49,11 +49,10 @@ The three things never-do 14 requires, before anything else.
 
 | What | Application | Path | sha256 |
 |---|---|---|---|
-| Editable source | Blender \| Fusion (its own isolated project) | `media:…/motion/motion-vNN-<date>/source/<file>` | |
-| Render | | `media:…/render/<file>` | |
-| Exported composition, for Finishing (Fusion only) | | | |
+| Editable source | Blender (`.blend`) | `media:…/motion/motion-vNN-<date>/source/<file>` | |
+| Render, CPU (what crosses to Finishing, with the `.blend`) | | `media:…/render/<file>` | |
 
-A flattened render is not a source. A revision is made in the source.
+A flattened render is not a source. A revision is made in the source. Fusion is closed for every seat: no exported composition crosses to Finishing.
 
 ## Playback
 

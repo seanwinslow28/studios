@@ -29,7 +29,7 @@ media:<film>/<project>-<YYYY-MM-DD>/        # the project folder: named for the 
 |---|---|---|
 | `pointer.txt` | at creation, never edited | one line: the engagement id and its ledger folder, e.g. `mc-eng-001 · ledger: engagements/idea-seed-2026-10-17/` |
 | `manifest.md` | by the seat that made the version, before freezing | the version's parts list, section 3 |
-| `sources/` | | the native authoring files: Blender `.blend`, Fusion `.comp`, the Resolve project export `.drp`, Krita `.kra`, painted layers, composition HTML and scripts |
+| `sources/` | | the native authoring files: Blender `.blend`, the Resolve project export `.drp`, Krita `.kra`, painted layers, composition HTML and scripts |
 | `assets/` | | everything a source depends on: painted layers, textures, audio stems, font files where their licence allows |
 | `renders/` | | what the sources render: frame sequences, clips, stills |
 | `evidence/` | | the evidence pack (adjacent frames, full-speed playback, burned-in frame numbers) and command output |
@@ -37,7 +37,7 @@ media:<film>/<project>-<YYYY-MM-DD>/        # the project folder: named for the 
 
 A version with a render and no native source for it is incomplete, with one exception: **a generated image is its own master.** An image from the Codex imagegen path cannot be made again identically, so the downloaded file is the source, its generation record (prompt, input images by sha256, the model as the run reported it, date) sits beside it, and it is never deleted (never-do 13).
 
-**An imported render never replaces its authoring source** (SWCB #159, check 5). When one application's render goes into another (a Blender render into Resolve, a painted layer into Fusion), the receiving version lists it under dependencies with the id of the version that made it, and that version keeps its own native source. Revising the imported picture means revising its source in a new version of that source, never painting over the render.
+**An imported render never replaces its authoring source** (SWCB #159, check 5). When one application's render goes into another (a Blender render into Resolve, a painted layer into Blender), the receiving version lists it under dependencies with the id of the version that made it, and that version keeps its own native source. Revising the imported picture means revising its source in a new version of that source, never painting over the render.
 
 ## 3. The manifest
 
@@ -103,7 +103,7 @@ What went wrong while making this version and what recovered it, or `none`.
 
 - **A save counts only when it is checked.** A scripted save is read by its return value; an application that reports none or false did not save. A UI save is checked by the project's edited state clearing. In October's Fusion tests, three scripted saves in a row returned nothing while a transient dialog was blocking the application; dismissing it made the same save succeed. So on a failed save: look at the screen, dismiss any blocking dialog, run the same save once more, and record it under Known failures. A third repeat of one failure is the #158 checkpoint: stop and go to Sean (`"Blocked: budget"`).
 - **The save, reopen and render test runs on a clean project** holding only the shot, never the exploratory project it was developed in. October's exploratory project crashed on reopen while a clean project holding only the final sample passed twice.
-- **Resolve and Fusion keep a portable copy.** Every Resolve version exports its project (`.drp`) into `sources/`, and every Fusion composition is saved as a `.comp` beside it, so the version does not depend on Resolve's own project database.
+- **Resolve keeps a portable copy.** Every Resolve version exports its project (`.drp`) into `sources/`, so the version does not depend on Resolve's own project database. Fusion is closed for every seat (2026-10-19), so no `.comp` is made; one would be saved beside the `.drp` only once a Fusion slice opens on its own ticket.
 - **Freezing.** When a version is finished: write `checksums.sha256` last, then make the folder read-only (`chmod -R a-w <folder>`), then take its folder sha256 with the trace kit. Read-only also keeps the Finder from adding `.DS_Store`, which would change the folder's hash. A frozen version is never unfrozen; a change is a new version.
 - **The approved copy.** When Sean approves a version, the exact files he saw are copied to `approved/<version-id>/` and made read-only; his approvals entry records that folder's path and sha256. Approved copies count against the 10 GB limit. Versions approved before this contract (the October opening treatment and appearance frame) stay where they are, in place, never edited; their manifests sit in the ledger, under `references/`, because their folders cannot take a new file.
 

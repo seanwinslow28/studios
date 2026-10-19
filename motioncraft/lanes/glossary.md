@@ -10,7 +10,7 @@ They hold in every artifact, check and gate, and in the templates' own wording.
 
 - Name the pose and the direction ("slow into the rest", "fast out of the anticipation"), never bare "ease in" or "ease out".
 - Say line boil, paper boil, pigment variation, smear or image jitter, never bare "boil" or "jitter".
-- Say shot and sequence for a piece of the film, never "scene". A Blender or Fusion file keeps the application's own word, which is the one use here: the Animator's editable source, and the templates' `scene-record.md`. A script's scene is Scriptcraft's word and stays inside its script id ([handoff-return-scriptcraft.md](../templates/handoff-return-scriptcraft.md)).
+- Say shot and sequence for a piece of the film, never "scene". A Blender file keeps the application's own word, which is the one use here: the Animator's editable source, and the templates' `scene-record.md`. A script's scene is Scriptcraft's word and stays inside its script id ([handoff-return-scriptcraft.md](../templates/handoff-return-scriptcraft.md)).
 - Say push-in and pull-back for camera travel, pan for a turn, track for a move alongside; zoom only for a lens change.
 
 ## Story: the Visual Story Director's rows
