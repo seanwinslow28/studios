@@ -1,7 +1,7 @@
 ---
 lane: motion
 seat: animator
-updated: 2026-10-18
+updated: 2026-10-19
 ---
 # Lane manifest — Animator
 
@@ -42,14 +42,15 @@ The starred guides by file. This seat owns one principle guide and one tool guid
 - **Smears as designed poses** — [`smears-as-designed-poses.md`](../corpus/guides/smears-as-designed-poses.md) — this seat times what Art designed: each smear on the frames, between the keys and along the arc the plan lists, one to three frames until a team test settles it.
 - **Line boil and painted-texture continuity** — [`boil-and-painted-texture-continuity.md`](../corpus/guides/boil-and-painted-texture-continuity.md) — this seat moves what Art designed: paint travels with the subject, line boil at Art's cadence, pigment variation held steady, nothing sliding.
 
-Not yet written, so a topic for `thin_lane:` until it exists: **Timing and spacing on a chart**, **Anticipation, follow-through, overlap**, **Squash, stretch, constant volume** (with Art) and **Holds and cadence** (all ready now); **The scene by script for a painted 2D film**, a tool guide on its own ticket (the build map's **Two Blender tool guides for the Animator**), in place of the dropped "Compositing in Fusion"; **Straight ahead and pose to pose** and **Secondary action, exaggeration, appeal** (after the first film); **Multiples** (waits on a team test); **Staggers** (waits on Williams); **Kinetic type** (parked for a type engagement).
+Not yet written, so a topic for `thin_lane:` until it exists: **Timing and spacing on a chart**, **Anticipation, follow-through, overlap**, **Squash, stretch, constant volume** (with Art) and **Holds and cadence** (all ready now); **Straight ahead and pose to pose** and **Secondary action, exaggeration, appeal** (after the first film); **Multiples** (waits on a team test); **Staggers** (waits on Williams); **Kinetic type** (parked for a type engagement).
 
 ## Application
 
 Last on the path, in the order the book-to-seat brief set. Grease Pencil was rewritten in Blender 4.3, so tutorials older than that, Blender Studio's free course included, are out of date. Blender 5.2.2 LTS is the scene tool on both machines, run by script through the application doorway. Fusion is closed for every seat (Sean, 2026-10-19): the scene crosses to Finishing as its CPU renders plus the `.blend`, never an exported composition, and since Resolve's API cannot keyframe, anything that moves, layered elements and the camera included, is animated in Blender.
 
 - **Grease Pencil 4.3 and later** — [`grease-pencil-4-3-and-later.md`](../corpus/guides/grease-pencil-4-3-and-later.md) — owned: the introduction, draw mode, layers and onion skinning, animation and interpolation, the dope sheet, then the Noise and Time Offset modifiers, in that order; the Python reference last, read on the page (its licence is unconfirmed, so it is read-only).
-- **The scene by script, and Grease Pencil by script** — no guides yet; both are written on the build map's **Two Blender tool guides for the Animator** ticket, every snippet run on Blender 5.2.2 through the doorway. Until then, `thin_lane:`.
+- **Grease Pencil by script in Blender 5.2** — [`grease-pencil-by-script-5-2.md`](../corpus/guides/grease-pencil-by-script-5-2.md) — owned: before every Grease Pencil script; the pre-4.3 names beside their 5.2 replacements, drawings, strokes and points, thickness and opacity, materials, layers and groups, one drawing per key, Noise and Time Offset for line boil. A Grease Pencil scene saves through the doorway but does not render there.
+- **The scene by script for a painted 2D film** — [`the-scene-by-script.md`](../corpus/guides/the-scene-by-script.md) — owned: before every scene; keys and easing from the timing chart, on twos, squash and stretch with volume kept, layered image planes under a moving camera, layering and blending in Blender since Resolve cannot keyframe, and frame-repeatable CPU renders at 24 fps with the TC5 comparison. In place of the dropped "Compositing in Fusion".
 - Blender's built-in Python, `DaVinciResolveScript`, `ffmpeg` and `ffprobe` are toolbelt ([seat file](../bench/animator.md#toolbelt)), not corpus.
 
 ## Audit duty: the delivery package and check record
@@ -75,8 +76,8 @@ The free sources this seat's rows, principles and guides draw on, with the licen
 | Animation Mentor's bouncing-ball tutorials | rebounds that lose height in a steady pattern; spacing into the ground wider than out | all rights reserved | read-only | the contact guide |
 | Becker's twelve-principles series | the vocabulary, with the picture | video, tier C | read-only | none yet |
 | Toon Boom Learn and the Harmony documents | timing, spacing, straight ahead and pose to pose, hold exposure, deformation | all rights reserved | read-only | none yet |
-| Blender manual: Grease Pencil animation, onion skinning, layers, the dope sheet, the Noise modifier; the 4.3 release notes | the application | CC BY-SA 4.0; the release notes' licence not checked | open, not ingested; the notes read-only | the Grease Pencil guide |
-| Blender Python reference | scripting the scene | copyright Blender Authors, licence unconfirmed | read-only | none yet |
+| Blender manual: Grease Pencil animation, onion skinning, layers, materials, the dope sheet, the Noise and Time Offset modifiers; keyframes, F-curves and their modifiers, constraints, Mesh Plane, cameras, render output, colour management, the compositor; the release notes 4.3 to 5.2 | the application | CC BY-SA 4.0, the release notes' licence seen 2026-10-19 | open, not ingested; the notes read-only | the Grease Pencil guide, the Grease Pencil by script guide, the scene by script guide |
+| Blender Python reference | scripting the scene | copyright Blender Authors, no licence shown (seen 2026-10-19) | read-only | the Grease Pencil by script guide, the scene by script guide |
 | Blender Studio's animation page and free Grease Pencil course | a working studio's animation stage | CC BY 4.0 (studio terms); pre-4.3, so out of date for the tool | open, not ingested | none yet |
 | Krita manual: the animation page, the walk cycle | in-betweens | GFDL 1.3 or later | open, not ingested | none yet |
 | Meier 1996; the Paperman talk; Bénard 2010; the Jam Filled interview | line boil and painted texture in motion | all rights reserved; Toon Boom copyright | read-only | the texture guide (all four); the Grease Pencil guide (the interview) |
