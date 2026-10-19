@@ -443,6 +443,11 @@ if Path(sys.argv[0]).name == "claude":
     for r in [argv[j + 1] for j, x in enumerate(argv) if x == "--add-dir"] + [os.getcwd()]:
         if b.get("claude_dirs_under") and r.startswith(b["claude_dirs_under"]):
             (Path(r) / ".claude").mkdir(exist_ok=True)
+    for p in b.get("make_dirs", []):  # what the pass leaves on disk, as Claude Code does after a cd
+        Path(p).mkdir(parents=True, exist_ok=True)
+    for p, text in b.get("make_files", {}).items():
+        Path(p).parent.mkdir(parents=True, exist_ok=True)
+        Path(p).write_text(text)
     out({"type": "result", "subtype": b.get("subtype", "success"), "result": b.get("answer", "FINDINGS"), "usage": {"input_tokens": 10, "output_tokens": 2}})
     sys.exit(0)
 model = argv[argv.index("--model") + 1]
@@ -631,6 +636,24 @@ def test_launch_files_a_read_only_claude_pass(world, fake):
     assert rec["runtime_stamps"] == ["claude-opus-5-5"]
     left = Path(rec["scratch"]) / ".claude"  # Claude Code leaves one in its working folder, the scratch folder
     assert rec["claude_dirs"]["removed"] == [str(left)] and not left.exists()
+
+
+def test_a_claude_dir_left_in_a_version_folder_the_pass_made_is_swept(world, fake):
+    """A pass that cd's into a version folder it made leaves `.claude/.cc-writes/` there (mc-setup-011)."""
+    ctx = context(world, "finishing-sound-designer", "sw1")
+    seat(world, "claude-settings", ctx)
+    stage = Path(ctx_data(ctx)["fence"]["write"][1])
+    older = stage / "older-v01" / ".claude"  # there before the launch: not this pass's, so not touched
+    older.mkdir(parents=True)
+    made, kept = stage / "takes-v01" / ".claude", stage / "takes-v02" / ".claude"
+    behave(fake, calls=1, make_dirs=[str(made / ".cc-writes")],
+           make_files={str(stage / "takes-v01" / "fx1-take1.mp3"): "take", str(kept / "notes.md"): "a seat's file"})
+    r = launch(world, ctx, "--run")
+    rec = record(world, "sw1")
+    assert r.returncode == 0, r.stderr
+    assert rec["claude_dirs"] == {"removed": [str(made)], "left": [str(kept)]}
+    assert not made.exists() and (stage / "takes-v01" / "fx1-take1.mp3").exists()
+    assert (kept / "notes.md").exists() and older.is_dir()
 
 
 def test_claude_stopping_at_its_budget_is_blocked_budget(world, fake):

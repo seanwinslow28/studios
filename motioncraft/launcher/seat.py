@@ -1034,17 +1034,46 @@ def codex_helpers(home: Path, log: Path, thread: Optional[str], rollouts: Path) 
     return {"session_files": len(files), "stamps": stamps, "helper": found}
 
 
-def sweep_claude_dirs(fresh: List[str]) -> Dict[str, List[str]]:
-    """Claude Code leaves an empty `.claude/` in each --add-dir root; each absent before and empty now is removed."""
+def claude_dirs(roots: List[str]) -> List[str]:
+    """Every `.claude` anywhere inside these folders, found without following a link or looking inside one."""
+    found = []
+    for root in roots:
+        for here, dirs, _ in os.walk(root):
+            if ".claude" in dirs:
+                found.append(os.path.join(here, ".claude"))
+                dirs.remove(".claude")
+    return sorted(set(found))
+
+
+def only_leftovers(d: str) -> bool:
+    """Nothing in `d` but empty folders and Claude Code's own `.cc-writes`: nothing a seat meant to save."""
+    own = os.path.join(d, ".cc-writes")
+    for here, dirs, files in os.walk(d):
+        if any(os.path.islink(os.path.join(here, n)) for n in dirs + files):
+            return False
+        if files and here != own and not here.startswith(own + os.sep):
+            return False
+    return True
+
+
+def sweep_claude_dirs(roots: List[str], before: List[str]) -> Dict[str, List[str]]:
+    """Claude Code leaves a `.claude/` in its working folders, and in any folder a pass cd's into, the
+    pass's own new version folders included, where it would change a frozen version's checksums.
+    Each found in the fence after the pass that was not there before it is removed if it holds only
+    leftovers, and named as left if it holds anything else.
+    """
     out: Dict[str, List[str]] = {"removed": [], "left": []}
-    for d in fresh:
-        if os.path.islink(d) or not os.path.isdir(d):
+    for d in claude_dirs(roots):
+        if d in before:
             continue
-        try:
-            os.rmdir(d)
-            out["removed"].append(d)
-        except OSError:
-            out["left"].append(d)
+        if not os.path.islink(d) and only_leftovers(d):
+            try:
+                shutil.rmtree(d)
+                out["removed"].append(d)
+                continue
+            except OSError:
+                pass
+        out["left"].append(d)
     return out
 
 
@@ -1090,8 +1119,8 @@ def cmd_launch(a) -> None:
     wall_sha = sha256(wall)  # taken at launch: the wall this pass actually ran under
     Path(ctx["scratch"]).mkdir(parents=True, exist_ok=True)
     cwd = ctx["scratch"] if vendor == "claude" else ctx["media_project"]
-    fresh = [d for d in (os.path.join(r, ".claude") for r in add_dirs(ctx) + [cwd]) if not os.path.lexists(d)] \
-        if vendor == "claude" else []
+    swept_roots = list(dict.fromkeys(ctx["fence"]["write"] + [cwd]))
+    before = claude_dirs(swept_roots) if vendor == "claude" else []
     server = None
     if ctx["toolbelt"].get("apps"):
         # The application doorway runs on this side of the sandbox for as long as the pass does, no longer.
@@ -1123,7 +1152,7 @@ def cmd_launch(a) -> None:
         helpers = watch.helpers
         if output and res.get("subtype") == "success" and isinstance(res.get("result"), str):
             Path(output).write_text(res["result"] + "\n")
-        swept = sweep_claude_dirs(fresh)
+        swept = sweep_claude_dirs(swept_roots, before)
         if swept["removed"] or swept["left"]:
             record["claude_dirs"] = swept
     else:
