@@ -15,14 +15,9 @@ Gates are protocols, not seats. The trace kit files them as the gate seats `stor
 | **One-off** (a single seat pass) | No gate |
 | **Self-targeted check** (the shared law's modifier) | Its own fresh gate under [the modifier](../../craftwork/law.md#self-targeted-modifier), on its own map ticket (**Self-targeted check on mc-eng-001, red-teamed on Codex**). It is none of the three below and never stands in for one |
 
-**A train in halves.** When a film's two halves differ in what is already approved, the appearance and motion gates fire once per half, and the story gate once on the whole animatic. mc-eng-001 runs in two halves:
+**Parts: split by approval state.** A film splits only where some of it is already approved and some is new (an approved background behind a changed character, say), never into halves of its running time ([Master skill design](https://github.com/seanwinslow28/SWCB/issues/192), item 2). Every appearance packet lists its **approved elements**, frozen and unchanged by checksum, and its **new elements**; the appearance gate judges only the new ones, against the approved. A film takes one artifact per part (its own version folders, gate record and Sean's yes) only when its parts reach Sean's yes at different times; the animatic and the finished cut always stay whole, so the story gate fires once. Each part's gate is then its own series: a pass takes the part as a suffix on its id and file (`<eng>.appearance-gate-<part>`, `audits/appearance-gate-<part>.md`, then `-r2` after it), and so do the revision form and the held checks (`<eng>.revision-<part>`, `audits/revision-check-<part>.md`). The record's `seat:` stays the gate seat. Every part passes the appearance gate, with Sean's yes on each, before any motion draft.
 
-| Half | Appearance gate | Motion gate |
-|---|---|---|
-| **seed** (the suspended seed to the rest) | Art's new poses and smears beside the approved frame (#162), the masters unchanged by checksum | the seed-shape exercise (assessment brief, section 4) and Sean's one directed revision |
-| **world** (the planting to the arrival) | a composed painted frame; the earlier look was not accepted, so nothing in it is approved yet | the world's moving test, with the one-second leaf unfold, built on the camera construction Sean chooses, and its framing-and-timing revision |
-
-Each half's gate is its own series: a pass takes the half as a suffix on its id and file (`<eng>.appearance-gate-seed`, `audits/appearance-gate-seed.md`, then `-r2` after it, `audits/appearance-gate-seed-r2.md`), and so do the revision form and the held checks (`<eng>.revision-world`, `audits/revision-check-world.md`). The record's `seat:` stays the gate seat. On mc-eng-001 both halves pass the appearance gate, with Sean's yes on each, before any motion draft, as the engagement ticket runs them. The coordinator claims the camera ticket (**Camera through one painted world**, #174) when the train reaches the world half's appearance gate, never before. How the halves' anchors are filed, and what the trace kit's structure line counts for them, is the master skill design's.
+**mc-eng-001 runs unsplit.** Sean restarted the seed from scratch (Master skill design, item 3): the October seed approval (approvals ledger, mc-ap-004) is a non-binding taste reference, and nothing in the film is approved, so there is one animatic, one appearance packet, one appearance gate and one motion stage holding both E4's seed-shape exercise and the world's moving test with E5's leaf unfold. The coordinator claims the camera ticket (**Camera through one painted world**, #174) when the train reaches the appearance gate, never before.
 
 Outcomes are typed **STORY** / **APPEARANCE** / **MOTION**, each `PASS | PASS WITH ACCEPTANCES | FAIL` and always `— QUALITY VERDICT ONLY`, per [gate-findings.md](gate-findings.md). No verdict here approves a version: that is Sean's, recorded in the approvals ledger.
 
@@ -37,7 +32,7 @@ Outcomes are typed **STORY** / **APPEARANCE** / **MOTION**, each `PASS | PASS WI
 | **Reads** | the story packet; Finishing's audit and any verification of it; the brief and the approvals entries it names; the packet's media by path, its checksums re-taken | the appearance packet; the Director's audit; the story packet; the approvals entries in force; the assembled frame; the packet's media by path | the scene record (and `scene-record-r2.md` on the revision); Art's audit; the appearance packet and its gate's findings; Sean's decision on that gate; the story packet; the brief; the evidence pack by path |
 | **May demand** | only what an animatic shows: boards, timing in frames, the probe, the muted copy, the shot list. Motion, look and finished sound are holds for later, never findings | only what still frames show: the layers, the poses, the sheets and studies, the checksums, the assembled frame. Moving without sliding paint is a hold for the motion gate | everything a moving test shows: the evidence pack, the probe, the save-reopen-render comparison, frames the gate extracts itself. Felt weight and snap at speed are Sean's. What only the cut can show is a hold for the Animator's audit and the six technical checks |
 | **Attacks** | § Story packet, § Check records, § Whole train | § Appearance packet, § Check records, § Whole train | § Scene record, § Check records, § Whole train; on its second record, § Directed revision |
-| **Record** | `audits/story-gate.md` | `audits/appearance-gate.md`, or one per half | `audits/motion-gate.md` and `audits/revision-check.md`, or one of each per half |
+| **Record** | `audits/story-gate.md` | `audits/appearance-gate.md`, or one per part | `audits/motion-gate.md` and `audits/revision-check.md`, or one of each per part |
 
 Every gate reads artifacts only, never the drafting conversation, and carries the [protocol](../../craftwork/templates/red-team-protocol.md), this file and [gate-findings.md](gate-findings.md), never the seat preamble. The exact flags, the per-pass caps and how a read-only pass gets a scratch folder for the frames it extracts are the master skill design's and the launch-form ticket's (**Plugin allowlist and launch form for seat runs**). Until those close, no gate runs.
 
@@ -47,7 +42,7 @@ Every gate reads artifacts only, never the drafting conversation, and carries th
 
 A PASS goes to Sean as a version: its id, its status and his prior note on it (never-do 14), the verdict line, the questions for Sean with the frames to watch, and one recommendation, inside his checkpoint (#158: up to three short clips or stills, one recommendation, one decision, five to ten minutes). He decides in his own words, one of four:
 
-- **Approved.** The train advances to the next stage, or the next half.
+- **Approved.** The train advances to the next stage, or the next part.
 - **Artistic retake** or **technical retake.** The owning seat makes a new version on his note. A gate verdict covers only the version it read, so the new version takes its stage's audit and the gate again before he sees it. A retake is his direction, not a gate round: it opens a fresh series. How many a stage may take is the master skill's pass caps, inside #158's limits.
 - **Rejected.** The train stops at that gate and returns to Sean with the evidence and one recommended next step (#164).
 
@@ -69,7 +64,7 @@ If the planned vendor is unavailable, the protocol's fallback holds: the gate ru
 
 ## FAIL and re-runs
 
-FAIL → the owning seat of each CRITICAL or MATERIAL finding redrafts one tier up, and the gate re-runs as `-r2`. That re-run is the gate's last round ([craftwork § Checks converge](../../craftwork/law.md#checks-converge-and-the-ladder-has-brakes), clause 9): a second FAIL stops the engagement and hands it to Sean with every open finding as a candidate acceptance. Every check series still open is reported at each gate as round / findings / repair size, and a gate's own non-shrinking line binds the coordinator (clause 10). On a train in halves the cap is per half.
+FAIL → the owning seat of each CRITICAL or MATERIAL finding redrafts one tier up, and the gate re-runs as `-r2`. That re-run is the gate's last round ([craftwork § Checks converge](../../craftwork/law.md#checks-converge-and-the-ladder-has-brakes), clause 9): a second FAIL stops the engagement and hands it to Sean with every open finding as a candidate acceptance. Every check series still open is reported at each gate as round / findings / repair size, and a gate's own non-shrinking line binds the coordinator (clause 10). On a film in parts the cap is per part.
 
 The held checks are the motion gate's second record and take the same shape: a failed check sends the Animator back to the source once, the checks re-run as `revision-check-r2`, and a second FAIL stops and goes to Sean. A repair here answers the failed check alone and never mixes with a further change of Sean's.
 
@@ -90,7 +85,7 @@ Every finding names the line it came from, as `gate schedule § <list>, "<line>"
 - **It does not read muted.** The muted copy missing, the muted-reading sentence missing, or the sentence admits a stretch that reads only with sound and nothing marks it.
 - **No room for sound.** A moment that needs a sound to land with no mark, or a score, voice or dialogue written in rather than marked to route out.
 - **Not buildable.** A shot whose staging, size or camera the shot list leaves open, or a panel no shot owns.
-- **The world as two places.** The world half staged as anything but one camera in one space: two framings joined by a crossfade, or the pull-back revealing a place the planting close-up was not in (#174).
+- **The world as two places.** The world staged as anything but one camera in one space: two framings joined by a crossfade, or the pull-back revealing a place the planting close-up was not in (#174).
 - **The opening redesigned.** The opening departs from the approved treatment (#177): the seed not complete and suspended at the start, the question stroke not carried by smear poses, the seed not readable through the fall, or any literal disassembly and reassembly.
 - **Timing squeezed.** A duration shortened to fit a review window or a test, or a total length nobody agreed (never-do 9).
 - **Words shipped as final.** On-screen or spoken words not marked as placeholders and not Sean's (never-do 10).
@@ -111,8 +106,7 @@ Every finding names the line it came from, as `gate schedule § <list>, "<line>"
 - **An approval carried across a change.** A design change to an approved frame, pose or palette that the packet does not name as one and route to Sean (never-do 3).
 - **Colour that does not carry the beats.** A beat with no palette, value or temperature line, or a colour choice the grade would have to invent.
 - **A target passed as a design.** A generated style target not labelled, not downloaded, or standing in for a painted layer; edit mode relied on while unconfirmed and not said.
-- **Seed half:** a readable-seed pose that loses the approved colour order, cobalt crease or brushwork.
-- **World half:** a composed frame that reuses the earlier look Sean did not accept, or a frame whose layers could not move under the camera construction the shot list names.
+- **The rejected look back.** A composed frame that reuses the earlier look Sean did not accept, or a frame whose layers could not move under the camera construction the shot list names.
 
 ### Scene record
 
@@ -130,12 +124,12 @@ Every moving test:
 - **The video-game look.** Rigid card rotation, even spacing, cards repeated where change is planned; CRITICAL on its observable sign, the final call Sean's (#162).
 - **The first-Codex line missing.** No line saying the pass ran as the first Codex seat on visual work.
 
-The seed half, in the review order of the assessment brief, section 4: the technical record first, a one-sentence muted reading of the frame-numbered copy, the charts against the animatic, the adjacent frames at the contact and each smear, the silhouette sheet against the appearance packet's plan.
+The seed's movement (E4's seed-shape exercise), in the review order of the assessment brief, section 4: the technical record first, a one-sentence muted reading of the frame-numbered copy, the charts against the animatic, the adjacent frames at the contact and each smear, the silhouette sheet against the appearance packet's plan.
 
-- **Sean's six named fail conditions, each CRITICAL:** the video-game look and texture sliding, above; assembly from chunks (any frame built from separate pieces); repeated silhouettes (one drawing reused where the plan calls for change, or a seed with a tail); floaty weight (a gap at contact, even spacing into the floor, no squash, or a one-frame jump); lost identity in the smear (a smear frame that loses the colour order or the crease).
+- **Sean's six named fail conditions, each CRITICAL:** the video-game look and texture sliding, above; assembly from chunks (any frame built from separate pieces); repeated silhouettes (one drawing reused where the plan calls for change, or a seed with a tail); floaty weight (a gap at contact, even spacing into the floor, no squash, or a one-frame jump); lost identity in the smear (a smear frame that loses an identity mark the approved appearance packet names).
 - **The eight criteria, each with frames:** appearance kept; the stroke on designed smears only, on the arc, about the resting size; the readable seed back before the fall, with no broad smear carried into it; the tumble readable on every frame, on one rotation rule, spacing widening toward the contact; the contact on its frame with squash there and no unplanned jump; exactly two rebounds, each lower, drawings bunching at each peak; drawings bunching into a rest that holds visibly; paint moving with the seed through rotation and squash, with no undesigned flicker.
 
-The world half:
+The world's moving test:
 
 - **Two shots joined.** The pull-back reads as two places put together, or a crossfade joins unrelated framings; CRITICAL, as Sean found it on #174.
 - **The landmark moved.** The planting point does not stay fixed in the world through the camera move.

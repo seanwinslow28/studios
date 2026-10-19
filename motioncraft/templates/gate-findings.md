@@ -16,7 +16,7 @@ Posture is inherited: *find the strongest case that this fails; being unable to 
 
 ```markdown
 ---
-id: mc-eng-001.motion-gate         # story-gate | appearance-gate | motion-gate; -seed or -world per half on a train in halves; -r2 on a re-run
+id: mc-eng-001.motion-gate         # story-gate | appearance-gate | motion-gate; -<part> per part on a film in parts; -r2 on a re-run
 engagement: <project>-<YYYY-MM-DD>
 date: 2026-10-26
 seat: motion-gate                  # story-gate | appearance-gate | motion-gate
