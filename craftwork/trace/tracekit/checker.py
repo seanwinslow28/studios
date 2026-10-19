@@ -231,7 +231,9 @@ def _hashes(eng: Engagement) -> Check:
             if new_path is not None:
                 relocated[i.path] = new_path
             disk = eng.hash_of(i.path)
-            if disk is None:
+            if eng.unset_name(i.path) is not None:
+                c.findings.append(f"{r.pass_id}: input {i.path} is {eng.not_set_up_reason(i.path)}")
+            elif disk is None:
                 c.findings.append(f"{r.pass_id}: input {i.path} is missing on disk")
             elif not re.fullmatch(r"[0-9a-f]{64}", i.sha256):
                 c.findings.append(f"{r.pass_id}: input {i.path} has no sha256 (got {i.sha256!r})")
@@ -258,7 +260,9 @@ def _hashes(eng: Engagement) -> Check:
                 continue
             c.n_total += 1
             disk = eng.hash_of(o.path)
-            if disk is None:
+            if eng.unset_name(o.path) is not None:
+                c.findings.append(f"{r.pass_id}: output {o.path} is {eng.not_set_up_reason(o.path)}")
+            elif disk is None:
                 c.findings.append(f"{r.pass_id}: output {o.path} is missing on disk")
             elif disk == o.sha256 or (o.path in last and last[o.path][1] != r.pass_id and disk == last[o.path][0]):
                 c.n_ok += 1
@@ -266,6 +270,7 @@ def _hashes(eng: Engagement) -> Check:
                 c.findings.append(
                     f"{r.pass_id}: output {o.path} was edited after the pass: the disk hash matches no recorded output"
                 )
+    c.notes.extend(eng.folders.problems)       # a settings line the kit could not read leaves its name unset
     if superseded:
         c.notes.append(f"{superseded} input(s) matched a superseded revision an earlier pass recorded as its output")
     if relocated:

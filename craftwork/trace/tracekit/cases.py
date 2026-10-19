@@ -65,13 +65,13 @@ class Source:
     sha256: str
     excerpt: str
     label: str = ""
-    state: str = "unchecked"          # current | changed | missing | excerpt-missing | unchecked
+    state: str = "unchecked"          # current | changed | missing | not-set-up | excerpt-missing | unchecked
     current_sha256: Optional[str] = None
     line: Optional[int] = None
 
     @property
     def qualified(self) -> bool:
-        return self.state in ("changed", "missing", "excerpt-missing")
+        return self.state in ("changed", "missing", "not-set-up", "excerpt-missing")
 
     @property
     def shows_excerpt(self) -> bool:
@@ -83,6 +83,8 @@ class Source:
             return "The source changed since this story was written, so its excerpt is withheld."
         if self.state == "missing":
             return "The source is not on disk at that path, so its excerpt is withheld."
+        if self.state == "not-set-up":
+            return "The source's folder is not set up on this machine, so its excerpt is withheld."
         if self.state == "excerpt-missing":
             return "The quoted words are not in the file at that hash, so the excerpt is withheld."
         return ""
@@ -353,6 +355,10 @@ def resolve_sources(doc: CasesDoc, eng) -> CasesDoc:
         for s in case.sources:
             current = eng.hash_of(s.path)
             s.current_sha256 = current
+            if eng.unset_name(s.path) is not None:
+                s.state = "not-set-up"    # a named folder this machine does not map (SWCB #210)
+                doc.errors.append(f"cases.md {case.pass_id}: source {s.path} is {eng.not_set_up_reason(s.path)}")
+                continue
             if current is None:
                 s.state = "missing"
                 doc.errors.append(f"cases.md {case.pass_id}: source {s.path} is not on disk")

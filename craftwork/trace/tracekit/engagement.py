@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
+from .folders import NOT_SET_UP, NOT_SET_UP_TEXT, Folders, load_folders, split_named
 from .frontmatter import FrontmatterError, split_frontmatter
 from .labels import Label, LabelsError, parse_labels
 from .moves import MovesSection, parse_moves
@@ -130,6 +131,14 @@ class Engagement:
     _texts: dict[str, Optional[str]] = field(default_factory=dict, repr=False)
     _hashes: dict[str, Optional[str]] = field(default_factory=dict, repr=False)
     _moves: dict[str, Optional[MovesSection]] = field(default_factory=dict, repr=False)
+    _folders: Optional[Folders] = field(default=None, repr=False)
+
+    @property
+    def folders(self) -> Folders:
+        """This machine's named folders (`folders.local` at the repo root, SWCB #210), read once."""
+        if self._folders is None:
+            self._folders = load_folders(self.repo)
+        return self._folders
 
     @property
     def by_id(self) -> dict[str, Record]:
@@ -144,7 +153,29 @@ class Engagement:
         return str(self.brief.get("name") or self.root.name)
 
     def resolve(self, rel: str) -> Optional[Path]:
+        named = split_named(rel)
+        if named is not None:
+            p = self.folders.resolve(*named)
+            return p if p is not None and p.exists() else None
         return resolve_path(self.root, self.repo, rel, self.studio.repo_prefixes)
+
+    def unset_name(self, rel: str) -> Optional[str]:
+        """The folder name a path starts with, when this machine does not map it; else None."""
+        named = split_named(rel)
+        if named is None or self.folders.is_set_up(named[0]):
+            return None
+        return named[0]
+
+    def path_state(self, rel: str) -> str:
+        """`present` · `missing` · `not-set-up` (a named folder this machine does not map; never a pass)."""
+        if self.unset_name(rel) is not None:
+            return NOT_SET_UP
+        return "present" if self.resolve(rel) is not None else "missing"
+
+    def not_set_up_reason(self, rel: str) -> str:
+        """Plain words for a path whose folder name is not set up here, naming where to set it."""
+        where = self.folders.source.name if self.folders.source is not None else "folders.local"
+        return f"{NOT_SET_UP_TEXT}: no `{self.unset_name(rel)}` folder in {where}"
 
     def read_text(self, rel: str) -> Optional[str]:
         """Text of a path in the engagement (or repo), cached; None if absent or binary."""
@@ -175,9 +206,12 @@ class Engagement:
 
     def output_state(self, o: OutputRef) -> str:
         """`current` (disk matches the recorded hash) · `superseded` (a later revision overwrote it in
-        place, per #274) · `missing` · `unhashed` (the record carries no hash for it)."""
+        place, per #274) · `missing` · `unhashed` (the record carries no hash for it) · `not-set-up`
+        (its named folder is not mapped on this machine, SWCB #210)."""
         if not o.path:
             return "missing"
+        if self.unset_name(o.path) is not None:
+            return NOT_SET_UP
         h = self.hash_of(o.path)
         if h is None:
             return "missing"
@@ -196,14 +230,14 @@ class Engagement:
         return record.artifact_outputs[0] if record.artifact_outputs else None
 
     def moves_state(self, record: Record) -> str:
-        """`current` · `origin` · `none-kind` (hands nothing forward) · `superseded` · `missing`."""
+        """`current` · `origin` · `none-kind` (hands nothing forward) · `superseded` · `missing` · `not-set-up`."""
         if not record.hands_forward:
             return "none-kind"
         o = self.moves_artifact(record)
         if o is None:
             return "missing"
         state = self.output_state(o)
-        if state in ("missing", "superseded"):
+        if state in ("missing", "superseded", NOT_SET_UP):
             return state
         mv = self.moves_for(record)
         if mv is None:

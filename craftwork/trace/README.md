@@ -54,6 +54,14 @@ The `trace/` subfolder is a #290 call: #272 said "in the engagement folder", and
 
 **The brief header the kit reads.** `brief.md` (the profile names the file) opens with frontmatter the coordinator writes at Open: `id` (`pc-eng-NNN` in Productcraft), `name`, `type` (`full-train` | `audit` | `execution-breakdown` | `one-off` | `role-support`), `opened`, `closed` (null until Close), `pass_budget`, and `synthetic: true` only on invented engagements (the viewer shows a badge; a real engagement shows nothing, never "REAL"). The stage-structure check asserts the full train's shape only when `type` says full train.
 
+## Named folders: files outside the repo (`media:`)
+
+Some files a pass reads or writes live outside `studios` and outside the ledger: Motioncraft's boards, frames, renders and frozen approvals live in a media folder whose place differs per machine. A record names such a file by a folder name and a colon, `media:<path inside that folder>`, for example `media:Question-Becomes-a-World/idea-seed-2026-10-17/appearance/appearance-v01-2026-10-22` (ruled on SWCB [#186](https://github.com/seanwinslow28/SWCB/issues/186) §§ 7–8, built on [#210](https://github.com/seanwinslow28/SWCB/issues/210)).
+
+Each machine says where each name lives in `folders.local` at the top of `studios`, one line per name, `media = ~/Movies/Animation-Studio`. The file is gitignored; [folders.example](../../folders.example) shows the shape with no real path. `$TRACEKIT_FOLDERS` names another settings file instead (a repo outside `studios`, or a test). Moving a folder, or opening the ledger on another machine, changes one line, and old records still check.
+
+A name the machine does not map is **not set up on this machine**: a state of its own beside current, changed and missing, and never a pass. The checker's hash line reports it as a finding in those words, the viewer says it beside the path, a guided-reading source withholds its excerpt, and `freeze.py` refuses with exit 2. The mechanism takes any name, so a studio can write `target:<repo>/<path>` the same way. Paths with no name resolve exactly as before.
+
 ## The Close ritual — three lines, adopted verbatim by both studios' master skills
 
 ```bash

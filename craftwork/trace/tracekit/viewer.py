@@ -706,7 +706,7 @@ def _source_html(s: Source) -> str:
     fingerprint = (f"<details class='fingerprint'><summary>Fingerprint</summary><dl>"
                    f"<dt>path</dt><dd>{esc(s.path)}</dd>"
                    f"<dt>sha256 when written</dt><dd>{esc(s.sha256)}</dd>"
-                   f"<dt>sha256 now</dt><dd>{esc(s.current_sha256 or 'not on disk')}</dd></dl></details>")
+                   f"<dt>sha256 now</dt><dd>{esc(s.current_sha256 or ('not set up on this machine' if s.state == 'not-set-up' else 'not on disk'))}</dd></dl></details>")
     return (f"<div class='source' data-src='{esc(s.label or s.path)} — {where} (sha256 {esc(s.sha256[:12])}…)'>"
             f"<p class='prov'>Source excerpt · {label}{where}</p>{body}{fingerprint}</div>")
 
@@ -952,9 +952,9 @@ def _row(eng: Engagement, p: Record, v: Optional[str], ffs: Optional[int], crit:
   <span class="verdict {vcls}" data-verdict-cell>{vicon}<span data-verdict-word>{vlabel}</span></span>
   <span class="crit" data-crit-cell>{esc(crit) if crit else ('<span class="ffs">' + (f'broke at {ffs} {esc(S.stage_name(ffs))}' if ffs else '') + '</span>')}</span>
 </summary>"""
-    inputs = "".join(f"<li>{esc(i.path)}<span class='hash'>{esc(i.sha256[:12])}…</span></li>" for i in p.inputs) or "<li class='sub'>none</li>"
+    inputs = "".join(f"<li>{esc(i.path)}{_unset_html(eng, i.path)}<span class='hash'>{esc(i.sha256[:12])}…</span></li>" for i in p.inputs) or "<li class='sub'>none</li>"
     withheld = "".join(f"<li>{esc(w)}</li>" for w in p.withheld) or "<li class='sub'>none listed</li>"
-    outputs = "".join(f"<li>{esc(o.path or o.id)}</li>" for o in p.outputs) or "<li class='sub'>none</li>"
+    outputs = "".join(f"<li>{esc(o.path or o.id)}{_unset_html(eng, o.path)}</li>" for o in p.outputs) or "<li class='sub'>none</li>"
     checks = "".join(f"<li><span>{esc(c.pass_id)}</span><span class='sub'>{esc(c.kind)}</span><span>{esc(c.verdict)}</span></li>" for c in p.checks) or "<li class='sub' style='display:block'>none recorded</li>"
     corpus = "".join(f"<li>{esc(c)}</li>" for c in p.corpus_read) or ("<li class='sub'>none (gate: corpus withheld)</li>" if p.kind == "gate" else "<li class='sub'>none</li>")
     moves = _moves_html(eng, p)
@@ -1025,6 +1025,13 @@ def _row(eng: Engagement, p: Record, v: Optional[str], ffs: Optional[int], crit:
             f'data-verdict="{v or "unlabeled"}" data-pair="{esc(pair or "")}">{summary}{detail}</details>')
 
 
+def _unset_html(eng: Engagement, path: str) -> str:
+    """A named folder this machine does not map (SWCB #210): said beside the path, never hidden."""
+    if not path or eng.unset_name(path) is None:
+        return ""
+    return f" <span class='sub unset'>{esc(eng.not_set_up_reason(path))}</span>"
+
+
 def _moves_html(eng: Engagement, p: Record) -> str:
     state = eng.moves_state(p)
     if state == "none-kind":
@@ -1032,6 +1039,8 @@ def _moves_html(eng: Engagement, p: Record) -> str:
     if state == "superseded":
         return ("<p class='sub' style='font-size:inherit'>No moves on disk: the artifact was overwritten in place by a later pass; "
                 "the pass records keep the history.</p>")
+    if state == "not-set-up":
+        return "<p class='sub' style='font-size:inherit'>No moves shown: the artifact's folder is not set up on this machine.</p>"
     mv = eng.moves_for(p)
     if state == "missing" or mv is None:
         return "<p class='sub' style='font-size:inherit'>No moves: not recorded.</p>"

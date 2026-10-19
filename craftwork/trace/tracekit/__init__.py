@@ -84,9 +84,16 @@ coordinator pastes the list and never types it; `sessionlog.py` prints the
 coordinator session's own transcript path for its `open`, `readout` and `close`
 records' `raw_log`, which line 11 then reads like any seat's log.
 
+0.14.0 reads named folders (SWCB #210, ruled on #186 §§ 7–8): a record's path may
+be `media:<path>`, resolved through this machine's untracked `folders.local`
+(`$TRACEKIT_FOLDERS` names another). A name the machine does not map is not set
+up on this machine, its own state and never a pass, in the checker, the viewer,
+the guided-reading sources and `freeze.py`. Every engagement checks as it did at
+0.13.0.
+
 The content machine (#291) shares this code rather than forking it, through its
 own profile.
 """
 
 KIT_NAME = "craftwork/trace"
-KIT_VERSION = "0.13.0"
+KIT_VERSION = "0.14.0"

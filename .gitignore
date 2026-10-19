@@ -10,6 +10,10 @@
 /*/books/
 *.epub
 
+# Each machine's named folders for the trace kit (SWCB #210); the shape is in
+# folders.example, tracked. Real paths stay on the machine.
+/folders.local
+
 # Caches and local files
 .DS_Store
 .impeccable/

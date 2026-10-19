@@ -1,0 +1,13 @@
+# folders.example: the shape of folders.local, the per-machine settings file
+# the trace kit reads for named paths (SWCB #210). Copy it to folders.local at
+# the top of studios and put this machine's real folders in. folders.local is
+# gitignored: real paths never enter the repo.
+#
+# A record may then name a file as media:<path inside the folder>. A name with
+# no line here reads "not set up on this machine", and never passes.
+#
+# One line per name, `name = folder`. The folder is a full path, or one
+# starting ~/. Names are lower case: letters, digits and hyphens.
+
+media = ~/Movies/Studio-Media
+# target = ~/Code-Brain            # Devcraft, later: target:<repo>/<path>

@@ -26,7 +26,8 @@ meter:                                 # tokens as the runtime reported them; `m
 #   total: 203700
 meter_source: Agent-tool usage         # one value of the registry's vocabulary: Agent-tool usage | claude -p result.usage | codex turn.completed.usage | codex footer | pi message_end usage | hermes usage-file | gemini stats.tokens | UNMEASURED — never an estimate
 inputs:                                # every file handed over, path + content hash, relative to the engagement folder
-  - path: brief.md                     # (studio-prefixed paths — productcraft/…, systemcraft/… — resolve against the repo)
+  - path: brief.md                     # (studio-prefixed paths — productcraft/…, systemcraft/… — resolve against the repo;
+                                       #  named paths — media:<path> — resolve through this machine's folders.local, SWCB #210)
     sha256: <64 hex>
   - path: productcraft/corpus/canon/strategy-good-strategy-bad-strategy.md
     sha256: <64 hex>
