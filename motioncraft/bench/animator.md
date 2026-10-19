@@ -56,8 +56,8 @@ As auditor of the **delivery package and check record**, before the technical ch
 
 A skill's output is raw material, never the artifact; installed skills are toolbelt, never canon. Codex lists no skill in a seat run, so the launcher gives each skill by path, from this machine's copy of the seat's line in [`toolbelts.toml`](toolbelts.toml); the pass reads no other skill folder. "Tested" means run in a recorded session; "docs" means only its instructions were read (plugin-routing brief).
 
-- Blender's built-in Python, headless, Cycles CPU render (tested, #162: reopened renders matched pixel for pixel; Grease Pencil never run; Blender absent today): the editable scene, contact, settle, the turn through depth; Grease Pencil for changing silhouettes.
-- Resolve Fusion by `DaVinciResolveScript` (tested, #162: graph and renders, repeated save failures then recovery): Fusion part animation in an isolated project.
+- Blender's built-in Python, headless, Cycles CPU render, through the application doorway only, `apps.py ask blender` (tested, #162: reopened renders matched pixel for pixel; from a live Codex pass through the doorway, mc-setup-010: a frame rendered and the scene saved into a new version folder, a saved version refused; Grease Pencil never run): the editable scene, contact, settle, the turn through depth; Grease Pencil for changing silhouettes. Cycles on the graphics chip does not repeat a frame exactly, so it is for previews in scratch only.
+- Resolve Fusion by `DaVinciResolveScript` (tested, #162: graph and renders, repeated save failures then recovery): Fusion part animation in an isolated project. **Closed for now:** the doorway's broker refuses Fusion's object graph, since Fusion can run code inside Resolve, until a ticket opens the part of it this seat needs.
 - `2d-animation-principles`, by path (docs): spacing, arcs, the frame checks before handoff.
 - `animation-principles` (docs): easing and stagger numbers for graphic moves, named in the naming rulings' words.
 - `ffmpeg`, `ffprobe` (tested, #162): adjacent frames around every contact, the frame-numbered copy, decode checks.

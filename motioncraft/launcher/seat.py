@@ -150,6 +150,10 @@ CLAUDE_DENIED_COMMANDS = ("codex", "higgsfield", "nlm", "hyperframes")
 # an approval no one is there to give (live passes, 2026-10-19). An allow rule lets them run, still sandboxed, on a
 # pass with no way out of the sandbox; on the Director's and Art's, the same rule would let them out, so not there.
 CLAUDE_HELD_COMMANDS = ("ffmpeg", "ffprobe")
+# Blender and Resolve run for a pass only through the application doorway (launcher/apps.py), on the launcher's
+# side of the sandbox under a lock written from the pass's context; neither vendor's sandbox lets them work inside.
+APPS_DOOR = HERE / "apps.py"
+SEAT_APPS = ("blender", "resolve")
 
 
 def die(msg: str) -> None:
@@ -202,10 +206,14 @@ def toolbelts() -> Dict:
 
 
 def seat_belt(seat: str) -> Dict:
-    """A seat's allowlist line: its skills as (source, name), and whether it may call the image path."""
+    """A seat's allowlist line: its skills as (source, name), whether it may call the image path, and its apps."""
     line = toolbelts().get("seats", {}).get(seat, {})
     skills = [tuple(s.split(":", 1)) for s in line.get("skills", [])]
-    return {"skills": skills, "image": bool(line.get("image"))}
+    apps = list(line.get("apps", []))
+    bad = [x for x in apps if x not in SEAT_APPS]
+    if bad:
+        die(f"the allowlist gives {seat} {', '.join(bad)}; the application doorway runs only {', '.join(SEAT_APPS)}")
+    return {"skills": skills, "image": bool(line.get("image")), "apps": apps}
 
 
 def source_dir(source: str) -> Optional[Path]:
@@ -287,7 +295,9 @@ def context_belt(seat: str, vendor: str, read_only: bool) -> Dict:
     skills = [{"skill": n, "path": str(belt_dir(seat) / "skills" / n / "SKILL.md")} for _, n in belt["skills"]]
     return {"dir": str(belt_dir(seat)) if skills else "", "skills": skills,
             "manifest_sha256": sha256(belt_dir(seat) / "manifest.json") if skills else "",
-            "image": belt["image"] and vendor == "claude" and not read_only}
+            "image": belt["image"] and vendor == "claude" and not read_only,
+            # Blender and Resolve, through the application doorway: a drafting pass's, on either vendor
+            "apps": [] if read_only else belt["apps"]}
 
 
 def app_env() -> Tuple[List[str], Dict[str, str]]:
@@ -774,9 +784,10 @@ def launch_argv(ctx: Dict, prompt: str, profile: str = "", output: str = "") -> 
 
 
 def claude_prompt(ctx: Dict, prompt: str) -> str:
-    """A Claude pass's prompt: the coordinator's, and for the Director and Art the one way to the image path."""
+    """A Claude pass's prompt: the coordinator's, for the Director and Art the one way to the image path, and the apps."""
+    apps = [apps_note(ctx)] * bool(ctx["toolbelt"].get("apps"))
     if not ctx["toolbelt"]["image"]:
-        return prompt
+        return "\n\n---\n\n".join([prompt] + apps)
     door = (f"The image path, for board roughs and style targets under the bench README's conditions: run "
             f"`{IMAGE_DOOR} --context {ctx['source']} --out <your stage>/<version folder>/<name>.png "
             "--prompt-file <a file you wrote> [--ref <an image in the media project>]...` with the Bash tool's "
@@ -784,7 +795,30 @@ def claude_prompt(ctx: Dict, prompt: str) -> str:
             "outside the sandbox; it files the image and its prompt beside it, labelled generated. In this pass an "
             "ffmpeg or ffprobe argument shaped name=value is held for an approval no one gives: put a filter in a file "
             "and pass it with `-/vf <file>` or `-/af <file>`, and read stream facts with `-of json -show_streams`.")
-    return f"{prompt}\n\n---\n\n{door}"
+    return "\n\n---\n\n".join([prompt, door] + apps)
+
+
+def apps_note(ctx: Dict) -> str:
+    """How a pass with an app reaches it: through the application doorway, never by running the app itself."""
+    apps = ctx["toolbelt"].get("apps") or []
+    usage = []
+    if "blender" in apps:
+        usage.append(f"`python3 -B {APPS_DOOR} ask blender --script <a .py you wrote> [--blend <a .blend in the media "
+                     "project>] [-- <the script's arguments>]` runs `Blender -b --factory-startup --python <your script>`; "
+                     "Cycles renders on the CPU or the graphics chip (Metal), but only the CPU repeats a frame exactly, so a render "
+                     "kept in a version folder uses the CPU and the graphics chip is for previews in your scratch folder; "
+                     "Eevee does not run here")
+    if "resolve" in apps:
+        usage.append(f"`python3 -B {APPS_DOOR} ask resolve --script <a .py you wrote> [-- <the script's arguments>]` "
+                     "runs your script with `DaVinciResolveScript` importable, connected to the Resolve already open on "
+                     "this machine; render and export only into a version folder in your stage")
+    return ("Blender and Resolve: neither runs inside this pass's sandbox, so never run `blender` or a Resolve script "
+            "yourself. Ask the launcher, from your shell: " + "; ".join(usage) + ". Write the script in your scratch "
+            "folder or a new version folder in your stage. The launcher runs a copy under a lock as tight as your own "
+            "fence and prints the end of the application's log and a result: what it wrote in your fence, and, for "
+            "Resolve, every path written elsewhere on the Mac during the call, which goes in your check record. If it "
+            "says still running, run `python3 -B " + str(APPS_DOOR) + " wait <id>`. The call counts against this "
+            "pass's time.")
 
 
 def codex_prompt(ctx: Dict, prompt: str) -> str:
@@ -803,7 +837,7 @@ def codex_prompt(ctx: Dict, prompt: str) -> str:
         lines = "\n".join(f"- `{s['skill']}`: {s['path']}" for s in skills)
         parts.append("Your toolbelt's skills. Read a skill's SKILL.md by its path when its moment comes; "
                      f"no other skill is yours.\n\n{lines}")
-    return "\n\n---\n\n".join(parts + [prompt])
+    return "\n\n---\n\n".join(parts + [apps_note(ctx)] * bool(ctx["toolbelt"].get("apps")) + [prompt])
 
 
 def scrubbed_env(ctx: Dict, home: Path) -> Dict[str, str]:
@@ -1023,7 +1057,17 @@ def cmd_launch(a) -> None:
     cwd = ctx["scratch"] if vendor == "claude" else ctx["media_project"]
     fresh = [d for d in (os.path.join(r, ".claude") for r in add_dirs(ctx) + [cwd]) if not os.path.lexists(d)] \
         if vendor == "claude" else []
-    run = supervise(argv, env, cwd, log, err, ctx["caps"], vendor)
+    server = None
+    if ctx["toolbelt"].get("apps"):
+        # The application doorway runs on this side of the sandbox for as long as the pass does, no longer.
+        import apps as appdoor  # noqa: E402  launcher/apps.py, beside this file
+        server = appdoor.AppServer(ctx, time.time() + ctx["caps"].get("minutes", 60) * 60)
+        env.update(server.env())
+        server.start()
+    try:
+        run = supervise(argv, env, cwd, log, err, ctx["caps"], vendor)
+    finally:
+        door = server.stop() if server else None
     watch: Watch = run.pop("watch")
     rel = lambda p: os.path.relpath(p, eng)  # noqa: E731
     record = {
@@ -1034,6 +1078,8 @@ def cmd_launch(a) -> None:
         "wall_files": [{"path": str(wall), "sha256": wall_sha}],
         "raw_log": rel(log), "stderr_log": rel(err), "scratch": ctx["scratch"],
     }
+    if door is not None:
+        record["apps"] = door
     helpers: List[str] = []
     if vendor == "claude":
         res = watch.result or {}
@@ -1422,6 +1468,13 @@ def cmd_check(a) -> None:
     path, apps = app_env()
     gaps += [f"the allowlist's application path {p} is not on this machine" for p in path + list(apps.values())
              if not os.path.exists(p)]
+    # The application doorway: Seatbelt's own runner, and the two programs its locks run.
+    door = {k: os.path.expanduser(str(v)) for k, v in toolbelts().get("apps", {}).items()}
+    if any(seat_belt(s)["apps"] for s in SEATS):
+        if not os.access("/usr/bin/sandbox-exec", os.X_OK):
+            gaps.append("no /usr/bin/sandbox-exec, which the application doorway's locks run under")
+        gaps += [f"the allowlist's [apps] has no `{k}` path" for k in ("blender", "python") if k not in door]
+        gaps += [f"the doorway's {k} {p} is not on this machine" for k, p in door.items() if not os.access(p, os.X_OK)]
     for g in gaps:
         print(f"GAP: {g}")
     print(f"preflight on {machine()}: " + ("clean" if not gaps else f"{len(gaps)} gap(s)"))

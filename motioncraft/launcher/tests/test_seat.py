@@ -24,6 +24,8 @@ sys.path.insert(0, str(LAUNCHER))
 import seat as seatmod  # noqa: E402
 
 PROJECT = "Film/proj-2026-10-19"
+# The application doorway's tests run the real Blender where it is installed (launcher/tests/test_apps.py).
+BLENDER = "/Applications/Blender.app/Contents/MacOS/Blender"
 
 
 @pytest.fixture(scope="module")
@@ -71,6 +73,12 @@ skills = ["desk:2d-animation-principles", "agents:shot-composition"]
 image = true
 [seats.animator]
 skills = ["desk:2d-animation-principles", "agents:animation-principles"]
+apps = ["blender", "resolve"]
+[seats.finishing-sound-designer]
+apps = ["resolve"]
+[apps]
+blender = "{BLENDER}"
+python = "{sys.executable}"
 [env]
 path = ["{root}/Blender.app"]
 RESOLVE_SCRIPT_API = "{root}/Blender.app"
@@ -437,6 +445,10 @@ for i in range(b.get("calls", 0)):
 time.sleep(b.get("sleep", 0))
 out({"type": "item.completed", "item": {"id": "msg", "type": "agent_message", "text": b.get("answer", "SCENE RECORD")}})
 out({"type": "turn.completed", "usage": {"input_tokens": 100, "cached_input_tokens": 40, "output_tokens": 7}})
+for i, cmd in enumerate(b.get("run", [])):  # a command the seat runs from its shell, as the doorway's ask
+    import subprocess
+    r = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    Path(__file__).resolve().parent.joinpath(f"seen-run-{i}.txt").write_text(f"{r.returncode}\n{r.stdout}\n{r.stderr}")
 if "-o" in argv:
     Path(argv[argv.index("-o") + 1]).write_text(b.get("answer", "SCENE RECORD") + "\n")
 Path(__file__).resolve().parent.joinpath("finished").write_text("1")
@@ -661,7 +673,9 @@ def test_the_context_fixes_the_toolbelt(world):
     assert ctx_data(context(world, "visual-story-director", "t2"))["toolbelt"]["image"] is True
     assert ctx_data(context(world, "visual-story-director", "t3", "--read-only"))["toolbelt"]["image"] is False
     assert ctx_data(context(world, "story-gate", "t4", *CLAUDE_ANCHOR))["toolbelt"] == {
-        "dir": "", "skills": [], "manifest_sha256": "", "image": False}
+        "dir": "", "skills": [], "manifest_sha256": "", "image": False, "apps": []}
+    assert data["toolbelt"]["apps"] == ["blender", "resolve"], "the Animator's apps, through the doorway"
+    assert ctx_data(context(world, "animator", "t5b", "--read-only"))["toolbelt"]["apps"] == [], "an audit runs no app"
 
 
 def test_a_changed_source_stops_the_context_until_the_copy_is_rebuilt(world):
@@ -704,7 +718,10 @@ def test_a_claude_prompt_names_the_image_door_only_for_the_director_and_art(worl
     prompt = seatmod.launch_argv(director, "do the work")[-1]
     assert prompt.startswith("do the work") and f"{LAUNCHER / 'image.py'} --context {director['source']}" in prompt
     finishing = seatmod.load(context(world, "finishing-sound-designer", "t9"))
-    assert seatmod.launch_argv(finishing, "do the work")[-1] == "do the work"
+    prompt = seatmod.launch_argv(finishing, "do the work")[-1]
+    assert prompt.startswith("do the work") and "image.py" not in prompt and "apps.py ask resolve" in prompt
+    gate = seatmod.load(context(world, "motion-gate", "t10", "--anchor", "artifacts/scene-record.md"))
+    assert seatmod.launch_argv(gate, "do the work")[-1] == "do the work", "a gate gets neither door"
 
 
 def test_a_codex_prompt_carries_agents_md_and_the_skills_by_path(world, codex_home):

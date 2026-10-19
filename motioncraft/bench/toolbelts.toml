@@ -30,9 +30,20 @@ image = true
 
 [seats.animator]
 skills = ["claude-desktop:2d-animation-principles", "agents:animation-principles"]
+apps = ["blender", "resolve"]
 
 [seats.finishing-sound-designer]
 skills = ["agents:color-motion", "agents:beat-sync-editing"]
+apps = ["resolve"]
+
+# `apps`: the applications a seat's drafting pass may run through the application
+# doorway (`launcher/apps.py`), on either vendor: the Animator's Blender scene and
+# its isolated Fusion project, Finishing's delivery project. The Director's
+# animatic sequencer joins here once the tool-ownership ticket names its application.
+# The paths below are what the doorway's locks run; a missing one is a gap in `seat.py check`.
+[apps]
+blender = "/Applications/Blender.app/Contents/MacOS/Blender"
+python = "/opt/homebrew/bin/python3"
 
 # What every pass's environment carries for the two tested applications, since the
 # launcher scrubs the rest: Blender's folder joins PATH (`blender` is a shell alias

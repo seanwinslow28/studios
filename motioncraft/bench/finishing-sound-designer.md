@@ -53,7 +53,7 @@ As auditor of the **story packet**, before the story gate: fresh context, artifa
 
 A skill's output is raw material, never the artifact; installed skills are toolbelt, never canon. "Tested" means run in a recorded session; "docs" means only its instructions were read (plugin-routing brief).
 
-- Resolve Studio 21.1.1 by `DaVinciResolveScript` (tested, #162: a clean project saved, reopened and rendered twice identically): conform, composite, grade, render, deliver.
+- Resolve Studio 21.1.1 by `DaVinciResolveScript`, through the application doorway only, `apps.py ask resolve` (tested, #162: a clean project saved, reopened and rendered twice identically; from a live Claude pass through the doorway's broker, mc-setup-010: a project saved, exported as `.drp` into a new version folder, closed, reopened, and the `.drp` imported again; Fusion, an export outside the fence and an export into a saved version refused): conform, composite, grade, render, deliver. Resolve is opened on the machine by the coordinator before the pass; the job's projects are named from its media project.
 - Resolve Fairlight, by hand (not tested; the scripting guide covers audio mapping, not mixing): the mix. Fairlight mixing is untested until E6.
 - `ffmpeg` with `ebur128` and `loudnorm` (present, not run): loudness and true peak against EBU R 128, targets set by hand.
 - `ffprobe` (tested, #162): the technical check record.
