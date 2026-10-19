@@ -1,7 +1,7 @@
 ---
 lane: story
 seat: visual-story-director
-updated: 2026-10-18
+updated: 2026-10-19
 ---
 # Lane manifest — Visual Story Director
 
@@ -26,7 +26,7 @@ This seat's words are rows of [the glossary](glossary.md), which every pass carr
 
 Learned after the rows above and before the guides. "Named, not read" means the canon title was not read and no copy is ingested.
 
-1. **Each beat is a change, and beats come before boards.** Canon: Blazer, *Animated Storytelling* (named, not read): grow a short from one core idea through beats and boards to an animatic. Carried by [`animatic-and-staging.md`](../corpus/guides/animatic-and-staging.md).
+1. **Each beat is a change, and beats come before boards.** Canon: Blazer, *Animated Storytelling* (ingested, ch. 2–4 in [`books/animated-storytelling/`](../corpus/books/animated-storytelling/)): grow a short from one core idea through beats and boards to an animatic. Carried by [`animatic-and-staging.md`](../corpus/guides/animatic-and-staging.md).
 2. **The picture carries the meaning with the sound off.** The muted copy of the animatic proves it. Carried by the same guide.
 3. **One idea per shot, with a known place for the eye.** Canon: Block, *The Visual Story* (named, not read): contrast between shapes, tones and movements raises intensity; likeness calms it. Carried by the same guide; staging is shared with Art.
 4. **Space stays readable: shot size chosen per beat, screen direction held across cuts.** Carried by the staging guide's shot-size and camera sections and the rows *Shot size*, *Screen direction* and *Camera move*, until "Shot size, direction, camera moves" is written.
@@ -83,9 +83,9 @@ The free sources this seat's rows, principles and guides draw on, with the licen
 
 ## Canon
 
-No book is ingested: `../corpus/books/` is empty, and every canon line in a guide says "named, not read" until an ingest lands there on its own ticket.
+One title on this lane is ingested: Blazer, under `../corpus/books/animated-storytelling/` (2026-10-19). Every other canon title stays "named, not read" until its own ingest lands there on its own ticket.
 
-- **Blazer, *Animated Storytelling*, 2nd ed.** — the seat's primary: grow a short film from one core idea, through beats and boards, to a timed animatic; written for short animation and motion design. Named, not read.
+- **Blazer, *Animated Storytelling*, 2nd ed.** — the seat's primary: grow a short film from one core idea, through beats and boards, to a timed animatic; written for short animation and motion design. Ingested: [`books/animated-storytelling/`](../corpus/books/animated-storytelling/). Cheatsheet first; ch. 1–4 are the core (the idea in one sentence, beats on cards, ten cards, boards to a timed animatic with sound); ch. 7 for sound leading the story; ch. 10 for screen direction and varied shot size and hold, checked in the animatic. Each chapter ends with its drawings described and located by page.
 - **Block, *The Visual Story*** — the fallback: contrast between shapes, tones and movements raises intensity, likeness calms it; the eye's path through a frame. Named, not read.
 
 ## Reading path
@@ -96,7 +96,7 @@ Corpus states are as of the `updated:` date in the header. Format and audio fact
 |---|---|---|---|---|---|
 | 1 | Pixar in a Box, storytelling lessons 1 to 3, with their glossaries | first on this path: the vocabulary | web | the three unit introductions, about ten minutes, by ear | read-only |
 | 2 | Pixar in a Box, lessons 5 and 6 | next: the principles of story structure | web | video, by ear | read-only |
-| 3 | Blazer, *Animated Storytelling* (2nd ed., 2019) | the seat's canon, after the Pixar units: beats before boards, boards to animatic | EPUB and PDF, unlocked (InformIT) | none found | named · on hand, not ingested |
+| 3 | Blazer, *Animated Storytelling* (2nd ed., 2019) | the seat's canon, after the Pixar units: beats before boards, boards to animatic | EPUB and PDF, unlocked (InformIT) | none found | ingested |
 | 4 | Every Frame a Painting: camera placement, and animatic versus final | principles, by ear | video essays | narrated | read-only · listen |
 | 5 | Mark Kennedy's staging posts | technique | web | — | read-only |
 | 6 | Blender Studio storyboard and editorial pages; Blender's sequencer chapters | technique, then the application chapters last | web | — | open, not ingested |
