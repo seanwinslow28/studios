@@ -16,12 +16,15 @@ its own stage, that the prompt comes from a folder the pass writes, and that eve
 reference image sits in the media project, never anywhere else on the machine.
 
 Then it runs `codex exec` from the Codex seat home with image generation switched on
-for this one call, on the pinned id with its effort spelled out, the prompt on
+for this one call and its shell switched off (the call runs outside the seat's
+sandbox, so a shell could read what the seat cannot), refusing to file anything if
+the run's log shows a command, a file change, a connector call or a helper anyway, on the pinned id with its effort spelled out, the prompt on
 standard input (`-i` takes every following argument as a file), and files the
 image Codex saved under `generated_images/<thread>/` whatever the exit code (a run
 can exit 1 after the image is made; mc-setup-003). Beside it goes `<name>.image.json`:
 the prompt, the references and their hashes, the run, and the label "generated"
-(never-do 8, 13). Each call is also logged to `trace/logs/pass-NN.images.jsonl`.
+(never-do 8, 13). Both are created relative to the version folder held open since
+the check, never through a link and never over a file already there. Each call is also logged to `trace/logs/pass-NN.images.jsonl`.
 Written on the Motioncraft build map's "Plugin allowlist and launch form for seat
 runs" ticket (2026-10-19).
 """
@@ -47,6 +50,8 @@ MAX_REFS = 5  # the image tool takes up to five reference images (mc-setup-003)
 REF_SUFFIXES = (".png", ".jpg", ".jpeg", ".webp")
 MAX_PROMPT_BYTES = 32_000
 TIMEOUT_S = 600
+# Codex's shell and its long-running exec: off for the image call. Not the code-mode host, which the image tool runs in.
+NO_SHELL = ("shell_tool", "unified_exec")
 CODEX_HOME = Path(os.path.expanduser(os.environ.get("MOTIONCRAFT_CODEX_HOME", str(seat.DEFAULT_HOME))))
 LABEL = ("generated: the Codex image tool on Sean's ChatGPT plan, through motioncraft/launcher/image.py; "
          "the image model is undisclosed (mc-setup-003)")
@@ -116,8 +121,11 @@ def run(c: Dict) -> Dict:
     ctx = c["ctx"]
     cwd = Path(ctx["scratch"]) / f"image-{time.strftime('%H%M%S')}-{os.getpid()}"
     cwd.mkdir(parents=True)
+    # The call runs outside the seat's sandbox, so it gets no shell at all: it could otherwise read files the
+    # seat cannot and carry them into the image prompt. The image tool is the one tool it needs.
     argv = ["codex", "exec", "--json", "--model", seat.CODEX_MODEL, "-c", f'model_reasoning_effort="{seat.CODEX_EFFORT}"',
             "--strict-config", "-c", 'web_search="disabled"', "-c", "features.image_generation=true",
+            *[a for f in NO_SHELL for a in ("-c", f"features.{f}=false")],
             "--skip-git-repo-check", "-C", str(cwd)]
     for r in c["refs"]:
         argv += ["-i", str(r)]
@@ -134,14 +142,19 @@ def run(c: Dict) -> Dict:
         out = e.stdout.decode() if isinstance(e.stdout, bytes) else (e.stdout or "")
         err = f"no answer in {TIMEOUT_S} s"
     thread = seat.codexlog.jsonl_thread(out)
-    usage = {}
+    usage, acted = {}, []
     for line in out.splitlines():
         try:
             e = json.loads(line)
         except ValueError:
             continue
-        if isinstance(e, dict) and e.get("type") == "turn.completed":
+        if not isinstance(e, dict):
+            continue
+        if e.get("type") == "turn.completed":
             usage = e.get("usage") or {}
+        item = e.get("item")
+        if isinstance(item, dict) and item.get("type") in seat.CODEX_TOOL_ITEMS:
+            acted.append(item["type"])
     made = []
     if thread:
         folder = CODEX_HOME / "generated_images" / thread
@@ -154,7 +167,16 @@ def run(c: Dict) -> Dict:
     last = err.strip().splitlines()[-1] if err.strip() else ""
     return {"started": started, "completed": seat.now(), "wall_clock_s": round(time.time() - t0), "exit_code": code,
             "thread": thread, "made": [str(p) for p in made], "runtime_stamps": stamps, "usage": usage or None,
-            "helper_sessions": helpers, "stderr_last": seat.one_line(last, 200)}
+            "helper_sessions": helpers, "acted": sorted(set(acted)), "stderr_last": seat.one_line(last, 200)}
+
+
+def write_new(vdir: Path, dfd: int, name: str, data: bytes) -> None:
+    """Create one new file in the version folder, never through a link, never over a file already there."""
+    if seat.real(str(vdir)) != str(vdir) or os.stat(dfd).st_ino != os.stat(vdir, follow_symlinks=False).st_ino:
+        refuse(f"{vdir.name} moved or became a link during the call; nothing filed")
+    fd = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o644, dir_fd=dfd)
+    with os.fdopen(fd, "wb") as f:
+        f.write(data)
 
 
 def main() -> None:
@@ -166,18 +188,31 @@ def main() -> None:
     a = ap.parse_args()
     c = checked(a)
     ctx, out = c["ctx"], c["out"]
+    vdir = out.parent
+    # The version folder is the seat's to write, so it is held open from the check on: a folder swapped for a
+    # link, or a file or link planted under either name, stops the filing.
+    dfd = os.open(vdir, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
     res = run(c)
     entry = {"pass": seat.pass_id_of(ctx["source"]), "seat": ctx["seat"], "out": str(out), "label": LABEL,
              "prompt": c["prompt"], "refs": [{"path": str(r), "sha256": seat.sha256(r)} for r in c["refs"]], **res}
-    if res["made"]:
+    filed = bool(res["made"]) and not res["acted"] and not res["helper_sessions"]
+    if filed:
         src = Path(res["made"][-1])
-        with open(out, "xb") as f:  # written once
-            f.write(src.read_bytes())
-        entry.update(source=str(src), sha256=seat.sha256(out), extra_images=res["made"][:-1])
-        c["sidecar"].write_text(json.dumps(entry, indent=2) + "\n")
+        data = src.read_bytes()
+        entry.update(source=str(src), sha256=seat.hashlib.sha256(data).hexdigest(), extra_images=res["made"][:-1])
+        try:
+            # the label first: an image is never filed without its prompt and "generated" beside it
+            write_new(vdir, dfd, c["sidecar"].name, (json.dumps(entry, indent=2) + "\n").encode())
+            write_new(vdir, dfd, out.name, data)
+        except FileExistsError:
+            refuse(f"{out.name} or its sidecar appeared during the call; an image is written once")
+    os.close(dfd)
     log = Path(ctx["engagement"]) / "trace" / "logs" / f"{entry['pass']}.images.jsonl"
     with open(log, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry) + "\n")
+    if res["acted"] or res["helper_sessions"]:
+        refuse(f"the image call ran more than the image tool ({', '.join(res['acted']) or 'a helper agent'}); "
+               f"nothing filed; logged to {log.name}")
     if not res["made"]:
         refuse(f"no image was made (codex exit {res['exit_code']}: {res['stderr_last'] or 'no error text'}); logged to {log.name}")
     print(f"{out} sha256 {entry['sha256']}" + (f" (codex exited {res['exit_code']} after the image was made)"

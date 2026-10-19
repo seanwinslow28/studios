@@ -844,6 +844,24 @@ def test_the_door_reads_only_a_context_in_trace_logs(world, fake, door):
     assert r.returncode == 1 and "only the coordinator writes" in r.stderr
 
 
+def test_the_image_call_has_no_shell_and_files_nothing_if_it_acted(world, fake, door):
+    behave(fake, calls=1)  # the run's log shows a command
+    out = door["vdir"] / "acted.png"
+    r = run_door(world, "--context", door["ctx"], "--out", str(out), "--prompt-file", str(door["prompt"]))
+    assert r.returncode == 1 and "more than the image tool" in r.stderr and not out.exists()
+    argv = json.loads((fake / "seen-argv.json").read_text())
+    for f in ("shell_tool", "unified_exec"):
+        assert f"features.{f}=false" in argv
+
+
+def test_the_door_never_writes_through_a_planted_link(world, fake, door):
+    behave(fake)
+    target = world["root"] / "outside-target.json"
+    (door["vdir"] / "linked.image.json").symlink_to(target)  # dangling, so it does not read as an existing file
+    r = run_door(world, "--context", door["ctx"], "--out", str(door["vdir"] / "linked.png"), "--prompt-file", str(door["prompt"]))
+    assert r.returncode == 1 and not target.exists() and not (door["vdir"] / "linked.png").exists()
+
+
 def test_no_image_made_is_logged_and_refused(world, fake, door):
     behave(fake, image=False)
     r = run_door(world, "--context", door["ctx"], "--out", str(door["vdir"] / "none.png"), "--prompt-file", str(door["prompt"]))

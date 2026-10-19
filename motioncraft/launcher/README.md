@@ -61,8 +61,8 @@ Every pass is denied reading credentials, Sean's own `~/.codex/` (Codex's instal
 - the context must sit in its engagement's `trace/logs/`, where no seat writes, and say the pass may use the image path (a drafting Director or Art pass on Claude);
 - the image lands as a new `.png` in a version folder the pass made in its own stage, never a saved one;
 - the prompt comes from the pass's scratch folder or that version folder, and every `--ref` is an image in the media project, at most five;
-- Codex runs from the seat home with image generation on for this call only, `--model gpt-6.1-sol` at `high`, the prompt on standard input;
-- the image Codex saved under `generated_images/<thread>/` is filed whatever the exit code, with `<name>.image.json` beside it (the prompt, the references and their hashes, the run, the label "generated"), and the call is logged to `trace/logs/pass-NN.images.jsonl`.
+- Codex runs from the seat home with image generation on and its shell off (`shell_tool`, `unified_exec`) for this call only, `--model gpt-6.1-sol` at `high`, the prompt on standard input, since the call runs outside the seat's sandbox and a shell could read what the seat cannot; a run whose log shows a command, a file change, a connector call or a helper files nothing;
+- the image Codex saved under `generated_images/<thread>/` is filed whatever the exit code, with `<name>.image.json` beside it (the prompt, the references and their hashes, the run, the label "generated"), both created relative to the version folder held open since the check, never through a link and never over a file already there; the call is logged to `trace/logs/pass-NN.images.jsonl`.
 
 ## The probe
 
