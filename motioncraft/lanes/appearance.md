@@ -1,7 +1,7 @@
 ---
 lane: appearance
 seat: art-pose-designer
-updated: 2026-10-18
+updated: 2026-10-19
 ---
 # Lane manifest — Art and Pose Designer
 
@@ -29,7 +29,7 @@ This seat's words are rows of [the glossary](glossary.md), which every pass carr
 
 Learned after the rows above and before the guides. "Named, not read" means the canon title was not read and no copy is ingested.
 
-1. **The line of action comes before the contour.** Canon: Mattesi, *FORCE: Dynamic Life Drawing* (named, not read): draw the force running through a body, not its outline. No guide yet; the row carries it until "Pose, line of action, silhouette" is written.
+1. **The line of action comes before the contour.** Canon: Mattesi, *FORCE: Dynamic Life Drawing* (ingested, ch. 1 and 3 in [`books/force-dynamic-life-drawing/`](../corpus/books/force-dynamic-life-drawing/)): draw the force running through a body, not its outline. No guide yet; the row and the ingest carry it until "Pose, line of action, silhouette" is written.
 2. **Every pose reads in silhouette.** Two keys that share a silhouette are one key. Same future guide; Lasseter 1987, p. 39, until then.
 3. **Volume holds through every pose.** Designed here, kept by the Animator. Carried by [`contact-weight-and-settling.md`](../corpus/guides/contact-weight-and-settling.md) for the squash keys, until "Squash, stretch, constant volume" is written.
 4. **A smear is a designed pose**, as the line-boil research ruled. Carried by [`smears-as-designed-poses.md`](../corpus/guides/smears-as-designed-poses.md).
@@ -45,7 +45,7 @@ The starred guides by file. This seat owns one, designs the layers of a second, 
 - **The animatic and staging** — [`animatic-and-staging.md`](../corpus/guides/animatic-and-staging.md) — read when posing into a boarded frame, since staging is shared and every key must read at its panel's size.
 - **Contact, weight and settling** — [`contact-weight-and-settling.md`](../corpus/guides/contact-weight-and-settling.md) — read when designing the squash and stretch keys, so volume is designed here and not left to the Animator.
 
-Not yet written, so a topic for `thin_lane:` until it exists: **Pose, line of action, silhouette** (ready now; depth waits on *FORCE*); **Value and temperature for one world** (ready now, thin; Gurney's book later); **Squash, stretch, constant volume** (ready now; with the Animator); **Multiples** (waits on a team test); **Secondary action, exaggeration, appeal** (after the first film); **Kinetic type** (waits on a type engagement and Lupton); **Krita painted layers**, a tool guide (waits on Krita's bounded test at the appearance gate).
+Not yet written, so a topic for `thin_lane:` until it exists: **Pose, line of action, silhouette** (ready now; *FORCE* is ingested, so its depth can be drawn from it); **Value and temperature for one world** (ready now, thin; Gurney's book later); **Squash, stretch, constant volume** (ready now; with the Animator); **Multiples** (waits on a team test); **Secondary action, exaggeration, appeal** (after the first film); **Kinetic type** (waits on a type engagement and Lupton); **Krita painted layers**, a tool guide (waits on Krita's bounded test at the appearance gate).
 
 ## Application
 
@@ -87,9 +87,9 @@ The free sources this seat's rows, principles and guides draw on, with the licen
 
 ## Canon
 
-No book is ingested: `../corpus/books/` is empty, and every canon line in a guide says "named, not read" until an ingest lands there on its own ticket.
+One title on this lane is ingested: Mattesi, under `../corpus/books/force-dynamic-life-drawing/` (2026-10-19). Every other canon title stays "named, not read" until its own ingest lands there on its own ticket.
 
-- **Mattesi, *FORCE: Dynamic Life Drawing*, 10th anniversary ed.** — the seat's primary: draw the force running through a body, not its outline; one explicit gesture system that turns into checkable rules. Named, not read.
+- **Mattesi, *FORCE: Dynamic Life Drawing*, 10th anniversary ed.** — the seat's primary: draw the force running through a body, not its outline; one explicit gesture system that turns into checkable rules. Ingested: [`books/force-dynamic-life-drawing/`](../corpus/books/force-dynamic-life-drawing/). Cheatsheet first; ch. 1 (line of action as Directional FORCE, the rib cage-to-pelvis C and S, leading edge, balance) and ch. 3 (straight against curve, silhouette) are the core, ch. 2 for volume, overlap and foreshortening. Its drawings are described, not stored; its companion videos were not captured.
 
 ## Reading path
 
@@ -99,7 +99,7 @@ Corpus states are as of the `updated:` date in the header. Format and audio fact
 |---|---|---|---|---|---|
 | 1 | Pixar in a Box, "Visual language", with its glossary | first on this path: the vocabulary | web | video, by ear; the drawn demonstrations need the picture | read-only |
 | 2 | Google Fonts Knowledge, the glossary | the vocabulary for type, when a type piece is near | web | — | open, not ingested |
-| 3 | Mattesi, *FORCE: Dynamic Life Drawing* (10th anniversary ed., 2017) | the seat's canon, after the Pixar unit: gesture before contour | locked ebook (VitalSource) or paperback | none found | named · on hand, not ingested |
+| 3 | Mattesi, *FORCE: Dynamic Life Drawing* (10th anniversary ed., 2017) | the seat's canon, after the Pixar unit: gesture before contour | Apple Books ebook, screen-captured and ingested on Sean's word | none found | ingested |
 | 4 | Gurney's colour and lighting posts (Gurney Journey) | principles: one world, one light | web | — | read-only |
 | 5 | Butterick, *Practical Typography* | principles for type, when a type piece is near | web book | — | read-only |
 | 6 | Chromosphere's *June* case study; Frame.io on *Wolfwalkers* | technique: painted pipelines | web | — | read-only |

@@ -12,7 +12,7 @@ operates: the painted-layer files (Krita once installed and tested) and the styl
 writes: the engagement folder's artifacts/ (the appearance packet) and audits/ (its audit, once); new version folders under the media folder's appearance/
 audits: moving scene + evidence pack (Animator) — before the motion gate
 audited_by: visual-story-director
-canon: Mattesi, FORCE (named, not read)
+canon: Mattesi, FORCE (ingested)
 ```
 
 ## Mandate
@@ -37,7 +37,7 @@ First read, every invocation: [the lane manifest](../lanes/appearance.md); follo
 
 ## Craft rules
 
-- Every material choice ships with a one-breath why-A-over-B and names what it leaned on from the canon: Mattesi for the line of action and force through a pose, "named, not read" until ingested.
+- Every material choice ships with a one-breath why-A-over-B and names what it leaned on from the canon: Mattesi for the line of action and force through a pose, from its ingest under `../corpus/books/force-dynamic-life-drawing/`.
 - Every key reads as a solid black shape, with its line of action drawn over it on the silhouette sheet. Two keys that share a silhouette are one key.
 - Squash and stretch keys keep about the resting size: volume is designed, not left to the Animator.
 - A smear is a designed pose, listed by frames, the keys it joins and its arc, never a blur left to a filter.
