@@ -120,12 +120,7 @@ Check records and gate findings hand nothing forward, so they close with the met
 
 ## The words every artifact keeps
 
-The four naming rulings hold in every artifact, check and gate, and in these templates' own wording:
-
-- Name the pose and the direction ("slow into the rest", "fast out of the anticipation"), never bare "ease in" or "ease out".
-- Say line boil, paper boil, pigment variation, smear or image jitter, never bare "boil" or "jitter".
-- Say shot and sequence for a piece of the film, never "scene". A Blender or Fusion file keeps the application's own word, which is the one use here: the Animator's editable source, and this folder's `scene-record.md`. A script's scene is Scriptcraft's word and stays inside its script id ([handoff-return-scriptcraft.md](handoff-return-scriptcraft.md)).
-- Say push-in and pull-back for camera travel, pan for a turn, track for a move alongside; zoom only for a lens change.
+The four naming rulings hold in every artifact, check and gate, and in these templates' own wording. They live in [the glossary](../lanes/glossary.md#the-four-naming-rulings), beside the terms every craft fail is named in, and nowhere else.
 
 ## Attack checklists
 

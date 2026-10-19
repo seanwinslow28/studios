@@ -20,21 +20,7 @@ The four things this seat holds before mc-eng-001 opens (the book-to-seat brief'
 
 ## Vocabulary
 
-The glossary rows this seat owns (curriculum brief, section 1): the plain definition in the brief's words, checked against the named source. A row shared with another seat says so. Lasseter 1987 is John Lasseter, "Principles of Traditional Animation Applied to 3D Computer Animation", *Computer Graphics* 21(4); its [course copy](https://www.ics.uci.edu/~fowlkes/class/ics162/exercises/lasseter.pdf) is read-only and the page numbers are the paper's.
-
-| Term | Plain definition | Field term and synonyms | Shared with | Source |
-|---|---|---|---|---|
-| Visual storytelling | Telling the story through shape, size, colour and framing, so it reads without words. | Visual language; show, don't tell. | — | [Pixar in a Box](https://www.khanacademy.org/computing/pixar/storytelling/visual-language/v/visual-language) |
-| Beat | The smallest change in the story; major beats are key moments, minor beats the ideas inside them. | Story beat; beat board. | — | [Pixar film grammar glossary](https://www.khanacademy.org/computing/pixar/storytelling/film-grammar/a/glossary-grammar) |
-| Shot and sequence | A shot is one unbroken piece from one camera; a sequence is the shots making one major beat. | Toon Boom says "scene" for a shot; Pixar's scene is a story unit. Say shot and sequence. | — | [Toon Boom terminology](https://learn.toonboom.com/modules/advanced-preferences/topic/animation-and-live-action-terminology) |
-| Staging | Arranging action and camera so one idea per shot reads at once. | Blocking; flat or in depth. | Art | Lasseter 1987, p. 36; [Disney layout](https://disneyanimation.com/process/layout/) |
-| Shot size | How much of the subject the frame holds, extreme close-up to extreme wide. | Close-up, medium, wide; "medium" varies, so sizes are named by the seed or tree. | — | Pixar film grammar glossary; [Toon Boom Learn](https://learn.toonboom.com/modules/storyboard-concepts/topic/camera-shots) |
-| Screen direction | Which way things move and face, kept steady by not crossing a line between the main elements. | Axis of action; 180-degree rule. | — | [Yale editing](https://filmanalysis.yale.edu/editing/) |
-| Animatic | The boards played as a timed film with scratch sound, where pace is decided. | Pixar's story reel; leica reel. A pitch is boards shown live for feedback. | — | [Toon Boom glossary](https://docs.toonboom.com/help/glossary/glossary/glossary.html); [Pixar pitch glossary](https://www.khanacademy.org/computing/pixar/storytelling/storyboard-your-film/a/glossary-pitch) |
-| Layout | Turning boards into staged shots: set, camera and rough positions. | Layout and posing. | Art (this seat stages, Art poses) | Toon Boom glossary |
-| Camera move | Moving the camera within a shot to guide the eye. | Pan turns; dolly or track travels; push-in, pull-back. Zoom is a lens change only. | — | Pixar film grammar glossary; [Toon Boom truck](https://docs.toonboom.com/help/storyboard-pro-24/storyboard/camera/position-camera.html) |
-| Cut | Where one shot ends and the next begins. | Edit; split, in software. | Finishing (this seat decides, Finishing executes) | Yale editing |
-| Match cut | A cut joining two shots through a shared shape, colour or motion. | Graphic match; match on action. | Finishing (this seat plans, Finishing cuts) | Yale editing |
+This seat's words are rows of [the glossary](glossary.md), which every pass carries after this manifest, with each row's definition, field terms and sources, which seats share it, and the four naming rulings. This seat's rows, in learning order: *Visual storytelling*, *Beat*, *Shot and sequence*, *Staging*, *Shot size*, *Screen direction*, *Animatic*, *Layout*, *Camera move*, *Cut* and *Match cut*.
 
 ## Principles, in learning order
 
@@ -78,23 +64,7 @@ This seat audits Art's packet against the boards' staging, before the appearance
 - line, pigment and paper arrive as separate layers, each with its change rule;
 - a greyscale value study finds the focal point the board asks for.
 
-A craft fail is pinned to a panel or a frame in these rows, copied from [appearance.md](appearance.md), the primary lane with the sources (*Staging* and *Layout*, which Art shares, are above):
-
-| Term | Plain definition | Field term and synonyms |
-|---|---|---|
-| Pose | The character at a key moment; breakdowns show how a move travels between keys. | Key, extreme, breakdown; golden pose. |
-| Line of action | The one imaginary curve through a pose that carries its force. | Not path of action, the route a move takes. |
-| Silhouette | The pose filled solid; a good one reads with no inside detail. | The solid-black test. |
-| Volume | How much shape there is, kept the same however it squashes or stretches. | Constant volume; losing it is off model. |
-| Smear | A designed in-between that stretches the shape along a fast move, so the eye reads speed. | Smear frame; elongated in-between. |
-| Multiple | One drawing showing several copies of a part, for a fast repeated move. | Multiples; flurry effect. |
-| Style frame | One finished still that fixes the look before anything moves. | Colour script, for a whole film. |
-| Value and temperature | Lightness from light to dark, and warm against cool, used to separate shapes. | Tone; value massing. |
-| Pigment variation | Changes of colour and density inside painted areas. | Fill variation; Meier's "jittered" strokes. |
-| Paper grain | The texture of the painting surface itself. | Paper texture; Paperman's paper boil. |
-| Squash and stretch | Shape changing under force with volume kept, which shows what a thing is made of. | Squash and stretch. |
-| Line boil | A line's small wobble frame to frame, by redrawing or a filter. | Boiling lines; Blender's Noise modifier. |
-| Texture continuity | Texture moving with what it belongs to, changing only as designed. | Temporal coherence. |
+A craft fail is pinned to a panel or a frame in these rows of [the glossary](glossary.md): *Pose*, *Line of action*, *Silhouette*, *Volume*, *Smear*, *Multiple*, *Style frame*, *Value and temperature*, *Pigment variation*, *Paper grain*, *Squash and stretch*, *Line boil* and *Texture continuity*, beside *Staging* and *Layout*, which Art shares.
 
 ## Free layer
 

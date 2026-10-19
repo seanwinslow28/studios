@@ -23,25 +23,7 @@ The curriculum brief adds a sixth for this film: **texture designed in separate 
 
 ## Vocabulary
 
-The glossary rows this seat owns or shares (curriculum brief, section 1): the plain definition in the brief's words, checked against the named source. Where another seat is first-named, its lane holds the sources. Lasseter 1987 is John Lasseter, "Principles of Traditional Animation Applied to 3D Computer Animation", *Computer Graphics* 21(4); its [course copy](https://www.ics.uci.edu/~fowlkes/class/ics162/exercises/lasseter.pdf) is read-only.
-
-| Term | Plain definition | Field term and synonyms | Shared with | Source |
-|---|---|---|---|---|
-| Staging | Arranging action and camera so one idea per shot reads at once. | Blocking; flat or in depth. | the Director, first-named | on [story.md](story.md) |
-| Layout | Turning boards into staged shots: set, camera and rough positions. | Layout and posing. | the Director stages, this seat poses | on [story.md](story.md) |
-| Pose | The character at a key moment; breakdowns show how a move travels between keys. | Key, extreme, breakdown; golden pose. | — | Toon Boom glossary; [Pixar in a Box](https://www.khanacademy.org/computing/pixar/animate/ball/v/a2-quick) |
-| Line of action | The one imaginary curve through a pose that carries its force. | Not path of action, the route a move takes. | — | [Pixar visual-language glossary](https://www.khanacademy.org/computing/pixar/storytelling/visual-language/a/glossary-visual) |
-| Silhouette | The pose filled solid; a good one reads with no inside detail. | The solid-black test. | — | Lasseter 1987, p. 39 |
-| Volume | How much shape there is, kept the same however it squashes or stretches. | Constant volume; losing it is off model. | the Animator keeps it | Lasseter 1987, p. 36 |
-| Smear | A designed in-between that stretches the shape along a fast move, so the eye reads speed. | Smear frame; elongated in-between. | the Animator times it | [Avender](https://cartoonresearch.com/index.php/the-partial-and-mostly-lost-history-of-animation-smear-terminology/); [AnimSchool](https://blog.animschool.edu/?p=608) |
-| Multiple | One drawing showing several copies of a part, for a fast repeated move. | Multiples; flurry effect. | the Animator | Avender; AnimSchool |
-| Style frame | One finished still that fixes the look before anything moves. | Colour script, for a whole film. | — | [Chromosphere](https://chromosphere-la.com/case-study/carmen/) |
-| Value and temperature | Lightness from light to dark, and warm against cool, used to separate shapes. | Tone; value massing. | — | Pixar visual-language glossary; [Chromosphere](https://chromosphere-la.com/case-study/volta-x/) |
-| Pigment variation | Changes of colour and density inside painted areas. | Fill variation; Meier's "jittered" strokes. | the Animator moves it | [Meier 1996](https://media.disneyanimation.com/uploads/production/publication_asset/47/asset/p477-meier_1996.pdf) |
-| Paper grain | The texture of the painting surface itself. | Paper texture; Paperman's paper boil. | — | [Paperman talk](https://media.disneyanimation.com/uploads/production/publication_asset/122/asset/pman.pdf) |
-| Squash and stretch | Shape changing under force with volume kept, which shows what a thing is made of. | Squash and stretch. | the Animator, first-named | on [motion.md](motion.md) |
-| Line boil | A line's small wobble frame to frame, by redrawing or a filter. | Boiling lines; Blender's Noise modifier. | the Animator moves it, first-named; Finishing checks it | on [motion.md](motion.md) |
-| Texture continuity | Texture moving with what it belongs to, changing only as designed. | Temporal coherence. | the Animator, Finishing | [Bénard 2010](https://diglib.eg.org/bitstreams/309081b8-5f6e-4fb0-b903-2d80a5421fac/download); [Disney 2024](https://disneyanimation.com/events/siggraph-2024/) |
+This seat's words are rows of [the glossary](glossary.md), which every pass carries after this manifest, with each row's definition, field terms and sources, which seats share it, and the four naming rulings. This seat's rows, in learning order: *Staging*, *Layout*, *Pose*, *Line of action*, *Silhouette*, *Volume*, *Smear*, *Multiple*, *Style frame*, *Value and temperature*, *Pigment variation*, *Paper grain*, *Squash and stretch*, *Line boil* and *Texture continuity*.
 
 ## Principles, in learning order
 
@@ -83,22 +65,7 @@ This seat audits the Animator's scene against the appearance packet alone, befor
 - holds state their cadence, and moving holds stay alive;
 - adjacent frames around every contact ship with full-speed playback.
 
-Felt weight and snap go to Sean's playback; the audit says so. A craft fail is pinned to frame numbers in these rows, copied from [motion.md](motion.md), the primary lane with the sources (*Volume*, *Smear*, *Multiple*, *Pigment variation*, *Squash and stretch*, *Line boil* and *Texture continuity*, which this seat shares, are above):
-
-| Term | Plain definition | Field term and synonyms |
-|---|---|---|
-| Timing | How many frames an action takes. | Lasseter's timing includes spacing. |
-| Spacing | How far the drawing moves between frames: wide gaps read fast. | Drawn on a timing chart. |
-| Slow in and slow out | Drawings bunch near a pose, so the move slows arriving or leaving. | Blender's "Ease In" runs the other way, so name the pose and direction. |
-| Weight | The sense of mass, made mostly by timing and spacing. | Light or heavy. |
-| Anticipation | A small opposite move that prepares an action, like a crouch before a hop. | Anticipation. |
-| Follow-through and overlap | Parts keep moving after the body stops, and loose parts trail the lead. | Overlapping action; lead; drag. |
-| Arc | The curved path most natural moves trace. | Path of action. |
-| Deformation | Here, a shape change the animator designs, such as squash. | A rig's deformer is a mechanism; drift is off model. |
-| In-between | A drawing between two keys that carries the move. | Inbetween, tween. |
-| Hold | Frames where the pose stays still. | Hold frame. |
-| Moving hold | A hold with a little motion left in, so it does not die. | Moving hold. |
-| On ones, on twos | Each drawing shown for one frame, or for two. | Exposure. |
+Felt weight and snap go to Sean's playback; the audit says so. A craft fail is pinned to frame numbers in these rows of [the glossary](glossary.md): *Timing*, *Spacing*, *Slow in and slow out*, *Weight*, *Anticipation*, *Follow-through and overlap*, *Arc*, *Deformation*, *In-between*, *Hold*, *Moving hold* and *On ones, on twos*, beside *Volume*, *Smear*, *Multiple*, *Pigment variation*, *Squash and stretch*, *Line boil* and *Texture continuity*, which this seat shares.
 
 ## Free layer
 

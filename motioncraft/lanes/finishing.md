@@ -21,23 +21,7 @@ The five things this seat holds before mc-eng-001 opens (the book-to-seat brief'
 
 ## Vocabulary
 
-The glossary rows this seat owns or shares (curriculum brief, section 1): the plain definition in the brief's words, checked against the named source. Where another seat is first-named, its lane holds the sources.
-
-| Term | Plain definition | Field term and synonyms | Shared with | Source |
-|---|---|---|---|---|
-| Cut | Where one shot ends and the next begins. | Edit; split, in software. | the Director decides, first-named; this seat executes | on [story.md](story.md) |
-| Match cut | A cut joining two shots through a shared shape, colour or motion. | Graphic match; match on action. | the Director plans, first-named; this seat cuts | on [story.md](story.md) |
-| Line boil | A line's small wobble frame to frame, by redrawing or a filter. | Boiling lines; Blender's Noise modifier. | the Animator moves it, first-named; Art designs it; this seat checks it | on [motion.md](motion.md) |
-| Image jitter | A whole layer shaking rigidly, nothing redrawn. | Camera shake, nearest. | — | Toon Boom glossary; the line-boil research on the brain's tracker |
-| Texture sliding | Paint or grain fixed on screen while the picture moves under it. | Shower-door effect; swimming. | — | [Meier 1996](https://media.disneyanimation.com/uploads/production/publication_asset/47/asset/p477-meier_1996.pdf); [Bénard 2010](https://diglib.eg.org/bitstreams/309081b8-5f6e-4fb0-b903-2d80a5421fac/download) |
-| Texture continuity | Texture moving with what it belongs to, changing only as designed. | Temporal coherence. | Art, first-named; the Animator | on [appearance.md](appearance.md) |
-| J-cut and L-cut | In a J-cut the next shot's sound comes first; in an L-cut the last shot's sound carries over. | Split edit; sound bridge. | — | [Adobe](https://www.adobe.com/creativecloud/video/discover/j-cut-and-l-cut.html); [Yale sound](https://filmanalysis.yale.edu/sound/) |
-| Compositing | Layering separate images into one frame. | Merge; alpha; blend mode. | — | [Fusion guide](https://documents.blackmagicdesign.com/UserManuals/DaVinci-Resolve-20-Fusion-Visual-Effects.pdf) |
-| Grade | Correction first balances shots; the grade then sets the look. | Colour correction; primaries. | — | [Blackmagic](https://www.blackmagicdesign.com/products/davinciresolve/color) |
-| Linear and output colour | Light computed in linear values, shown through a transform for one display. | Scene-linear; output transform. | — | [ACES](https://docs.acescentral.com/system-components/output-transforms/) |
-| Loudness | The whole mix's measured loudness, averaged over the film. | Integrated, in LUFS, equal to LKFS; target −23. | — | [EBU R 128](https://tech.ebu.ch/publications/r128) |
-| True peak | The waveform's real highest level, including between samples. | dBTP; at most −1. | — | EBU R 128 |
-| Sound layers | The separate strands of a mix, from the animatic's scratch track on. | Tracks, stems, density. | — | [Murch on Transom](https://transom.org/2005/walter-murch/) |
+This seat's words are rows of [the glossary](glossary.md), which every pass carries after this manifest, with each row's definition, field terms and sources, which seats share it, and the four naming rulings. This seat's rows, in learning order: *Cut*, *Match cut*, *Line boil*, *Image jitter*, *Texture sliding*, *Texture continuity*, *J-cut and L-cut*, *Compositing*, *Grade*, *Linear and output colour*, *Loudness*, *True peak* and *Sound layers*.
 
 ## Principles, in learning order
 
@@ -79,19 +63,7 @@ This seat audits the Director's packet before the story gate (stake: *can this a
 - camera moves are named push-in, pull-back, pan or track;
 - the story reads with the sound off, and the muted copy is there to prove it.
 
-A craft fail is pinned to a panel or a frame in these rows, copied from [story.md](story.md), the primary lane with the sources (*Cut* and *Match cut*, which this seat shares, are above):
-
-| Term | Plain definition | Field term and synonyms |
-|---|---|---|
-| Visual storytelling | Telling the story through shape, size, colour and framing, so it reads without words. | Visual language; show, don't tell. |
-| Beat | The smallest change in the story; major beats are key moments, minor beats the ideas inside them. | Story beat; beat board. |
-| Shot and sequence | A shot is one unbroken piece from one camera; a sequence is the shots making one major beat. | Say shot and sequence, never "scene" for a piece of the film. |
-| Staging | Arranging action and camera so one idea per shot reads at once. | Blocking; flat or in depth. |
-| Shot size | How much of the subject the frame holds, extreme close-up to extreme wide. | Close-up, medium, wide; named by the seed or tree, since "medium" varies. |
-| Screen direction | Which way things move and face, kept steady by not crossing a line between the main elements. | Axis of action; 180-degree rule. |
-| Animatic | The boards played as a timed film with scratch sound, where pace is decided. | Story reel; leica reel. |
-| Layout | Turning boards into staged shots: set, camera and rough positions. | Layout and posing. |
-| Camera move | Moving the camera within a shot to guide the eye. | Pan turns; dolly or track travels; push-in, pull-back. Zoom is a lens change only. |
+A craft fail is pinned to a panel or a frame in these rows of [the glossary](glossary.md): *Visual storytelling*, *Beat*, *Shot and sequence*, *Staging*, *Shot size*, *Screen direction*, *Animatic*, *Layout* and *Camera move*, beside *Cut* and *Match cut*, which this seat shares.
 
 ## Free layer
 

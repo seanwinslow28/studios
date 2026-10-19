@@ -17,7 +17,7 @@ Four specialist seats, run as a **sequential pipeline with full artifact context
 
 **The gates are not seats.** Each is a red-team attack per the shared [protocol](../../craftwork/templates/red-team-protocol.md) and Motioncraft's gate schedule, then one decision from Sean recorded in the approvals ledger. A gate runs on the vendor that did not last write its anchor: the story gate (anchor: the animatic) and the appearance gate (anchor: the appearance packet, with Finishing's assembled frame attached as proof) run on Codex GPT-6.1 Sol High, read-only, because Claude writes both anchors; the motion gate (anchor: the moving test and its directed revision) runs on a fresh-context Opus 5.5, because Codex writes it. A FAIL that moves an anchor's last writer to the other vendor moves the gate too. The trace kit files them as the gate seats `story-gate`, `appearance-gate` and `motion-gate` so their records have lanes; they hold no seat file.
 
-**What an invocation carries:** the seat file, the seat preamble verbatim, the lane manifest, the engagement's brief, the upstream artifacts in full, the approvals ledger entries for every version the pass touches, and the studios `AGENTS.md`. Never the drafting conversation. The coordinator launches every pass; no seat launches another.
+**What an invocation carries:** the seat file, the seat preamble verbatim, the lane manifest, [the glossary](../lanes/glossary.md), the engagement's brief, the upstream artifacts in full, the approvals ledger entries for every version the pass touches, and the studios `AGENTS.md`. Never the drafting conversation. The coordinator launches every pass; no seat launches another.
 
 ## Launch forms
 
@@ -45,7 +45,7 @@ The trace kit's registry numbers group seats by family, one family per seat so a
 
 - **Evidence, never report** (never-do 2). Every motion claim ships its evidence pack: adjacent frames around every contact and transformation, plus full-speed playback. A seat's own "done" is not evidence.
 - **Three finding kinds** (rule 6). A **technical fail**, decided by a measurement; a **craft fail**, a glossary term and a frame number; a **taste call**, written as a question for Sean and never ruled by a seat. Severity is the protocol's CRITICAL, MATERIAL, NOTE. Every review says that an agent reads decoded frames, not a real-time viewing.
-- **The four naming rulings.** Name the pose and the direction ("slow into the rest"), never bare "ease in". Say line boil, paper boil, pigment variation, smear or image jitter, never bare "boil" or "jitter". Say shot and sequence, never "scene" for a piece of the film (a Blender or Fusion file keeps the application's own word). Say push-in and pull-back for camera travel, zoom only for a lens change.
+- **The four naming rulings**, in [the glossary](../lanes/glossary.md#the-four-naming-rulings), beside the 45 terms every seat and gate names a craft fail in.
 - **Canon is named, not read.** Each seat names its canon title and the idea in its own words, and marks it "named, not read" until a bought copy is ingested. Installed skills are toolbelt, never canon: the shelf wins any disagreement, and no ledger entry names a skill under `## From the canon`.
 - **One operator per application, versions kept** (rule 5). Each seat writes new version folders, `<artifact>-vNN-<date>`, and never overwrites one.
 

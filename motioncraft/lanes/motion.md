@@ -21,29 +21,7 @@ The five things this seat holds before mc-eng-001 opens (the book-to-seat brief'
 
 ## Vocabulary
 
-The glossary rows this seat owns or shares (curriculum brief, section 1): the plain definition in the brief's words, checked against the named source. Where another seat is first-named, its lane holds the sources. Lasseter 1987 is John Lasseter, "Principles of Traditional Animation Applied to 3D Computer Animation", *Computer Graphics* 21(4); its [course copy](https://www.ics.uci.edu/~fowlkes/class/ics162/exercises/lasseter.pdf) is read-only and the page numbers are the paper's.
-
-| Term | Plain definition | Field term and synonyms | Shared with | Source |
-|---|---|---|---|---|
-| Volume | How much shape there is, kept the same however it squashes or stretches. | Constant volume; losing it is off model. | Art designs it, first-named | on [appearance.md](appearance.md) |
-| Smear | A designed in-between that stretches the shape along a fast move, so the eye reads speed. | Smear frame; elongated in-between. | Art designs it, first-named; this seat times it | on [appearance.md](appearance.md) |
-| Multiple | One drawing showing several copies of a part, for a fast repeated move. | Multiples; flurry effect. | Art, first-named | on [appearance.md](appearance.md) |
-| Pigment variation | Changes of colour and density inside painted areas. | Fill variation; Meier's "jittered" strokes. | Art designs it, first-named; this seat moves it | on [appearance.md](appearance.md) |
-| Timing | How many frames an action takes. | Lasseter's timing includes spacing. | — | [Toon Boom Learn](https://learn.toonboom.com/modules/animation-principles/topic/timing-principle) |
-| Spacing | How far the drawing moves between frames: wide gaps read fast. | Drawn on a timing chart. | — | [Toon Boom Learn](https://learn.toonboom.com/modules/animation-principles/topic/straight-ahead-and-pose-to-pose-principle); Pixar in a Box |
-| Slow in and slow out | Drawings bunch near a pose, so the move slows arriving or leaving. | Blender's "Ease In" runs the other way, so name the pose and direction. | — | Lasseter 1987, p. 40; [Blender](https://docs.blender.org/manual/en/latest/editors/graph_editor/fcurves/properties.html) |
-| Weight | The sense of mass, made mostly by timing and spacing. | Light or heavy. | — | Lasseter 1987, p. 37 |
-| Anticipation | A small opposite move that prepares an action, like a crouch before a hop. | Anticipation. | — | Lasseter 1987, p. 36 |
-| Squash and stretch | Shape changing under force with volume kept, which shows what a thing is made of. | Squash and stretch. | Art | [Pixar in a Box](https://www.khanacademy.org/computing/pixar/animate/ball/v/intro-animation) |
-| Follow-through and overlap | Parts keep moving after the body stops, and loose parts trail the lead. | Overlapping action; lead; drag. | — | Lasseter 1987, p. 39 |
-| Arc | The curved path most natural moves trace. | Path of action. | — | Lasseter 1987, p. 41 |
-| Deformation | Here, a shape change the animator designs, such as squash. | A rig's deformer is a mechanism; drift is off model. | — | [Toon Boom](https://docs.toonboom.com/help/harmony-22/premium/getting-started/deformation.html) |
-| In-between | A drawing between two keys that carries the move. | Inbetween, tween. | — | [Krita](https://docs.krita.org/en/user_manual/animation.html) |
-| Hold | Frames where the pose stays still. | Hold frame. | — | Toon Boom glossary |
-| Moving hold | A hold with a little motion left in, so it does not die. | Moving hold. | — | [Blender keyframe types](https://docs.blender.org/manual/en/latest/animation/keyframes/introduction.html) |
-| On ones, on twos | Each drawing shown for one frame, or for two. | Exposure. | — | [Toon Boom](https://docs.toonboom.com/help/harmony-25/advanced/timing/hold-exposure.html) |
-| Line boil | A line's small wobble frame to frame, by redrawing or a filter. | Boiling lines; Blender's Noise modifier. | Art designs it; Finishing checks it | [Jam Filled](https://www.toonboom.com/jam-filled-entertainment-on-the-expressive-2d-animation-in-wylde-pak) |
-| Texture continuity | Texture moving with what it belongs to, changing only as designed. | Temporal coherence. | Art, first-named; Finishing | on [appearance.md](appearance.md) |
+This seat's words are rows of [the glossary](glossary.md), which every pass carries after this manifest, with each row's definition, field terms and sources, which seats share it, and the four naming rulings. This seat's rows, in learning order: *Volume*, *Smear*, *Multiple*, *Pigment variation*, *Timing*, *Spacing*, *Slow in and slow out*, *Weight*, *Anticipation*, *Squash and stretch*, *Follow-through and overlap*, *Arc*, *Deformation*, *In-between*, *Hold*, *Moving hold*, *On ones, on twos*, *Line boil* and *Texture continuity*.
 
 ## Principles, in learning order
 
@@ -84,21 +62,7 @@ This seat audits Finishing's package against the scene record's evidence pack, b
 - the cut list gives each cut's reason, emotion first;
 - the composite shows no texture sliding through the pull-back, and line boil at Art's cadence.
 
-A craft fail is pinned to frame numbers in both versions, in these rows, copied from [finishing.md](finishing.md), the primary lane with the sources (*Line boil* and *Texture continuity*, which this seat shares, are above):
-
-| Term | Plain definition | Field term and synonyms |
-|---|---|---|
-| Cut | Where one shot ends and the next begins. | Edit; split, in software. |
-| Match cut | A cut joining two shots through a shared shape, colour or motion. | Graphic match; match on action. |
-| Image jitter | A whole layer shaking rigidly, nothing redrawn. | Camera shake, nearest. |
-| Texture sliding | Paint or grain fixed on screen while the picture moves under it. | Shower-door effect; swimming. |
-| J-cut and L-cut | In a J-cut the next shot's sound comes first; in an L-cut the last shot's sound carries over. | Split edit; sound bridge. |
-| Compositing | Layering separate images into one frame. | Merge; alpha; blend mode. |
-| Grade | Correction first balances shots; the grade then sets the look. | Colour correction; primaries. |
-| Linear and output colour | Light computed in linear values, shown through a transform for one display. | Scene-linear; output transform. |
-| Loudness | The whole mix's measured loudness, averaged over the film. | Integrated, in LUFS, equal to LKFS; target −23. |
-| True peak | The waveform's real highest level, including between samples. | dBTP; at most −1. |
-| Sound layers | The separate strands of a mix, from the animatic's scratch track on. | Tracks, stems, density. |
+A craft fail is pinned to frame numbers in both versions in these rows of [the glossary](glossary.md): *Cut*, *Match cut*, *Image jitter*, *Texture sliding*, *J-cut and L-cut*, *Compositing*, *Grade*, *Linear and output colour*, *Loudness*, *True peak* and *Sound layers*, beside *Line boil* and *Texture continuity*, which this seat shares.
 
 ## Free layer
 

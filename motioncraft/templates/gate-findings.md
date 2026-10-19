@@ -58,7 +58,7 @@ Before any finding: each evidence field the anchor's template requires, and the 
 |---|---|---|---|---|---|---|---|---|
 | F<n> | technical fail \| craft fail | CRITICAL \| MATERIAL \| NOTE | mc-eng-001.motion § Contacts, frames <a>–<b> | | | gate schedule § Scene record, "<attack>" | animator | redraft \| accepted by Sean <date>: <why> \| noted |
 
-A technical fail is decided by a measurement and is CRITICAL. A craft fail names a glossary term and frames, and is MATERIAL, or CRITICAL when it is one of Sean's named fail conditions. CRITICAL blocks the gate. MATERIAL is fixed, or Sean accepts it with a recorded why. Every finding names the attack line it came from; an attack with no home in the gate schedule is a finding against this folder. A finding that appears in more than one check gets one row, one owner and one disposition, with every appearance named in it.
+A technical fail is decided by a measurement and is CRITICAL. A craft fail names a glossary term and frames, the term written exactly as a row of [the glossary](../lanes/glossary.md) names it (a fault with no row is written in plain words and filed as a finding against this folder), and is MATERIAL, or CRITICAL when it is one of Sean's named fail conditions. CRITICAL blocks the gate. MATERIAL is fixed, or Sean accepts it with a recorded why. Every finding names the attack line it came from; an attack with no home in the gate schedule is a finding against this folder. A finding that appears in more than one check gets one row, one owner and one disposition, with every appearance named in it.
 
 ## Questions for Sean
 

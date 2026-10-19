@@ -62,7 +62,7 @@ The table for this audit's stake. Each row is evidence the auditor opened or ran
 
 ## Findings
 
-One row per finding. Every finding names its kind, and a craft fail names its glossary term and its frames. Severity follows the kind (brief 5, section 2): a **technical fail** is **CRITICAL**, since nothing else can be judged without it; a **craft fail** is **MATERIAL**, or **CRITICAL** when it is one of the fail conditions Sean has already named for the exercise or the shot; a **NOTE** is a craft observation that does not fail the stake. Both CRITICAL and MATERIAL loop back. A taste call has no severity and is not a row here.
+One row per finding. Every finding names its kind, and a craft fail names its glossary term, exactly as a row of [the glossary](../lanes/glossary.md) names it, and its frames. Severity follows the kind (brief 5, section 2): a **technical fail** is **CRITICAL**, since nothing else can be judged without it; a **craft fail** is **MATERIAL**, or **CRITICAL** when it is one of the fail conditions Sean has already named for the exercise or the shot; a **NOTE** is a craft observation that does not fail the stake. Both CRITICAL and MATERIAL loop back. A taste call has no severity and is not a row here.
 
 | Id | Kind | Finding | Artifact, section and frames | Glossary term | Severity | Evidence | What would pass |
 |---|---|---|---|---|---|---|---|
