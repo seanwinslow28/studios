@@ -839,8 +839,12 @@ def apps_note(ctx: Dict) -> str:
         usage.append(f"`python3 -B {APPS_DOOR} ask blender --script <a .py you wrote> [--blend <a .blend in the media "
                      "project>] [-- <the script's arguments>]` runs `Blender -b --factory-startup --python <your script>`; "
                      "Cycles renders on the CPU or the graphics chip (Metal), but only the CPU repeats a frame exactly, so a render "
-                     "kept in a version folder uses the CPU and the graphics chip is for previews in your scratch folder; "
-                     "Eevee does not run here")
+                     "kept in a version folder uses the CPU and the graphics chip is for previews in your scratch folder. "
+                     "A scene holding Grease Pencil, and any Eevee or Workbench render, aborts under your own script, so "
+                     f"save the scene and ask `python3 -B {APPS_DOOR} ask blender --render --blend <the saved .blend> --out "
+                     "<a folder> --frames S-E [--engine cycles|eevee|workbench]`, which renders it with the launcher's own "
+                     "script (Cycles on the CPU; scripts inside the file never run); a kept render is cycles into a new "
+                     "version folder in your stage, and eevee or workbench render only into your scratch folder, as previews")
     if "resolve" in apps:
         usage.append(f"`python3 -B {APPS_DOOR} ask resolve --script <a .py you wrote> [-- <the script's arguments>]` "
                      "runs your script with `DaVinciResolveScript` importable, connected to the Resolve already open on "

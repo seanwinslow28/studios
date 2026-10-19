@@ -82,6 +82,21 @@ def test_the_blender_lock_holds_the_pass_fence_and_opens_only_the_graphics_chip(
         assert never not in text
 
 
+def test_the_render_lock_adds_launchservices_and_nothing_else(env_of):
+    c = ctx_of(env_of, "animator", "r1")
+    plain, render = apps.lock(c, "blender").splitlines(), apps.lock(c, "blender", render=True).splitlines()
+    added = [l for l in render if l not in plain]
+    assert [l for l in added if not l.startswith(";")] == [
+        '(allow mach-lookup (global-name "com.apple.coreservices.launchservicesd"))']
+    assert all(l in render for l in plain), "the render lock keeps every rule of the plain one"
+    assert render.index(added[-1]) < render.index(next(l for l in render if l.startswith("(deny file-write*"))), \
+        "the frozen versions are still refused last"
+    for never in ("windowserver", "lsd.", "pasteboard", "appleevent", "tccd", "coreservicesd\""):
+        assert never not in "\n".join(render)
+    with pytest.raises(ValueError):
+        apps.lock(c, "resolve", "", render=True)
+
+
 def test_the_resolve_lock_opens_only_the_brokers_socket(env_of):
     c = ctx_of(env_of, "finishing-sound-designer", "a2")
     text = apps.lock(c, "resolve", "/private/tmp/mc-x/s")
@@ -273,6 +288,41 @@ def test_a_request_is_held_to_the_pass_fence(env_of):
     os.close(srv.fd)
 
 
+def ask_render(srv, blend, out, frames=(1, 3), engine="cycles", timeout=300, **extra):
+    """What `apps.py ask blender --render` does, without its wait."""
+    rid = f"blender-{time.strftime('%H%M%S')}-{os.urandom(3).hex()}"
+    req = {"id": rid, "app": "blender", "timeout": timeout,
+           "render": {"blend": str(blend), "out": str(out), "frames": list(frames), "engine": engine}, **extra}
+    (srv.requests / f"{rid}.json").write_text(json.dumps(req))
+    srv.handle(f"{rid}.json")
+    return json.loads((srv.results / f"{rid}.result.json").read_text()), srv.calls[-1]
+
+
+def test_a_render_request_carries_no_code_and_is_held_to_the_fence(env_of):
+    srv, c = server(env_of, "animator", "r2")
+    scratch, stage = Path(c["scratch"]), env_of["project"] / "motion"
+    blend = stage / "motion-v05-2026-10-19" / "scene.blend"
+    blend.parent.mkdir(exist_ok=True)
+    blend.write_bytes(b"BLENDER")
+    outside = env_of["root"] / "elsewhere.blend"
+    outside.write_bytes(b"BLENDER")
+    frozen = stage / "motion-v01-2026-10-19"
+    refused = lambda *a, **k: ask_render(srv, *a, **k)[0]["refused"]  # noqa: E731
+    assert "no script or arguments" in refused(blend, scratch / "f", script=str(scratch / "x.py"))
+    assert "no script or arguments" in refused(blend, scratch / "f", args=["x"])
+    assert "a .blend file in the media project" in refused(outside, scratch / "f")
+    assert "new version folder" in refused(blend, frozen / "frames"), "a saved version never takes a render"
+    assert "new version folder" in refused(blend, env_of["eng"] / "frames")
+    assert "new version folder" in refused(blend, stage), "the stage itself is not a version folder"
+    assert "previews" in refused(blend, stage / "motion-v05-2026-10-19" / "frames", engine="eevee")
+    assert "previews" in refused(blend, stage / "motion-v05-2026-10-19" / "frames", engine="workbench")
+    assert "--engine" in refused(blend, scratch / "f", engine="BLENDER_EEVEE_NEXT")
+    assert "--frames" in refused(blend, scratch / "f", frames=(5, 4))
+    assert "--frames" in refused(blend, scratch / "f", frames=(1, apps.MAX_RENDER_FRAMES + 1))
+    assert "may not run" in ask_render(server(env_of, "finishing-sound-designer", "r3")[0], blend, scratch / "f")[0]["refused"]
+    os.close(srv.fd)
+
+
 def test_a_planted_link_is_never_read_as_a_request(env_of):
     srv, c = server(env_of, "animator", "a5")
     secret = env_of["root"] / "secret.json"
@@ -287,7 +337,7 @@ def test_a_planted_link_is_never_read_as_a_request(env_of):
 def test_the_prompt_tells_a_seat_with_an_app_to_ask(env_of):
     import seat as seatmod
     c = ctx_of(env_of, "animator", "a6")
-    assert "apps.py ask blender" in seatmod.codex_prompt(c, "work") and "Eevee does not run here" in seatmod.codex_prompt(c, "work")
+    assert "apps.py ask blender" in seatmod.codex_prompt(c, "work") and "ask blender --render" in seatmod.codex_prompt(c, "work")
     f = ctx_of(env_of, "finishing-sound-designer", "a7")
     assert "apps.py ask resolve" in seatmod.claude_prompt(f, "work") and "ask blender" not in seatmod.claude_prompt(f, "work")
     g = ctx_of(env_of, "story-gate", "a8", "--anchor", "artifacts/story-packet.md")
@@ -337,6 +387,95 @@ def test_blender_renders_on_the_graphics_chip_inside_the_fence_and_nowhere_else(
     # what ran is the launcher's copy, hashed, beside the lock it ran under
     assert Path(entry["script"]["copy"]).read_text() == BLENDER_SCRIPT and entry["lock"]["sha256"]
     assert Path(entry["script"]["copy"]).parent == env_of["eng"] / "trace" / "logs" / "pass-a9.apps"
+    os.close(srv.fd)
+
+
+# A Grease Pencil ball with a line and a fill, one mesh, and two scripts the file carries that must never run on a
+# render: a registered text block and a driver expression, each writing a marker into the pass's scratch folder
+# (inside the fence, so only auto-run being off stops them, not the lock).
+GP_SCENE = r'''
+import bpy, math, os, sys
+out, marker = sys.argv[sys.argv.index("--") + 1:][:2]
+s = bpy.context.scene
+for o in list(s.objects): bpy.data.objects.remove(o)
+s.frame_start, s.frame_end = 1, 3
+s.render.resolution_x, s.render.resolution_y = 96, 54
+s.render.engine = "CYCLES"; s.cycles.samples = 4; s.cycles.seed = 0; s.cycles.use_animated_seed = False
+s.cycles.use_denoising = False; s.view_settings.view_transform = "Standard"
+s.render.image_settings.file_format = "PNG"
+cd = bpy.data.cameras.new("Cam"); cd.type = "ORTHO"; cd.ortho_scale = 8.0
+cam = bpy.data.objects.new("Cam", cd); s.collection.objects.link(cam)
+cam.location = (0, -10, 0); cam.rotation_euler = (math.radians(90), 0, 0); s.camera = cam
+gp = bpy.data.grease_pencils.new("Ball"); ob = bpy.data.objects.new("Ball", gp); s.collection.objects.link(ob)
+for name, line, fill in (("Ink", (0.1, 0.1, 0.1, 1), (0, 0, 0, 0)), ("Paint", (0, 0, 0, 0), (0.9, 0.4, 0.2, 1))):
+    m = bpy.data.materials.new(name); bpy.data.materials.create_gpencil_data(m)
+    m.grease_pencil.color, m.grease_pencil.fill_color = line, fill; gp.materials.append(m)
+layer = gp.layers.new("Ball")
+for f in (1, 2, 3):
+    d = layer.frames.new(f).drawing
+    for mat, rad, fid in ((1, 0.01, 1), (0, 0.05, 0)):
+        d.add_strokes([32]); st = d.strokes[-1]; st.material_index, st.cyclic, st.fill_id = mat, True, fid
+        for i, p in enumerate(st.points):
+            a = 2 * math.pi * i / 32; p.position = (-3 + 2 * f + math.cos(a), 0, math.sin(a)); p.radius = rad
+bpy.ops.mesh.primitive_cube_add(size=1, location=(3, 2, -2))
+t = bpy.data.texts.new("autorun.py"); t.use_module = True
+t.write(f"open({marker + '.text'!r}, 'w').write('ran')\n")
+fc = bpy.context.object.driver_add("location", 2)
+fc.driver.type = "SCRIPTED"; fc.driver.expression = f"open({marker + '.driver'!r}, 'w').write('ran') * 0 - 2"
+os.makedirs(out, exist_ok=True)
+bpy.ops.wm.save_as_mainfile(filepath=os.path.join(out, "gp.blend"))
+print("SAVED")
+'''
+
+OWN_RENDER = r'''
+import bpy, sys
+out = sys.argv[sys.argv.index("--") + 1]
+bpy.context.scene.render.filepath = out + "/own-"; bpy.ops.render.render(animation=True)
+'''
+
+
+def framemd5(folder: Path) -> list:
+    r = subprocess.run(["ffmpeg", "-v", "error", "-i", str(folder / "frame-%04d.png"), "-f", "framemd5", "-pix_fmt", "rgb24", "-"],
+                       capture_output=True, text=True, check=True)
+    return [l.split(",")[-1].strip() for l in r.stdout.splitlines() if not l.startswith("#")]
+
+
+@pytest.mark.skipif(not HAVE_BLENDER, reason="Blender is not installed on this machine")
+def test_grease_pencil_renders_only_through_the_render_request_and_repeats(env_of):
+    srv, c = server(env_of, "animator", "r4")
+    scratch, v06 = Path(c["scratch"]), env_of["project"] / "motion" / "motion-v06-2026-10-19"
+    marker = str(scratch / "autorun-marker")
+    build = scratch / "gp.py"
+    build.write_text(GP_SCENE)
+    res, _ = ask(srv, "blender", build, str(v06), marker)
+    assert res["ok"], Path(res["log"]).read_text()[-2000:]
+    blend = v06 / "gp.blend"
+    # the seat's own script, under the plain lock, still cannot render Grease Pencil
+    own = scratch / "own.py"
+    own.write_text(OWN_RENDER)
+    res, entry = ask(srv, "blender", own, str(scratch), blend=str(blend))
+    assert not res["ok"] and res["exit_code"] != 0 and not list(scratch.glob("own-*"))
+    assert "launchservicesd" not in Path(entry["lock"]["path"]).read_text()
+    # the render request renders it, with the file's own scripts never run
+    res, entry = ask_render(srv, blend, v06 / "frames")
+    log = Path(res["log"]).read_text()
+    assert res["ok"], log[-2000:]
+    assert "MOTIONCRAFT_RENDER autoexec_blocked True" in log and "MOTIONCRAFT_RENDER done CYCLES 1 3" in log
+    assert not os.path.exists(marker + ".text") and not os.path.exists(marker + ".driver"), "a script in the file ran"
+    assert "--disable-autoexec" in entry["argv"] and entry["argv"].index("--disable-autoexec") < entry["argv"].index(str(blend))
+    assert Path(entry["script"]["copy"]).read_text() == apps.RENDER_SCRIPT and entry["script"]["from"] == "launcher: RENDER_SCRIPT"
+    assert "com.apple.coreservices.launchservicesd" in Path(entry["lock"]["path"]).read_text()
+    assert sorted(p.name for p in (v06 / "frames").iterdir()) == ["frame-0001.png", "frame-0002.png", "frame-0003.png"]
+    # TC5: a second render of the same file, in a fresh Blender, gives the same pixels
+    res, _ = ask_render(srv, blend, scratch / "again")
+    assert res["ok"]
+    if subprocess.run(["which", "ffmpeg"], capture_output=True).returncode == 0:
+        first, second = framemd5(v06 / "frames"), framemd5(scratch / "again")
+        assert len(first) == 3 and first == second and len(set(first)) > 1, "the ball moves, and every frame repeats"
+    # a preview engine renders too, into scratch only
+    res, _ = ask_render(srv, blend, scratch / "preview", frames=(1, 1), engine="eevee")
+    assert res["ok"], Path(res["log"]).read_text()[-2000:]
+    assert (scratch / "preview" / "frame-0001.png").stat().st_size > 0
     os.close(srv.fd)
 
 

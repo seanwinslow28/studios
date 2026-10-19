@@ -2,6 +2,7 @@
 """The application doorway: Blender and Resolve for a seat pass, run by the launcher outside the pass's sandbox, under a lock of its own.
 
     apps.py ask blender --script F [--blend B] [--timeout S] [--wait S] [-- ARG...]    (from inside a pass)
+    apps.py ask blender --render --blend B --out D [--frames S-E] [--engine E] [--timeout S] [--wait S]
     apps.py ask resolve --script F [--timeout S] [--wait S] [-- ARG...]
     apps.py wait <id> [--wait S]
     apps.py lock <context> blender|resolve                                            (the coordinator: print a lock)
@@ -20,6 +21,18 @@ network, and only the openings the application needs. Blender's lock adds the
 graphics chip and Metal's shader compiler, and a cache folder of Blender's own.
 The script that runs is the launcher's copy in `trace/logs/pass-NN.apps/`, where no
 seat writes, so the record holds what ran.
+
+Grease Pencil, Eevee and Workbench render only through the render request
+(`--render`). Blender draws them with its GPU drawing engine, which registers Blender
+with macOS's app registry (LaunchServices) on start, and the lock refuses that, so
+the render aborts (exit -6). The render request opens that one service, and in return
+runs no code of the seat's: the launcher's own render script (`RENDER_SCRIPT`), the
+scene opened with Blender's auto-run of scripts in a file switched off, Cycles on the
+CPU with no OSL script nodes. The opening lets a process see which apps are running
+and which is in front, nothing more (screen, windows, clipboard, input and launching
+apps stay refused; tested 2026-10-19). A kept render is Cycles into a new version
+folder; Eevee and Workbench render only into the scratch folder, as previews. Ruled
+on the Motioncraft build map's "Grease Pencil renders" ticket (2026-10-19).
 
 Resolve is different: anything connected to it can make it run code in its own,
 unfenced process (Fusion's `Execute` runs Lua there; tested 2026-10-19). So a
@@ -68,6 +81,28 @@ MAX_ARGS, MAX_ARG = 32, 2048
 DEFAULT_TIMEOUT_S, MAX_TIMEOUT_S = 1800, 3600
 DEFAULT_WAIT_S = 540  # under Claude Code's ten-minute Bash limit; `wait` picks up a longer call
 POLL_S = 0.3
+# The render request: the engine names a pass may give, and Blender's own for each. Only Cycles is kept.
+RENDER_ENGINES = {"cycles": "CYCLES", "eevee": "BLENDER_EEVEE", "workbench": "BLENDER_WORKBENCH"}
+MAX_RENDER_FRAMES = 2400  # 100 s at 24 fps; a longer stretch is two requests
+# The render request's script: the launcher's, never a seat's. It sets the engine, the frames and the folder, and
+# renders; it reads nothing else from the request. Cycles runs on the CPU (the one path that repeats a frame
+# exactly) with OSL off, since a script node is code. `autoexec_fail` is set when Blender skipped a script the file
+# carries (a driver expression, a registered text block), so the log says when one was there.
+RENDER_SCRIPT = r'''import bpy, os, sys
+out, start, end, engine = sys.argv[sys.argv.index("--") + 1:]
+print("MOTIONCRAFT_RENDER autoexec_blocked", bool(bpy.app.autoexec_fail), repr(bpy.app.autoexec_fail_message))
+s = bpy.context.scene
+s.render.engine = engine
+if engine == "CYCLES":
+    s.cycles.device = "CPU"
+    s.cycles.shading_system = False
+s.frame_start, s.frame_end = int(start), int(end)
+os.makedirs(out, exist_ok=True)
+s.render.filepath = os.path.join(out, "frame-")
+s.render.use_file_extension = True
+bpy.ops.render.render(animation=True)
+print("MOTIONCRAFT_RENDER done", engine, start, end)
+'''
 
 
 # --- inside the pass: ask, then wait ----------------------------------------------------
@@ -105,8 +140,18 @@ def show(rid: str, wait_s: float) -> None:
 def cmd_ask(a) -> None:
     d = requests_dir()
     rid = f"{a.app}-{time.strftime('%H%M%S')}-{secrets.token_hex(3)}"
-    req = {"id": rid, "app": a.app, "script": os.path.abspath(a.script), "args": a.args or [],
-           "timeout": a.timeout, "blend": os.path.abspath(a.blend) if a.blend else ""}
+    if a.render:
+        m = re.fullmatch(r"(\d+)-(\d+)", a.frames or "")
+        if a.app != "blender" or a.script or a.args or not a.blend or not a.out or not m:
+            sys.exit("apps.py: ask blender --render --blend <scene> --out <folder> --frames S-E [--engine E]; no --script")
+        req = {"id": rid, "app": a.app, "timeout": a.timeout,
+               "render": {"blend": os.path.abspath(a.blend), "out": os.path.abspath(a.out),
+                          "frames": [int(m[1]), int(m[2])], "engine": a.engine}}
+    else:
+        if not a.script:
+            sys.exit("apps.py: ask needs --script, or --render for a render")
+        req = {"id": rid, "app": a.app, "script": os.path.abspath(a.script), "args": a.args or [],
+               "timeout": a.timeout, "blend": os.path.abspath(a.blend) if a.blend else ""}
     part = d / f".{rid}.part"
     part.write_text(json.dumps(req) + "\n", encoding="utf-8")
     os.rename(part, d / f"{rid}.json")  # whole, or not there: the launcher reads only finished requests
@@ -151,13 +196,15 @@ def blender_cache() -> str:
     return seat.real(os.path.expanduser(os.environ.get("MOTIONCRAFT_APPS_CACHE", "~/.cache/motioncraft/apps/blender")))
 
 
-def lock(ctx: Dict, app: str, socket_path: str = "") -> str:
+def lock(ctx: Dict, app: str, socket_path: str = "", render: bool = False) -> str:
     """The Seatbelt lock for one application call, written from the pass's context.
 
     Deny by default, as Codex's own base policy does; read as the pass reads (its
     denies kept); write only the fence's folders, with everything frozen in them
     refused after; no network. Blender adds the graphics chip and Metal's shader
-    compiler; a Resolve script adds only the broker's one local socket.
+    compiler; a Resolve script adds only the broker's one local socket. A render
+    request (`render`, Blender only) adds LaunchServices, which Blender's GPU drawing
+    engine registers with on start, and nothing else.
     """
     seat = _seat()
     if app not in APPS:
@@ -206,6 +253,15 @@ def lock(ctx: Dict, app: str, socket_path: str = "") -> str:
             "(allow file-issue-extension (require-all (extension-class \"com.apple.app-sandbox.read\" \"com.apple.app-sandbox.read-write\") "
             + " ".join(f"(subpath {sb(seat.real(p))})" for p in own[1:]) + "))" if own[1:] else "",
         ]
+        if render:
+            lines += [
+                "; the render request only, which runs the launcher's render script and no code of the seat's: Blender's GPU",
+                "; drawing engine (Grease Pencil, Eevee, Workbench) registers with LaunchServices on start, or aborts. It shows",
+                "; which apps are running; the window server, clipboard and the app database stay shut (tested 2026-10-19)",
+                "(allow mach-lookup (global-name \"com.apple.coreservices.launchservicesd\"))",
+            ]
+    elif render:
+        raise ValueError("only Blender has a render request")
     else:
         lines += ["; the broker's socket, and nothing else: never Resolve's own ports, which would let a script make it run code"]
         if socket_path:
@@ -764,6 +820,8 @@ class AppServer:
         app = req.get("app")
         if app not in self.allowed:
             raise ValueError(f"{ctx['seat']}'s pass may not run {app}; its seat lists {', '.join(self.allowed) or 'no app'}")
+        if "render" in req:
+            return self.check_render(req)
         script = seat.real(str(req.get("script") or ""))
         stage = os.path.join(ctx["media_project"], seat.STAGE_DIRS[ctx["seat"]])
         writable = seat.under(script, ctx["scratch"]) or (
@@ -789,6 +847,36 @@ class AppServer:
             raise ValueError(f"--timeout is whole seconds, 1 to {MAX_TIMEOUT_S}")
         return {"app": app, "script": script, "body": body, "args": args, "blend": blend, "timeout": timeout}
 
+    def check_render(self, req: Dict) -> Dict:
+        """A render request held to the pass's fence: a scene, a folder, frames and an engine, and no code of the seat's."""
+        seat, ctx = self.seat, self.ctx
+        r = req.get("render")
+        if req.get("app") != "blender" or not isinstance(r, dict) or req.get("script") or req.get("args") \
+                or set(r) - {"blend", "out", "frames", "engine"}:
+            raise ValueError("a render request is Blender's: a scene, a folder, frames and an engine, with no script or arguments")
+        blend = seat.real(str(r.get("blend") or ""))
+        if not blend.endswith(".blend") or not os.path.isfile(blend) or not seat.under(blend, ctx["media_project"]):
+            raise ValueError("--blend is a .blend file in the media project, for blender")
+        name = r.get("engine") or "cycles"
+        if name not in RENDER_ENGINES:
+            raise ValueError(f"--engine is one of {', '.join(RENDER_ENGINES)}")
+        out = seat.real(str(r.get("out") or ""))
+        stage = os.path.join(ctx["media_project"], seat.STAGE_DIRS[ctx["seat"]])
+        new_version = seat.under(out, stage) and out != stage and not any(seat.under(out, f) for f in ctx["fence"]["frozen"])
+        if name == "cycles" and not (seat.under(out, ctx["scratch"]) or new_version):
+            raise ValueError("--out is a folder in the scratch folder or a new version folder in the seat's stage")
+        if name != "cycles" and not seat.under(out, ctx["scratch"]):
+            raise ValueError(f"{name} renders are previews: --out is a folder in the scratch folder; a kept render is cycles")
+        frames = r.get("frames")
+        if (not isinstance(frames, list) or len(frames) != 2 or not all(isinstance(f, int) and f >= 0 for f in frames)
+                or not 1 <= frames[1] - frames[0] + 1 <= MAX_RENDER_FRAMES):
+            raise ValueError(f"--frames is S-E, whole frames from 0, at most {MAX_RENDER_FRAMES} of them")
+        timeout = req.get("timeout") or DEFAULT_TIMEOUT_S
+        if not isinstance(timeout, int) or not 1 <= timeout <= MAX_TIMEOUT_S:
+            raise ValueError(f"--timeout is whole seconds, 1 to {MAX_TIMEOUT_S}")
+        return {"app": "blender", "render": True, "script": "launcher: RENDER_SCRIPT", "body": RENDER_SCRIPT.encode(),
+                "args": [out, str(frames[0]), str(frames[1]), RENDER_ENGINES[name]], "blend": blend, "timeout": timeout}
+
     def write_new(self, name: str, data: bytes) -> Path:
         p = self.results / name
         with open(p, "xb") as f:
@@ -801,7 +889,7 @@ class AppServer:
                        "asked": self.seat.now()}
         try:
             req = self.read_request(name)
-            entry["request"] = {k: req.get(k) for k in ("app", "script", "args", "blend", "timeout")}
+            entry["request"] = {k: req.get(k) for k in ("app", "script", "args", "blend", "render", "timeout") if k in req}
             c = self.check(req)
         except (ValueError, OSError) as e:
             entry["refused"] = str(e)
@@ -832,8 +920,9 @@ class AppServer:
         if c["app"] == "blender":
             Path(blender_cache()).mkdir(parents=True, exist_ok=True)
             env["XDG_CACHE_HOME"] = blender_cache()
-            argv = [paths["blender"], "-b", "--factory-startup", *([c["blend"]] if c["blend"] else []),
-                    "--python-exit-code", "1", "--python", str(copy), "--", *c["args"]]
+            # a render request opens its scene with auto-run off, before the file loads: no code the file carries runs
+            argv = [paths["blender"], "-b", "--factory-startup", *(["--disable-autoexec"] if c.get("render") else []),
+                    *([c["blend"]] if c["blend"] else []), "--python-exit-code", "1", "--python", str(copy), "--", *c["args"]]
         else:
             broker, sock = self.start_broker(rid, env, timeout)
             shim = self.results / f"{rid}.shim"
@@ -842,7 +931,7 @@ class AppServer:
             # no Resolve variables and no Resolve module: only the stand-in, and the broker's socket
             env.update(PYTHONPATH=str(shim), MOTIONCRAFT_RESOLVE_SOCKET=sock)
             argv = [paths["python"], "-s", "-B", str(copy), *c["args"]]
-        rules = lock(ctx, c["app"], sock)
+        rules = lock(ctx, c["app"], sock, render=bool(c.get("render")))
         sbf = self.write_new(f"{rid}.sb", rules.encode())
         log = self.results / f"{rid}.log"
         before = tree(ctx["fence"]["write"])
@@ -947,8 +1036,14 @@ def main() -> None:
     sub = ap.add_subparsers(dest="cmd", required=True)
     k = sub.add_parser("ask", help="from inside a pass: ask the launcher to run Blender or Resolve")
     k.add_argument("app", choices=APPS)
-    k.add_argument("--script", required=True, help="a .py the pass wrote, in its scratch folder or a new version folder")
+    k.add_argument("--script", default="", help="a .py the pass wrote, in its scratch folder or a new version folder")
     k.add_argument("--blend", default="", help="blender: a .blend in the media project to open first")
+    k.add_argument("--render", action="store_true",
+                   help="blender: render --blend with the launcher's own script (Grease Pencil, Eevee, Workbench render only so)")
+    k.add_argument("--out", default="", help="--render: the folder the frames go to")
+    k.add_argument("--frames", default="", help="--render: S-E, the first and last frame")
+    k.add_argument("--engine", default="cycles", choices=sorted(RENDER_ENGINES),
+                   help="--render: cycles (on the CPU; the kept render), or eevee or workbench (previews, into scratch)")
     k.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT_S, help="seconds the call may run")
     k.add_argument("--wait", type=float, default=DEFAULT_WAIT_S, help="seconds to wait here for the result")
     k.add_argument("args", nargs="*", help="after --: the script's own arguments")
