@@ -52,11 +52,39 @@ def world():
     (eng / "d01-open.md").write_text("open")
     (eng / "artifacts" / "story-packet.md").write_text("---\nid: x\nmodel: claude-opus-5-5             # the runtime\n---\n\npacket\n")
     (eng / "artifacts" / "scene-record.md").write_text("---\nmodel: codex gpt-6.1-sol high\n---\n\nscene\n")
+    # Fake skill sources and the allowlist naming them; the real file's shape, the test's own folders.
+    for src, name in (("agents", "shot-composition"), ("agents", "animation-principles"), ("desk/a1/b2", "2d-animation-principles")):
+        (root / "skills" / src / name).mkdir(parents=True)
+        (root / "skills" / src / name / "SKILL.md").write_text(f"---\nname: {name}\n---\n\nchecklist\n")
+    (root / "skills" / "desk/a1/b2/2d-animation-principles/references").mkdir()
+    (root / "skills" / "desk/a1/b2/2d-animation-principles/references/smears.md").write_text("smears")
+    (root / "Blender.app").mkdir()
+    (root / "toolbelts.toml").write_text(f"""
+[sources]
+agents = "{root}/skills/agents"
+desk = "{root}/skills/desk/*/*"
+[seats.visual-story-director]
+skills = ["agents:shot-composition"]
+image = true
+[seats.art-pose-designer]
+skills = ["desk:2d-animation-principles", "agents:shot-composition"]
+image = true
+[seats.animator]
+skills = ["desk:2d-animation-principles", "agents:animation-principles"]
+[env]
+path = ["{root}/Blender.app"]
+RESOLVE_SCRIPT_API = "{root}/Blender.app"
+[never]
+names = ["higgsfield", "adobe"]
+""")
     env = dict(os.environ, TRACEKIT_FOLDERS=str(root / "folders.local"),
                MOTIONCRAFT_EMPLOYER_PATHS=str(root / "local" / "employer-paths"),
-               MOTIONCRAFT_PASSES=str(root / "passes"), MOTIONCRAFT_SCRATCH_ROOT=str(root / "scratch"))
+               MOTIONCRAFT_PASSES=str(root / "passes"), MOTIONCRAFT_SCRATCH_ROOT=str(root / "scratch"),
+               MOTIONCRAFT_TOOLBELTS=str(root / "toolbelts.toml"), MOTIONCRAFT_TOOLBELT_ROOT=str(root / "toolbelt"))
     env.pop("MOTIONCRAFT_CONTEXT", None)
-    yield {"root": root, "eng": eng, "project": project, "emp": emp, "home": root / "home", "env": env}
+    w = {"root": root, "eng": eng, "project": project, "emp": emp, "home": root / "home", "env": env}
+    seat(w, "toolbelt")
+    yield w
     shutil.rmtree(root)
 
 
@@ -232,13 +260,31 @@ def test_claude_settings_fence_a_drafting_seat(world):
     assert f"Edit(/{eng}/artifacts/story-packet.md)" in deny
     assert f"Read(/{world['emp']}/**)" in deny and f"Read(/{os.path.expanduser('~/.codex')}/**)" in deny
     assert {"WebFetch", "WebSearch", "Task", "Agent"} <= set(deny)
-    assert sb["enabled"] and sb["failIfUnavailable"] and sb["allowUnsandboxedCommands"] is False
+    assert sb["enabled"] and sb["failIfUnavailable"] and sb["excludedCommands"] == []
     assert sb["network"]["allowedDomains"] == [] and sb["filesystem"]["allowWrite"] == ctx_data(ctx)["fence"]["write"]
     assert s["disableAllHooks"] and s["env"]["MOTIONCRAFT_CONTEXT"] == ctx
     # reads outside the working folders need a rule in a headless run
     allow = s["permissions"]["allow"]
-    for p in (eng, project, LAUNCHER.parent, LAUNCHER.parents[1] / "craftwork"):
+    for p in (eng, project, LAUNCHER.parent, LAUNCHER.parents[1] / "craftwork", world["root"] / "toolbelt" / "visual-story-director"):
         assert f"Read(/{p}/**)" in allow
+    # the Director's one way out of the sandbox is the image doorway, for this pass's own context
+    assert sb["allowUnsandboxedCommands"] is True
+    assert [r for r in allow if r.startswith("Bash(")] == [f"Bash({LAUNCHER / 'image.py'} --context {ctx}:*)"]
+    for cmd in ("codex", "higgsfield", "gh", "git push"):
+        assert f"Bash({cmd}:*)" in deny
+    for root in ("~/.agents/skills", "~/.claude/skills", "~/.claude/plugins"):
+        assert f"Read(/{os.path.expanduser(root)}/**)" in deny and os.path.expanduser(root) in sb["filesystem"]["denyRead"]
+
+
+@pytest.mark.parametrize("seat_name,extra", [("finishing-sound-designer", ()), ("art-pose-designer", ("--read-only",)),
+                                             ("motion-gate", CODEX_ANCHOR)])
+def test_no_other_claude_pass_has_a_way_out_of_the_sandbox(world, seat_name, extra):
+    ctx = context(world, seat_name, f"9{len(extra)}{seat_name[:3]}", *extra)
+    s = json.loads(Path(seat(world, "claude-settings", ctx)).read_text())
+    assert s["sandbox"]["allowUnsandboxedCommands"] is False
+    # ffmpeg and ffprobe are let past the name=value hold, and stay sandboxed: nothing here lets a command out
+    assert [r for r in s["permissions"]["allow"] if r.startswith("Bash(")] == ["Bash(ffmpeg:*)", "Bash(ffprobe:*)"]
+    assert ctx_data(ctx)["toolbelt"]["image"] is False
 
 
 def test_a_read_only_claude_pass_writes_nothing_but_scratch(world):
@@ -376,6 +422,14 @@ if b.get("helper"):
     (home / f"rollout-h-{thread}.jsonl").write_text(json.dumps({"type": "session_meta", "payload": {
         "id": "h-" + thread, "session_id": thread, "thread_source": "subagent", "parent_thread_id": thread}}) + "\n")
 out({"type": "thread.started", "thread_id": thread})
+if "features.image_generation=true" in argv:  # the image doorway's call
+    here = Path(__file__).resolve().parent
+    here.joinpath("seen-stdin.txt").write_text(sys.stdin.read() if argv[-1] == "-" else "")
+    here.joinpath("seen-argv.json").write_text(json.dumps(argv))
+    if b.get("image", True):
+        g = Path(os.environ["CODEX_HOME"]) / "generated_images" / thread
+        g.mkdir(parents=True, exist_ok=True)
+        (g / "exec-1.png").write_bytes(b"\x89PNG fake")
 for i in range(b.get("calls", 0)):
     out({"type": "item.started", "item": {"id": f"item_{i}", "type": "command_execution", "command": "echo"}})
     out({"type": "item.completed", "item": {"id": f"item_{i}", "type": "command_execution", "command": "echo"}})
@@ -386,6 +440,7 @@ out({"type": "turn.completed", "usage": {"input_tokens": 100, "cached_input_toke
 if "-o" in argv:
     Path(argv[argv.index("-o") + 1]).write_text(b.get("answer", "SCENE RECORD") + "\n")
 Path(__file__).resolve().parent.joinpath("finished").write_text("1")
+sys.exit(b.get("exit", 0))
 '''
 
 
@@ -579,6 +634,272 @@ def test_preflight_names_each_gap(world, codex_home):
     r = subprocess.run([sys.executable, str(SEAT), "check", "--home", str(codex_home)], env=world["env"], capture_output=True, text=True)
     assert r.returncode == 0 and "clean" in r.stdout
     (codex_home / "auth.json").unlink()
+
+
+# --- the toolbelts (bench/toolbelts.toml) ---------------------------------------------------
+
+def test_a_toolbelt_is_a_plugin_of_copies_of_exactly_the_allowlist(world):
+    belt = world["root"] / "toolbelt" / "art-pose-designer"
+    assert json.loads((belt / ".claude-plugin" / "plugin.json").read_text())["name"] == "motioncraft-art-pose-designer"
+    assert sorted(p.name for p in (belt / "skills").iterdir()) == ["2d-animation-principles", "shot-composition"]
+    assert not (belt / "skills" / "shot-composition").is_symlink(), "a copy, fixed and hashed, never a link"
+    assert (belt / "skills" / "2d-animation-principles" / "references" / "smears.md").is_file()
+    rows = json.loads((belt / "manifest.json").read_text())["skills"]
+    assert {r["skill"]: r["sha256"] for r in rows}["shot-composition"] == seatmod.tree_sha(
+        world["root"] / "skills" / "agents" / "shot-composition")
+    for none in ("finishing-sound-designer", "story-gate", "motion-gate"):
+        assert not (world["root"] / "toolbelt" / none).exists(), f"{none} names no skill, so it loads none"
+
+
+def test_the_context_fixes_the_toolbelt(world):
+    data = ctx_data(context(world, "animator", "t1"))
+    belt = world["root"] / "toolbelt" / "animator"
+    assert data["toolbelt"]["skills"] == [
+        {"skill": "2d-animation-principles", "path": str(belt / "skills" / "2d-animation-principles" / "SKILL.md")},
+        {"skill": "animation-principles", "path": str(belt / "skills" / "animation-principles" / "SKILL.md")}]
+    assert data["toolbelt"]["manifest_sha256"] == seatmod.sha256(belt / "manifest.json") and data["toolbelt"]["image"] is False
+    assert ctx_data(context(world, "visual-story-director", "t2"))["toolbelt"]["image"] is True
+    assert ctx_data(context(world, "visual-story-director", "t3", "--read-only"))["toolbelt"]["image"] is False
+    assert ctx_data(context(world, "story-gate", "t4", *CLAUDE_ANCHOR))["toolbelt"] == {
+        "dir": "", "skills": [], "manifest_sha256": "", "image": False}
+
+
+def test_a_changed_source_stops_the_context_until_the_copy_is_rebuilt(world):
+    src = world["root"] / "skills" / "agents" / "animation-principles" / "SKILL.md"
+    old = src.read_text()
+    src.write_text(old + "an edit upstream\n")
+    try:
+        assert "changed at" in context_fails(world, "animator", "t5")
+        r = subprocess.run([sys.executable, str(SEAT), "check", "--home", str(world["home"])], env=world["env"],
+                           capture_output=True, text=True)
+        assert r.returncode == 1 and "changed at" in r.stdout
+        seat(world, "toolbelt")
+        context(world, "animator", "t5")
+    finally:
+        src.write_text(old)
+        seat(world, "toolbelt")
+
+
+def test_a_missing_skill_is_a_gap(world):
+    toml = world["root"] / "toolbelts-2.toml"
+    toml.write_text((world["root"] / "toolbelts.toml").read_text().replace("agents:animation-principles", "agents:nowhere"))
+    env = dict(world["env"], MOTIONCRAFT_TOOLBELT_ROOT=str(world["root"] / "toolbelt-2"), MOTIONCRAFT_TOOLBELTS=str(toml))
+    r = subprocess.run([sys.executable, str(SEAT), "toolbelt"], env=env, capture_output=True, text=True)
+    assert r.returncode == 1 and "GAP: animator: agents:nowhere is not on this machine" in r.stdout
+
+
+def test_the_claude_launch_form_carries_the_seat_plugin_only(world):
+    ctx = context(world, "art-pose-designer", "t6")
+    seat(world, "claude-settings", ctx)
+    argv = json.loads(launch(world, ctx).stderr)["argv"]
+    assert argv[argv.index("--plugin-dir") + 1] == str(world["root"] / "toolbelt" / "art-pose-designer")
+    assert argv.count("--plugin-dir") == 1
+    ctx = context(world, "motion-gate", "t7", *CODEX_ANCHOR)
+    seat(world, "claude-settings", ctx)
+    assert "--plugin-dir" not in json.loads(launch(world, ctx, "--output", "audits/motion-gate-t7.md").stderr)["argv"]
+
+
+def test_a_claude_prompt_names_the_image_door_only_for_the_director_and_art(world):
+    director = seatmod.load(context(world, "visual-story-director", "t8"))
+    prompt = seatmod.launch_argv(director, "do the work")[-1]
+    assert prompt.startswith("do the work") and f"{LAUNCHER / 'image.py'} --context {director['source']}" in prompt
+    finishing = seatmod.load(context(world, "finishing-sound-designer", "t9"))
+    assert seatmod.launch_argv(finishing, "do the work")[-1] == "do the work"
+
+
+def test_a_codex_prompt_carries_agents_md_and_the_skills_by_path(world, codex_home):
+    ctx = seatmod.load(codex_pass(world, codex_home, "u1"))
+    prompt = seatmod.launch_argv(ctx, "do the work", "p", "o")[-1]
+    assert prompt.endswith("do the work") and "The studios AGENTS.md, which binds this pass" in prompt
+    for s in ctx["toolbelt"]["skills"]:
+        assert s["path"] in prompt
+    gate = seatmod.load(codex_pass(world, codex_home, "u2", *CLAUDE_ANCHOR, seat_name="story-gate"))
+    assert "toolbelt" not in seatmod.launch_argv(gate, "do the work", "p", "o")[-1]
+
+
+def test_a_launch_stops_when_the_toolbelt_changed_since_the_context(world, codex_home):
+    ctx = codex_pass(world, codex_home, "u3")
+    man = world["root"] / "toolbelt" / "animator" / "manifest.json"
+    old = man.read_text()
+    man.write_text(old.replace('"seat"', '"seat_"'))
+    try:
+        assert "toolbelt copy changed" in launch(world, ctx, "--output", "artifacts/scene-record-u3.md").stderr
+    finally:
+        man.write_text(old)
+
+
+def test_every_pass_carries_the_applications_paths(world, codex_home, fake):
+    behave(fake, answer="SCENE RECORD")
+    launch(world, codex_pass(world, codex_home, "u4"), "--output", "artifacts/scene-record-u4.md", "--run")
+    seen = json.loads((fake / "seen-env.json").read_text())
+    assert seen["PATH"].split(":")[-1] == str(world["root"] / "Blender.app")
+    assert seen["RESOLVE_SCRIPT_API"] == str(world["root"] / "Blender.app")
+
+
+@pytest.mark.skipif(not CODEX, reason="codex not installed")
+def test_a_codex_pass_reads_its_toolbelt_and_no_other_skill_folder(world, codex_home):
+    codex_pass(world, codex_home, "u5")
+    profile = f"{world['eng'].name}-pass-u5"
+    mine = world["root"] / "toolbelt" / "animator" / "skills" / "animation-principles" / "SKILL.md"
+    assert sandboxed(world, codex_home, profile, f"head -1 {mine} && echo WROTE")
+    outside = Path(os.path.expanduser("~/.agents/skills"))
+    probe = next((p / "SKILL.md" for p in sorted(outside.iterdir()) if (p / "SKILL.md").is_file()), None) \
+        if outside.is_dir() else None
+    if probe:
+        assert not sandboxed(world, codex_home, profile, f"head -1 '{probe}' && echo WROTE")
+
+
+# --- the image doorway (launcher/image.py) ----------------------------------------------------
+
+IMAGE = LAUNCHER / "image.py"
+
+
+@pytest.fixture()
+def door(world, fake):
+    """A Director pass's context, a new version folder in its stage, a prompt in its scratch, and a signed-in home."""
+    world["home"].mkdir(parents=True, exist_ok=True)
+    (world["home"] / "auth.json").write_text("{}")
+    n = f"i{os.urandom(2).hex()}"
+    ctx = context(world, "visual-story-director", n)
+    vdir = world["project"] / "story" / f"boards{n}-v01-2026-10-19"
+    vdir.mkdir()
+    prompt = Path(ctx_data(ctx)["scratch"]) / "prompt.txt"
+    prompt.write_text("a red cube on grey")
+    (fake / "seen-argv.json").unlink(missing_ok=True)
+    yield {"ctx": ctx, "vdir": vdir, "prompt": prompt, "n": n}
+    (world["home"] / "auth.json").unlink()
+
+
+def run_door(w, *args):
+    env = dict(w["env"], MOTIONCRAFT_CODEX_HOME=str(w["home"]))
+    return subprocess.run([sys.executable, str(IMAGE), *args], env=env, capture_output=True, text=True, timeout=60)
+
+
+def test_the_door_files_one_image_and_its_prompt_beside_it(world, fake, door):
+    behave(fake, exit=1)  # a run can exit 1 after the image is made (mc-setup-003)
+    out = door["vdir"] / "board-01.png"
+    r = run_door(world, "--context", door["ctx"], "--out", str(out), "--prompt-file", str(door["prompt"]))
+    assert r.returncode == 0, r.stderr
+    assert out.read_bytes() == b"\x89PNG fake" and "exited 1 after the image was made" in r.stdout
+    side = json.loads((door["vdir"] / "board-01.image.json").read_text())
+    assert side["label"].startswith("generated") and side["prompt"] == "a red cube on grey"
+    assert side["sha256"] == seatmod.sha256(out) and side["exit_code"] == 1
+    argv = json.loads((fake / "seen-argv.json").read_text())
+    assert argv[argv.index("--model") + 1] == "gpt-6.1-sol" and 'model_reasoning_effort="high"' in argv and argv[-1] == "-"
+    assert "a red cube on grey" in (fake / "seen-stdin.txt").read_text()
+    log = world["eng"] / "trace" / "logs" / f"pass-{door['n']}.images.jsonl"
+    assert json.loads(log.read_text().splitlines()[-1])["out"] == str(out)
+    again = run_door(world, "--context", door["ctx"], "--out", str(out), "--prompt-file", str(door["prompt"]))
+    assert again.returncode == 1 and "written once" in again.stderr
+
+
+def test_the_door_sends_references_from_the_media_project_only(world, fake, door):
+    behave(fake)
+    ref = world["project"] / "inputs" / "ref.png"
+    ref.write_bytes(b"png")
+    r = run_door(world, "--context", door["ctx"], "--out", str(door["vdir"] / "b.png"), "--prompt-file",
+                 str(door["prompt"]), "--ref", str(ref))
+    assert r.returncode == 0, r.stderr
+    argv = json.loads((fake / "seen-argv.json").read_text())
+    assert argv[argv.index("-i") + 1] == str(ref) and argv[-1] == "-"
+    (world["emp"] / "a.png").write_bytes(b"png")
+    for bad in (world["emp"] / "a.png", world["eng"] / "brief.md"):
+        r = run_door(world, "--context", door["ctx"], "--out", str(door["vdir"] / "c.png"), "--prompt-file",
+                     str(door["prompt"]), "--ref", str(bad))
+        assert r.returncode == 1 and "nothing else goes to the image path" in r.stderr
+
+
+def test_the_door_refuses_outside_the_pass_fence(world, fake, door):
+    behave(fake)
+    story = world["project"] / "story"
+    cases = [
+        (story / "animatic-v01-2026-10-19" / "x.png", "saved before this pass"),
+        (story / "x.png", "version folder directly in this seat's stage"),
+        (world["project"] / "appearance" / "t-v01-2026-10-19" / "x.png", "version folder directly"),
+        (world["eng"] / "artifacts" / "x.png", "version folder directly"),
+        (door["vdir"] / "x.jpg", "names a .png"),
+        (story / "new-v09-2026-10-19" / "x.png", "make the version folder"),
+    ]
+    for out, why in cases:
+        r = run_door(world, "--context", door["ctx"], "--out", str(out), "--prompt-file", str(door["prompt"]))
+        assert r.returncode == 1 and why in r.stderr, (out, r.stderr)
+    r = run_door(world, "--context", door["ctx"], "--out", str(door["vdir"] / "y.png"), "--prompt-file",
+                 str(world["eng"] / "brief.md"))
+    assert r.returncode == 1 and "a file the pass wrote" in r.stderr
+    assert not (fake / "seen-argv.json").exists(), "no refused call reaches Codex"
+
+
+@pytest.mark.parametrize("seat_name,extra", [("finishing-sound-designer", ()), ("visual-story-director", ("--read-only",)),
+                                             ("animator", ())])
+def test_only_a_drafting_director_or_art_pass_may_use_the_door(world, fake, door, seat_name, extra):
+    ctx = context(world, seat_name, f"j{os.urandom(2).hex()}", *extra)
+    r = run_door(world, "--context", ctx, "--out", str(door["vdir"] / "z.png"), "--prompt-file", str(door["prompt"]))
+    assert r.returncode == 1 and "may not call the image path" in r.stderr
+
+
+def test_the_door_reads_only_a_context_in_trace_logs(world, fake, door):
+    forged = Path(ctx_data(door["ctx"])["scratch"]) / "pass-99.context.json"
+    forged.write_text(Path(door["ctx"]).read_text())
+    r = run_door(world, "--context", str(forged), "--out", str(door["vdir"] / "z.png"), "--prompt-file", str(door["prompt"]))
+    assert r.returncode == 1 and "only the coordinator writes" in r.stderr
+
+
+def test_no_image_made_is_logged_and_refused(world, fake, door):
+    behave(fake, image=False)
+    r = run_door(world, "--context", door["ctx"], "--out", str(door["vdir"] / "none.png"), "--prompt-file", str(door["prompt"]))
+    assert r.returncode == 1 and "no image was made" in r.stderr and not (door["vdir"] / "none.png").exists()
+
+
+# --- the seat probe's judgement ---------------------------------------------------------------
+
+def good_init(seat_name="art-pose-designer"):
+    return {"tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep", "Skill"], "mcp_servers": [], "model": "claude-opus-5-5",
+            "plugins": [{"name": f"motioncraft-{seat_name}", "path": "/x"}, {"name": "cc-plugin-telemetry", "path": "builtin"}],
+            "skills": ["debug", f"motioncraft-{seat_name}:2d-animation-principles", f"motioncraft-{seat_name}:shot-composition"]}
+
+
+def judge(world, init, seat_name="art-pose-designer"):
+    # in a subprocess, so the allowlist read is the test world's (seat.py reads its paths at import)
+    code = ("import json, sys; sys.path.insert(0, %r); import seat; "
+            "print(json.dumps(seat.judge_claude(json.loads(sys.argv[1]), json.loads(sys.argv[2]), sys.argv[3], "
+            "{'skills': ['debug', 'code-review'], 'plugins': ['cc-plugin-telemetry']})))") % str(LAUNCHER)
+    argv = ["claude", "--tools", "Read,Write,Edit,Bash,Glob,Grep,Skill"]
+    r = subprocess.run([sys.executable, "-c", code, json.dumps(init), json.dumps(argv), seat_name], env=world["env"],
+                       capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    return json.loads(r.stdout)
+
+
+def test_the_probe_passes_a_seat_that_loads_only_its_toolbelt(world):
+    assert judge(world, good_init()) == []
+
+
+@pytest.mark.parametrize("change,finding", [
+    (lambda i: i["mcp_servers"].append({"name": "higgsfield"}), "connectors loaded"),
+    (lambda i: i["plugins"].append({"name": "adobe-for-creativity", "path": "/p"}), "plugins"),
+    (lambda i: i["skills"].append("superpowers:brainstorming"), "another plugin's skill"),
+    (lambda i: i["skills"].remove("motioncraft-art-pose-designer:shot-composition"), "its toolbelt skills"),
+    (lambda i: i["tools"].append("Agent"), "tools"),
+    (lambda i: i["skills"].append("grilling"), "outside Claude Code's built-ins"),
+    (lambda i: i["plugins"].append({"name": "superpowers", "path": "builtin"}), "plugins"),
+    (lambda i: i.update(model="claude-sonnet-5-5"), "model"),
+], ids=["connector", "plugin", "other-skill", "missing-skill", "helper-tool", "personal-skill", "unknown-builtin", "model"])
+def test_the_probe_names_what_should_not_be_there(world, change, finding):
+    init = good_init()
+    change(init)
+    found = judge(world, init)
+    assert any(finding in f for f in found), found
+
+
+def test_the_codex_probe_reads_the_session_state(world):
+    good = {"skills": {"includeInstructions": False}, "host_skills": {"includeInstructions": False},
+            "plugins_instructions": False, "apps_instructions": False, "agents_md": {}}
+    assert seatmod.judge_codex(good, "<permissions instructions>", "exec, wait\nnone\nBLOCKED") == []
+    assert any("plugins_instructions" in f for f in seatmod.judge_codex(dict(good, plugins_instructions=True), "", "exec"))
+    assert any("image_gen" in f for f in seatmod.judge_codex(good, "", "exec, image_gen\nnone\nBLOCKED"))
+    assert any("Skill roots" in f for f in seatmod.judge_codex(good, "### Skill roots\n", "exec"))
+    assert seatmod.judge_codex(good, "", "exec, list_mcp_resources\nnone\nBLOCKED", "[features]\n") == []
+    assert any("connector is configured" in f for f in seatmod.judge_codex(good, "", "exec", '[mcp_servers.higgsfield]\n'))
 
 
 def test_seat_files_name_the_launcher_pins():

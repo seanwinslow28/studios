@@ -53,7 +53,7 @@ As auditor of the **moving scene and its evidence pack**, before the motion gate
 
 A skill's output is raw material, never the artifact; installed skills are toolbelt, never canon. "Tested" means run in a recorded session; "docs" means only its instructions were read (plugin-routing brief).
 
-- `codex exec` with the imagegen skill (generation tested once, 2026-10-17; edit mode untested): style targets, including edits from a reference image once confirmed, under the conditions in [the bench README](README.md#launch-forms).
+- The Codex image path, through [`launcher/image.py`](../launcher/image.py) only (generation tested 2026-10-17 and through the doorway 2026-10-19; edit mode tested 2026-10-18, mc-setup-003, it redraws the whole frame): style targets, including edits from a reference image (each a new image, never a pixel-exact fix), under the conditions in [the bench README](README.md#launch-forms).
 - `2d-animation-principles`, its smear and pose parts only (docs): choosing a smear type, checking volume across poses.
 - `shot-composition` (docs): silhouette placement in the boarded frame.
 - Krita (absent today; agent control unproven, #176): painted layers and replacement poses, once Sean installs it for the bounded test at the appearance gate.

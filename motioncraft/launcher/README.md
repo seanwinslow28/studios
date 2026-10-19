@@ -1,6 +1,6 @@
 # The launcher
 
-Motioncraft's launcher runs one seat pass on either vendor, under its caps and inside its write fence, and leaves the logs the pass record is built from. Built on the Motioncraft build map's **Build the slim Motioncraft launcher** ticket (2026-10-19), as ruled on Master skill design (SWCB #192, item 10): a slim copy of Devcraft's [`seat.py`](../../devcraft/hooks/seat.py) with only what Motioncraft needs, Devcraft untouched. The master skill's Run phase launches every pass through it; the per-seat launch forms and plugin allowlists are the **Plugin allowlist and launch form for seat runs** ticket's, written against it.
+Motioncraft's launcher runs one seat pass on either vendor, under its caps and inside its write fence, and leaves the logs the pass record is built from. Built on the Motioncraft build map's **Build the slim Motioncraft launcher** ticket (2026-10-19), as ruled on Master skill design (SWCB #192, item 10): a slim copy of Devcraft's [`seat.py`](../../devcraft/hooks/seat.py) with only what Motioncraft needs, Devcraft untouched. The master skill's Run phase launches every pass through it; the per-seat launch forms, the plugin allowlist and the image doorway were finished on the **Plugin allowlist and launch form for seat runs** ticket (2026-10-19).
 
 Kept from Devcraft: the per-pass caps and the kill at 100%, the model probe, the isolated launch on both vendors, the vendor read from a record (a gate's anchor, a verification pass's repair, a redraft's escalation), helper-agent detection, the scratch folder, and the logs. Added: the write fence and the machine check. Left with Devcraft: the guard hook, the git hooks, worktrees, the frozen diff and the release gate's evidence, all built around code.
 
@@ -11,8 +11,11 @@ Kept from Devcraft: the per-pass caps and the kill at 100%, the model probe, the
 | `seat.py codex-home` | The Codex seat home, `~/.codex-motioncraft`: plugins, apps, memories, multi-agent and image generation off, a read-only floor |
 | `seat.py codex-pass <context>` | A pass on Codex: its permission layer, linked into the seat home as `<eng>-pass-NN.config.toml` |
 | `seat.py launch <context> --prompt-file F [--output A] --run` | Runs the pass and writes `pass-NN.jsonl`, `pass-NN.stderr.log`, `pass-NN.launch.json` and, on Codex, `pass-NN.rollouts/` into `trace/logs/` |
+| `seat.py toolbelt` | Copies each seat's skills from [`bench/toolbelts.toml`](../bench/toolbelts.toml) into `~/.local/share/motioncraft/toolbelt/<seat>/`: a Claude plugin of copies with a manifest of each source's hash. A missing skill is a gap |
+| `seat.py seat-probe [--seat S]... [--logs DIR]` | One probe pass per seat (all four by default; gates by name) on its own launch form, judged from what the vendor reports it loaded: exit 1 on anything beyond the toolbelt. Logs go to `--logs` with the employer folders redacted |
+| `image.py --context C --out F --prompt-file P [--ref R]...` | The image doorway: run by a Director's or Art's pass, never by the coordinator ([below](#the-image-doorway)) |
 | `seat.py probe [--logs DIR]` | The alias probe at Route: one tiny call per pinned id, printed as the Route entry's lines |
-| `seat.py check` | This machine's preflight for the launcher: both CLIs, the `media` folder mapped, the employer-path list, the seat home set up and signed in |
+| `seat.py check` | This machine's preflight for the launcher: both CLIs, the `media` folder mapped, the employer-path list, the seat home set up and signed in, every toolbelt copy built and matching its source, the applications' paths |
 
 The coordinator runs these; no seat does. Without `--run`, `launch` prints the command line, the environment's names, the caps and the fence, and starts nothing.
 
@@ -44,14 +47,30 @@ Every pass is denied reading credentials, Sean's own `~/.codex/` (Codex's instal
 
 ## The launch
 
-- **Isolated.** A scrubbed environment (no tokens, stdin closed). Claude: `--setting-sources ""`, `--strict-mcp-config`, the scratch folder as its working folder, a limited `--tools` list with no tool that starts a helper, the studios `AGENTS.md` by flag, the seat's own plugin from `motioncraft/bench/plugins/<seat>/` once the allowlist ticket writes it, and no hooks. Codex: from the seat home with `-p <eng>-pass-NN`, `--model gpt-6.1-sol` and the effort spelled out, never the config default and never `ultra`, web search off, the media project as its working folder, marked untrusted.
+- **Isolated.** A scrubbed environment (no tokens, stdin closed). Claude: `--setting-sources ""`, `--strict-mcp-config`, the scratch folder as its working folder, a limited `--tools` list with no tool that starts a helper, the studios `AGENTS.md` by flag, the seat's toolbelt copy as its one plugin, and no hooks. Codex: from the seat home with `-p <eng>-pass-NN`, `--model gpt-6.1-sol` and the effort spelled out, never the config default and never `ultra`, web search off, the media project as its working folder, marked untrusted. Its prompt opens with the studios `AGENTS.md` and the toolbelt's skills by path, since neither is found from the media project.
+- **The toolbelt.** The context fixes the seat's toolbelt copy by its manifest's hash, and a copy changed since stops the launch. Every pass is denied every other skill folder. Every pass's environment carries the allowlist's `[env]`: Blender's folder on `PATH`, Resolve's scripting variables.
+- **Held commands.** Claude Code holds an `ffmpeg` or `ffprobe` call with a `name=value` option for an approval no one gives; a Claude pass without the image path gets an allow rule for both, still sandboxed. A Director's or Art's pass does not, since the same rule would let them out of the sandbox; its prompt says to pass filters from a file (`-/vf <file>`).
 - **Caps.** The launcher watches the live log and kills the pass's whole process group at 100% of a cap (wall clock, or tool calls counted from the log); Claude stops itself at its budget. Either stop is filed `Blocked: budget` with what the pass left on disk, exit 2. The prompt states the caps, so the seat stops itself at 90%.
 - **Helper agents.** On Codex the session files are saved to `pass-NN.rollouts/` and read as rung-0 line 11 reads them; on Claude the log is read for a `Task` or `Agent` call or a helper's message. Either way the output is moved aside to `pass-NN.discarded.md` and the launcher exits 3: re-run once as a new pass, and a second spawn stops Blocked.
 - **The record.** `pass-NN.launch.json` holds what the pass record's completion fields need: times, tool calls, the stop, the machine, the media project, the fence, the wall file's path and hash, the outputs and their hashes, the raw usage and its meter source, and the runtime stamps from the log.
 
+## The image doorway
+
+`image.py` is the Director's and Art's one way to the Codex image path. Their pass settings let exactly `image.py --context <this pass's context>` out of the Claude sandbox, when the pass asks for it with `dangerouslyDisableSandbox`; any other command that asks is held for an approval no one gives, and a chained or substituted second command is held too (live, 2026-10-19). Inside the sandbox it could not work: Codex could neither read its seat home's sign-in, which every pass is denied, nor start its own sandbox. So the doorway holds the fence for the call:
+
+- the context must sit in its engagement's `trace/logs/`, where no seat writes, and say the pass may use the image path (a drafting Director or Art pass on Claude);
+- the image lands as a new `.png` in a version folder the pass made in its own stage, never a saved one;
+- the prompt comes from the pass's scratch folder or that version folder, and every `--ref` is an image in the media project, at most five;
+- Codex runs from the seat home with image generation on for this call only, `--model gpt-6.1-sol` at `high`, the prompt on standard input;
+- the image Codex saved under `generated_images/<thread>/` is filed whatever the exit code, with `<name>.image.json` beside it (the prompt, the references and their hashes, the run, the label "generated"), and the call is logged to `trace/logs/pass-NN.images.jsonl`.
+
 ## The probe
 
 `seat.py probe` asks `claude-opus-5-5` on `claude -p` and `gpt-6.1-sol` (high) on `codex exec`, from the seat home, for their own ids, and reads the match from the log's model stamp, never the answer. Exit 1 on any mismatch, which goes to Sean before any seat runs. `--logs <eng>/trace/logs/route` keeps both raw logs.
+
+## The seat probe
+
+`seat.py seat-probe` runs one probe pass per seat on its real launch form, in a throwaway job, and asks it to list its tools, read each of its toolbelt's skills, and try to read a skill outside it. The verdict comes from what the vendor reports, not the answer: on Claude, the log's first line (tools, skills, plugins, connectors, model), against a bare baseline run that lists Claude Code's own built-in skills; on Codex, the session file's state (no skills, plugins, apps or `AGENTS.md` offered), the rendered prompt, the seat home and pass layer (no connector), and the stamp. Codex's three built-in readers for connector resources stay in every session and reach nothing with no connector configured. The answer's own lines are checked too: the toolbelt read, and the outside skill blocked.
 
 ## Tests
 
@@ -59,4 +78,4 @@ Every pass is denied reading credentials, Sean's own `~/.codex/` (Codex's instal
 cd ~/Code-Brain/studios && uv run --no-project --with pytest python -m pytest motioncraft/launcher/tests -q
 ```
 
-The fence's Codex half runs through `codex sandbox`, the real Seatbelt policy (skipped where Codex is not installed); the context, both walls, the launch forms, the caps, the kill, the helper catch on both vendors, the machine check and the probe run against a fake `claude` and `codex` put first on `PATH`.
+The fence's Codex half runs through `codex sandbox`, the real Seatbelt policy (skipped where Codex is not installed); the context, both walls, the launch forms, the toolbelt copies and their hashes, the image doorway's refusals and filing, the probe's judgement, the caps, the kill, the helper catch on both vendors, the machine check and the probe run against a fake `claude` and `codex` put first on `PATH`, with a test allowlist naming fake skill sources.

@@ -58,7 +58,7 @@ A skill's output is raw material, never the artifact; installed skills are toolb
 - `shot-composition` (docs): framing, focal point, entries and exits on boards.
 - `beat-sync-editing` (docs): cut rhythm in the animatic.
 - `animation-vocabulary` (docs): Sean's plain words to the exact term, then the naming rulings.
-- `codex exec` with the imagegen skill (tested once, 2026-10-17): board roughs, as reference only, under the conditions in [the bench README](README.md#launch-forms).
+- The Codex image path, through [`launcher/image.py`](../launcher/image.py) only (tested once, 2026-10-17; through the doorway, 2026-10-19): board roughs, as reference only, under the conditions in [the bench README](README.md#launch-forms).
 - The animatic's sequencer: Blender's sequencer and Grease Pencil by Python (not tested for boards; Blender absent today), or a Resolve timeline of its own placed by script (Resolve scripting tested on #162; timeline placement docs only). The tool-ownership ticket rules which.
 - `watch` plugin (docs; judged sparse on #176): studying a reference film's staging.
 - `ffmpeg`, `ffprobe` (tested, #162): contact sheets, frame counts, the muted copy.

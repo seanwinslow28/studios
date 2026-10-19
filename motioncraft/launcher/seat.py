@@ -12,6 +12,9 @@
     seat.py launch <context.json> --prompt-file F [--output A] [--home ...] [--run]
                                                                  → <E>/trace/logs/pass-NN.{jsonl,stderr.log,launch.json}
     seat.py probe [--home ...]                                   → the Route entry's model check
+    seat.py toolbelt                                             → each seat's allowlisted skills, copied to
+                                                                   ~/.local/share/motioncraft/toolbelt/<seat>/
+    seat.py seat-probe [--seat S]... [--home ...] [--logs DIR]   → one probe pass per seat: only its toolbelt loads
     seat.py check [--home ...]                                   → this machine's preflight; exit 1 on any gap
 
 The coordinator runs these; no seat does. Written on the Motioncraft build map's
@@ -26,15 +29,23 @@ only new version folders in its own stage of the media project and new files in
 the engagement's `artifacts/`, and keeps every gate and audit read-only; and the
 machine check, since a pass launches on the machine its context was written on.
 Left with Devcraft: the guard hook, the git hooks, worktrees, the frozen diff and
-the release gate's evidence.
+the release gate's evidence. The per-seat launch forms were finished on the map's
+"Plugin allowlist and launch form for seat runs" ticket (2026-10-19): each seat's
+skills come only from bench/toolbelts.toml, copied per machine and fixed in the
+context by hash; every other skill folder is denied; a Codex pass gets the studios
+AGENTS.md and its skills by path in its prompt; the Director's and Art's Claude
+passes reach the Codex image path only through launcher/image.py; and seat-probe
+shows each seat loads only its toolbelt.
 """
 from __future__ import annotations
 
 import argparse
+import glob
 import hashlib
 import json
 import os
 import re
+import shutil
 import signal
 import socket
 import subprocess
@@ -42,6 +53,7 @@ import sys
 import tempfile
 import threading
 import time
+import tomllib
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -120,6 +132,25 @@ SCRATCH_ROOT = Path(os.path.expanduser(os.environ.get("MOTIONCRAFT_SCRATCH_ROOT"
 # The studio folders a Claude pass is given to read beside its engagement and media project.
 STUDIO_READS = ("bench", "lanes", "corpus", "templates")
 
+# --- the plugin allowlist (bench/toolbelts.toml) ---------------------------------------
+
+TOOLBELTS = Path(os.environ.get("MOTIONCRAFT_TOOLBELTS", str(MOTIONCRAFT / "bench" / "toolbelts.toml")))
+# This machine's copies of each seat's toolbelt, outside every repo; on Claude each is the seat's plugin.
+TOOLBELT_ROOT = Path(os.path.expanduser(os.environ.get("MOTIONCRAFT_TOOLBELT_ROOT", "~/.local/share/motioncraft/toolbelt")))
+# The Director's and Art's one way to the Codex image path, let out of the Claude sandbox by its own rule.
+IMAGE_DOOR = HERE / "image.py"
+# Every other place skills live on these Macs: no pass reads them, so a pass's skills are its toolbelt's.
+SKILL_ROOTS = tuple(str(HOME / p) for p in (
+    ".agents/skills", ".claude/skills", ".claude/plugins", "Library/Application Support/Claude",
+    ".codex-motioncraft/skills", ".codex-devcraft/skills",
+))
+# Commands no Claude pass runs: images come only through the doorway, and no other generator or uploader.
+CLAUDE_DENIED_COMMANDS = ("codex", "higgsfield", "nlm", "hyperframes")
+# Claude Code holds an ffmpeg or ffprobe call with a name=value argument (`stream=width`, `ebur128=peak=true`) for
+# an approval no one is there to give (live passes, 2026-10-19). An allow rule lets them run, still sandboxed, on a
+# pass with no way out of the sandbox; on the Director's and Art's, the same rule would let them out, so not there.
+CLAUDE_HELD_COMMANDS = ("ffmpeg", "ffprobe")
+
 
 def die(msg: str) -> None:
     sys.stderr.write(f"seat.py: {msg}\n")
@@ -160,6 +191,125 @@ def employer_paths() -> List[str]:
 
 def default_vendor(seat: str) -> str:
     return "codex" if seat in CODEX_DEFAULT else "claude"
+
+
+# --- the toolbelts ----------------------------------------------------------------------
+
+def toolbelts() -> Dict:
+    if not TOOLBELTS.is_file():
+        die(f"no plugin allowlist at {TOOLBELTS}")
+    return tomllib.loads(TOOLBELTS.read_text(encoding="utf-8"))
+
+
+def seat_belt(seat: str) -> Dict:
+    """A seat's allowlist line: its skills as (source, name), and whether it may call the image path."""
+    line = toolbelts().get("seats", {}).get(seat, {})
+    skills = [tuple(s.split(":", 1)) for s in line.get("skills", [])]
+    return {"skills": skills, "image": bool(line.get("image"))}
+
+
+def source_dir(source: str) -> Optional[Path]:
+    """Where a source's skills are on this machine: its path, or its glob's newest match."""
+    pattern = toolbelts().get("sources", {}).get(source)
+    if not pattern:
+        die(f"the allowlist names a source `{source}` its [sources] table does not")
+    hits = [Path(p) for p in glob.glob(os.path.expanduser(pattern)) if os.path.isdir(p)]
+    return max(hits, key=lambda p: p.stat().st_mtime) if hits else None
+
+
+def tree_sha(root: Path) -> str:
+    """One hash over a folder's files, by relative path and content, so any edit or added file changes it."""
+    h = hashlib.sha256()
+    for f in sorted(p for p in root.rglob("*") if p.is_file() and not ({"__pycache__", ".DS_Store"} & set(p.parts))):
+        h.update(str(f.relative_to(root)).encode() + b"\0" + f.read_bytes() + b"\0")
+    return h.hexdigest()
+
+
+def belt_dir(seat: str) -> Path:
+    return TOOLBELT_ROOT / seat
+
+
+def plugin_name(seat: str) -> str:
+    return f"motioncraft-{seat}"
+
+
+def build_belt(seat: str) -> List[str]:
+    """Copy a seat's skills into its toolbelt folder, as a Claude plugin with a manifest; the gaps."""
+    belt, gaps, rows = seat_belt(seat), [], []
+    if not belt["skills"]:
+        shutil.rmtree(belt_dir(seat), ignore_errors=True)
+        return gaps
+    tmp = TOOLBELT_ROOT / f".{seat}.building"
+    shutil.rmtree(tmp, ignore_errors=True)
+    (tmp / ".claude-plugin").mkdir(parents=True)
+    for source, name in belt["skills"]:
+        root = source_dir(source)
+        src = root / name if root else None
+        if not src or not (src / "SKILL.md").is_file():
+            gaps.append(f"{seat}: {source}:{name} is not on this machine")
+            continue
+        shutil.copytree(src, tmp / "skills" / name, symlinks=False, ignore=shutil.ignore_patterns("__pycache__", ".DS_Store"))
+        rows.append({"skill": name, "source": source, "from": str(src), "sha256": tree_sha(src)})
+    (tmp / ".claude-plugin" / "plugin.json").write_text(json.dumps({
+        "name": plugin_name(seat), "version": datetime.now().strftime("%Y.%m.%d"),
+        "description": f"Motioncraft's {seat} toolbelt, copied by seat.py toolbelt from bench/toolbelts.toml"}, indent=2) + "\n")
+    (tmp / "manifest.json").write_text(json.dumps({
+        "seat": seat, "built": now(), "machine": machine(), "allowlist_sha256": sha256(TOOLBELTS), "skills": rows}, indent=2) + "\n")
+    shutil.rmtree(belt_dir(seat), ignore_errors=True)
+    os.replace(tmp, belt_dir(seat))
+    return gaps
+
+
+def belt_gaps(seat: str) -> List[str]:
+    """Why a seat's toolbelt copy is not ready: not built, a skill missing or extra, or a source changed since."""
+    want = [n for _, n in seat_belt(seat)["skills"]]
+    if not want:
+        return []
+    man = belt_dir(seat) / "manifest.json"
+    if not man.is_file():
+        return [f"{seat}: no toolbelt copy (seat.py toolbelt)"]
+    rows = {r["skill"]: r for r in json.loads(man.read_text())["skills"]}
+    gaps = [f"{seat}: {n} is missing from its toolbelt copy (seat.py toolbelt)" for n in want if n not in rows]
+    gaps += [f"{seat}: its toolbelt copy holds {n}, which the allowlist does not name (seat.py toolbelt)"
+             for n in rows if n not in want]
+    for n, r in rows.items():
+        if Path(r["from"]).is_dir() and tree_sha(Path(r["from"])) != r["sha256"]:
+            gaps.append(f"{seat}: {n} changed at {r['from']} since its copy; read the change, then seat.py toolbelt")
+    return gaps
+
+
+def context_belt(seat: str, vendor: str, read_only: bool) -> Dict:
+    """The toolbelt a pass runs with, fixed in its context: the copy's skills by path, and its manifest's hash."""
+    gaps = belt_gaps(seat)
+    if gaps:
+        die("; ".join(gaps))
+    belt = seat_belt(seat)
+    skills = [{"skill": n, "path": str(belt_dir(seat) / "skills" / n / "SKILL.md")} for _, n in belt["skills"]]
+    return {"dir": str(belt_dir(seat)) if skills else "", "skills": skills,
+            "manifest_sha256": sha256(belt_dir(seat) / "manifest.json") if skills else "",
+            "image": belt["image"] and vendor == "claude" and not read_only}
+
+
+def app_env() -> Tuple[List[str], Dict[str, str]]:
+    """What every pass's environment carries for its applications: folders for PATH, and variables."""
+    env = dict(toolbelts().get("env", {}))
+    path = [os.path.expanduser(p) for p in env.pop("path", [])]
+    return path, {k: os.path.expanduser(str(v)) for k, v in env.items()}
+
+
+def cmd_toolbelt(a) -> None:
+    TOOLBELT_ROOT.mkdir(parents=True, exist_ok=True)
+    gaps = []
+    for s in SEATS + GATES:
+        found = build_belt(s)
+        gaps += found
+        for source, n in seat_belt(s)["skills"]:
+            if not any(f"{source}:{n} " in g for g in found):
+                print(f"{s}: {n}")
+    for g in gaps:
+        print(f"GAP: {g}")
+    print(f"toolbelts at {TOOLBELT_ROOT}: " + ("built" if not gaps else f"{len(gaps)} gap(s)"))
+    sys.exit(1 if gaps else 0)
 
 
 # --- the context ------------------------------------------------------------------------
@@ -223,6 +373,7 @@ def cmd_context(a) -> None:
     vendor, basis = context_vendor(a, eng, escalation)
     if a.host and vendor != "claude":
         die("a pass on Codex runs with the network off; --host is for a pass on Claude")
+    context_belt(a.seat, vendor, read_only)  # a toolbelt not ready stops here, before the scratch folder
     scratch = real(str(SCRATCH_ROOT / os.path.basename(eng) / f"pass-{a.pass_id}"))
     make_scratch(scratch)
     data = {
@@ -233,6 +384,7 @@ def cmd_context(a) -> None:
         "effort": a.effort or (CODEX_EFFORT if vendor == "codex" else ""), "escalation": escalation,
         "hosts": a.host, "scratch": scratch,
         "fence": fence(a.seat, eng, project, read_only, vendor, scratch),
+        "toolbelt": context_belt(a.seat, vendor, read_only),
     }
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(data, indent=2) + "\n")
@@ -416,10 +568,11 @@ def write_once(path: Path, text: str) -> None:
 
 
 def no_read(ctx: Dict) -> List[str]:
-    """Credentials, Sean's own Codex home, the employer folders and the engagement's other scratch folders."""
+    """Credentials, Sean's own Codex home, the employer folders, every skill folder but the pass's own
+    toolbelt copy, and the engagement's other scratch folders."""
     parent = Path(ctx["scratch"]).parent
     others = sorted(str(d) for d in parent.iterdir() if d.is_dir() and str(d) != ctx["scratch"]) if parent.is_dir() else []
-    return list(CREDENTIAL_PATHS) + list(SEAN_HOMES) + employer_paths() + others
+    return list(CREDENTIAL_PATHS) + list(SEAN_HOMES) + employer_paths() + list(SKILL_ROOTS) + others
 
 
 # --- a pass on Claude -------------------------------------------------------------------
@@ -441,9 +594,15 @@ def add_dirs(ctx: Dict) -> List[str]:
 
 
 def claude_reads(ctx: Dict) -> List[str]:
-    """What a Claude pass reads from outside its working folders: the job, and the studio and its law."""
+    """What a Claude pass reads from outside its working folders: the job, the studio and its law, and its toolbelt."""
     reads = [ctx["engagement"], ctx["media_project"], str(MOTIONCRAFT), str(STUDIOS / "craftwork")]
+    reads += [ctx["toolbelt"]["dir"]] * bool(ctx["toolbelt"]["dir"])
     return reads + [str(STUDIOS / "AGENTS.md")] * (STUDIOS / "AGENTS.md").exists()
+
+
+def image_rule(ctx: Dict) -> str:
+    """The one command a Director's or Art's pass may run outside the sandbox: the image doorway, for this pass."""
+    return f"Bash({IMAGE_DOOR} --context {ctx['source']}:*)"
 
 
 def claude_no_write(ctx: Dict) -> List[str]:
@@ -475,16 +634,23 @@ def claude_settings(ctx: Dict) -> Dict:
     for p in no_write:
         deny += rule("Edit", p)
     deny += [f"Bash({c}:*)" for c in ("sudo", "git push", "brew", "pipx", "crontab", "launchctl load", "launchctl bootstrap",
-                                       "launchctl enable", "gh", "npm publish", "security")]
+                                       "launchctl enable", "gh", "npm publish", "security", *CLAUDE_DENIED_COMMANDS)]
     deny += ["WebFetch", "WebSearch", *CLAUDE_HELPER_TOOLS]
     # Reads outside the working folders need a rule, or headless Read, Glob and Grep are refused there.
     allow = [r for p in claude_reads(ctx) for r in rule("Read", p)]
+    # The image doorway: the pass asks to run it outside the sandbox, and this rule is the only one that
+    # lets a command out. Every other command asking the same needs an approval no one is there to give.
+    door = ctx["toolbelt"]["image"]
+    if door:
+        allow.append(image_rule(ctx))
+    else:
+        allow += [f"Bash({c}:*)" for c in CLAUDE_HELD_COMMANDS]
     return {
         "permissions": {"allow": allow, "deny": sorted(set(deny)), "defaultMode": "acceptEdits",
                         "disableBypassPermissionsMode": "disable"},
         "sandbox": {
             "enabled": True, "failIfUnavailable": True, "autoAllowBashIfSandboxed": True,
-            "allowUnsandboxedCommands": False, "excludedCommands": [],
+            "allowUnsandboxedCommands": door, "excludedCommands": [],
             "filesystem": {"denyRead": sorted(set(reads)), "allowWrite": list(ctx["fence"]["write"]),
                            "denyWrite": sorted(set(no_write))},
             "network": {"allowedDomains": list(ctx["hosts"]), "strictAllowlist": True},
@@ -584,16 +750,16 @@ def number(v: float) -> str:
 def launch_argv(ctx: Dict, prompt: str, profile: str = "", output: str = "") -> List[str]:
     caps = ctx["caps"]
     if ctx["vendor"] == "claude":
-        # #197 fills each seat's plugin with links to exactly its toolbelt; with none, no skill loads.
-        plugin = MOTIONCRAFT / "bench" / "plugins" / ctx["seat"]
+        # The seat's plugin is its toolbelt copy (bench/toolbelts.toml); a seat or gate with none loads no skill.
+        plugin = ctx["toolbelt"]["dir"]
         # A read-only pass's Write reaches only its scratch folder: every other dir it sees is in its Edit denies.
         tools = "Read,Write,Bash,Glob,Grep,Skill" if ctx["read_only"] else "Read,Write,Edit,Bash,Glob,Grep,Skill"
         # stream-json: the live log the caps watch, and the per-message model stamps rung-0 line 11 reads
         argv = ["claude", "-p", "--output-format", "stream-json", "--verbose", "--model", CLAUDE_MODEL,
                 "--permission-mode", "acceptEdits", "--setting-sources", "", "--settings", str(wall_file(ctx)),
                 "--strict-mcp-config", "--tools", tools]
-        if plugin.is_dir():
-            argv += ["--plugin-dir", str(plugin)]
+        if plugin:
+            argv += ["--plugin-dir", plugin]
         agents = STUDIOS / "AGENTS.md"
         if agents.exists():
             argv += ["--append-system-prompt-file", str(agents)]
@@ -601,16 +767,53 @@ def launch_argv(ctx: Dict, prompt: str, profile: str = "", output: str = "") -> 
             argv += ["--add-dir", d]
         if "budget_usd" in caps:
             argv += ["--max-budget-usd", number(caps["budget_usd"])]
-        return argv + [prompt]
+        return argv + [claude_prompt(ctx, prompt)]
     return ["codex", "exec", "--json", "--model", CODEX_MODEL, "-c", f'model_reasoning_effort="{ctx["effort"]}"',
             "-p", profile, "--strict-config", "-c", 'web_search="disabled"', "--skip-git-repo-check",
-            "-C", ctx["media_project"], "-o", output, prompt]
+            "-C", ctx["media_project"], "-o", output, codex_prompt(ctx, prompt)]
+
+
+def claude_prompt(ctx: Dict, prompt: str) -> str:
+    """A Claude pass's prompt: the coordinator's, and for the Director and Art the one way to the image path."""
+    if not ctx["toolbelt"]["image"]:
+        return prompt
+    door = (f"The image path, for board roughs and style targets under the bench README's conditions: run "
+            f"`{IMAGE_DOOR} --context {ctx['source']} --out <your stage>/<version folder>/<name>.png "
+            "--prompt-file <a file you wrote> [--ref <an image in the media project>]...` with the Bash tool's "
+            "dangerouslyDisableSandbox set to true, alone, never chained. It is the only command that may run "
+            "outside the sandbox; it files the image and its prompt beside it, labelled generated. In this pass an "
+            "ffmpeg or ffprobe argument shaped name=value is held for an approval no one gives: put a filter in a file "
+            "and pass it with `-/vf <file>` or `-/af <file>`, and read stream facts with `-of json -show_streams`.")
+    return f"{prompt}\n\n---\n\n{door}"
+
+
+def codex_prompt(ctx: Dict, prompt: str) -> str:
+    """A Codex pass's prompt: the studios AGENTS.md and the toolbelt's skills by path, then the coordinator's.
+
+    Codex runs from the media project, where no AGENTS.md is found, and its seat home
+    lists no skill (`[skills] include_instructions = false`), so both go in here: the
+    same rules a Claude pass gets by flag, and the skills its plugin would carry.
+    """
+    parts = []
+    agents = STUDIOS / "AGENTS.md"
+    if agents.exists():
+        parts.append(f"The studios AGENTS.md, which binds this pass:\n\n{agents.read_text(encoding='utf-8').strip()}")
+    skills = ctx["toolbelt"]["skills"]
+    if skills:
+        lines = "\n".join(f"- `{s['skill']}`: {s['path']}" for s in skills)
+        parts.append("Your toolbelt's skills. Read a skill's SKILL.md by its path when its moment comes; "
+                     f"no other skill is yours.\n\n{lines}")
+    return "\n\n---\n\n".join(parts + [prompt])
 
 
 def scrubbed_env(ctx: Dict, home: Path) -> Dict[str, str]:
     env = {k: os.environ[k] for k in KEEP_ENV if k in os.environ}
     env["MOTIONCRAFT_CONTEXT"] = ctx["source"]
     env["MOTIONCRAFT_SEAT"] = ctx["seat"]
+    # The applications' own folders and variables (the allowlist's [env]); the pass's PATH starts from the launcher's.
+    path, apps = app_env()
+    env.update(apps)
+    env["PATH"] = ":".join([env.get("PATH", "")] + path).strip(":")
     # mktemp and Python's tempfile land in the one folder every pass may write
     env["TMPDIR"] = env["MOTIONCRAFT_SCRATCH"] = ctx["scratch"]
     if ctx["vendor"] == "codex":
@@ -792,6 +995,11 @@ def cmd_launch(a) -> None:
         link = home / f"{profile}.config.toml"
         if not link.is_symlink() or link.resolve() != wall.resolve():
             die(f"{link} does not link to {wall}; run seat.py codex-pass")
+    belt = ctx["toolbelt"]
+    if belt["dir"]:
+        man = Path(belt["dir"]) / "manifest.json"
+        if not man.is_file() or sha256(man) != belt["manifest_sha256"]:
+            die(f"{ctx['seat']}'s toolbelt copy changed since the context named it; a changed toolbelt is a new pass")
     for named in (ctx.get("escalation"), ctx.get("vendor_basis")):
         if named and named.get("path"):
             rec = eng / named["path"]
@@ -822,7 +1030,7 @@ def cmd_launch(a) -> None:
         "pass": pid, "seat": ctx["seat"], "vendor": vendor, "vendor_basis": ctx["vendor_basis"],
         "model": CLAUDE_MODEL if vendor == "claude" else CODEX_MODEL, "effort": ctx["effort"],
         "escalation": ctx["escalation"], "machine": machine(), "media": ctx["media"],
-        "argv": shown, "caps": ctx["caps"], "fence": ctx["fence"], **run,
+        "argv": shown, "caps": ctx["caps"], "fence": ctx["fence"], "toolbelt": ctx["toolbelt"], **run,
         "wall_files": [{"path": str(wall), "sha256": wall_sha}],
         "raw_log": rel(log), "stderr_log": rel(err), "scratch": ctx["scratch"],
     }
@@ -953,6 +1161,236 @@ def cmd_probe(a) -> None:
     sys.exit(0 if all(r["match"] for r in results) else 1)
 
 
+# --- the toolbelt probe: each seat loads only its toolbelt ------------------------------
+
+# A file every pass is denied, read once to show the skill folders' wall holds live.
+OUTSIDE_SKILL = HOME / ".agents" / "skills" / "animation-vocabulary" / "SKILL.md"
+SEAT_PROBE_PROMPT = (
+    "This is a launch-form probe: change no file, and answer in exactly three lines. "
+    "Line 1: the names of every tool you can call, comma-separated. "
+    "Line 2: for each skill you were given as your toolbelt (named in your prompt, or a skill you can load), read its "
+    "SKILL.md and print the value of its `name:` line, comma-separated; print `none` if you were given none. "
+    f"Line 3: try once to print the first line of {OUTSIDE_SKILL} with a shell command, and print READ if it worked "
+    "or BLOCKED if it did not.")
+
+
+def redact(text: str) -> str:
+    """Probe evidence goes to the ledger: the machine's employer folders never do."""
+    for p in employer_paths():
+        text = text.replace(p, "<employer folder>")
+    return text
+
+
+def claude_builtins(env: Dict[str, str]) -> Dict:
+    """Claude Code's own skills and plugins, from a bare run with nothing of the studio's or Sean's loaded.
+
+    They stay listed under every form (Devcraft's isolation finding), and some share
+    a name with one of Sean's skills, so a seat's skills are judged against this
+    baseline, not by name. Haiku, since the list does not depend on the model.
+    """
+    with tempfile.TemporaryDirectory(prefix="motioncraft-baseline-") as cwd:
+        r = run_probe(["claude", "-p", "--output-format", "stream-json", "--verbose", "--model", "claude-haiku-4-5",
+                       "--setting-sources", "", "--strict-mcp-config", "--tools", "", "--max-budget-usd", "0.05",
+                       "Reply ok."], cwd, env, None)
+    init = next((e for e in stream_events(r.stdout) if e.get("type") == "system" and e.get("subtype") == "init"), {})
+    if not init:
+        die("the built-in baseline run wrote no init line; the probe cannot tell built-in skills from loaded ones")
+    return {"skills": sorted(init.get("skills", [])),
+            "plugins": sorted(p.get("name", "") for p in init.get("plugins", [])),
+            "claude_code_version": init.get("claude_code_version")}
+
+
+def never_names() -> List[str]:
+    return [n.lower() for n in toolbelts().get("never", {}).get("names", [])]
+
+
+def probe_job(seat: str) -> Dict:
+    """A throwaway engagement and media project for one probe pass, and the context the launcher would write."""
+    base = Path(real(os.path.expanduser("~/.cache/motioncraft/probe"))) / f"{seat}-{datetime.now():%Y%m%d-%H%M%S}"
+    # The engagement folder's name keys its wall files and Codex profile, so each probe's is its own.
+    eng, project = base / f"probe-{base.name}", base / "media" / "probe-2026-10-19"
+    for d in ("artifacts", "audits", "trace/logs"):
+        (eng / d).mkdir(parents=True)
+    project.mkdir(parents=True)
+    vendor, read_only = default_vendor(seat), seat in GATES
+    scratch = real(str(SCRATCH_ROOT / f"probe-{base.name}" / "pass-00"))
+    make_scratch(scratch)
+    ctx = {"seat": seat, "engagement": str(eng), "pass": "00", "machine": machine(), "media": "probe",
+           "media_project": str(project), "read_only": read_only, "vendor": vendor, "vendor_basis": {"by": "probe"},
+           "caps": {"minutes": 10, **({"budget_usd": 1} if vendor == "claude" else {"tool_calls": 20})},
+           "effort": CODEX_EFFORT if vendor == "codex" else "", "escalation": None, "hosts": [], "scratch": scratch,
+           "fence": fence(seat, str(eng), str(project), read_only, vendor, scratch),
+           "toolbelt": context_belt(seat, vendor, read_only)}
+    src = eng / "trace" / "logs" / "pass-00.context.json"
+    src.write_text(json.dumps(ctx, indent=2) + "\n")
+    ctx["source"] = str(src)
+    return {"base": base, "ctx": ctx}
+
+
+def answer_lines(text: str) -> List[str]:
+    return [l.strip() for l in (text or "").strip().splitlines() if l.strip()][:3]
+
+
+def judge_claude(init: Dict, argv: List[str], seat: str, builtins: Dict) -> List[str]:
+    """What a Claude seat's first log line says it loaded, against its allowlist; one line per problem."""
+    bad = []
+    want_tools = sorted(argv[argv.index("--tools") + 1].split(","))
+    if sorted(init.get("tools", [])) != want_tools:
+        bad.append(f"tools {sorted(init.get('tools', []))}, not {want_tools}")
+    if init.get("mcp_servers"):
+        bad.append(f"connectors loaded: {[m.get('name') for m in init['mcp_servers']]}")
+    want = sorted(n for _, n in seat_belt(seat)["skills"])
+    plugins = sorted(p.get("name", "") for p in init.get("plugins", [])
+                     if p.get("path") != "builtin" or p.get("name") not in builtins["plugins"])
+    if plugins != ([plugin_name(seat)] if want else []):
+        bad.append(f"plugins {plugins}")
+    mine = f"{plugin_name(seat)}:"
+    skills = init.get("skills", [])
+    if sorted(s[len(mine):] for s in skills if s.startswith(mine)) != want:
+        bad.append(f"its toolbelt skills are {sorted(s for s in skills if s.startswith(mine))}, not {want}")
+    bad += [f"another plugin's skill loaded: {s}" for s in skills if ":" in s and not s.startswith(mine)]
+    bad += [f"a skill outside Claude Code's built-ins loaded: {s}" for s in skills
+            if ":" not in s and s not in builtins["skills"]]
+    names = init.get("tools", []) + skills + plugins + [m.get("name", "") for m in init.get("mcp_servers", [])]
+    bad += [f"a never-name loaded: {n}" for n in names for v in never_names() if v in n.lower()]
+    if init.get("model") != CLAUDE_MODEL:
+        bad.append(f"model {init.get('model')}")
+    return bad
+
+
+def judge_codex(state: Dict, rendered: str, answer: str, configs: str = "") -> List[str]:
+    """What a Codex pass's session file, rendered prompt and config files say was offered; one line per problem.
+
+    Codex's three built-in readers for connector resources (`list_mcp_resources` and
+    its kin) stay in every session and reach nothing when no connector is configured,
+    so connectors are judged from the seat home's config and the pass layer.
+    """
+    bad = []
+    if re.search(r"^\s*\[mcp_servers", configs, re.M):
+        bad.append("a connector is configured in the seat home or the pass layer")
+    for key, want in (("skills", {"includeInstructions": False}), ("host_skills", {"includeInstructions": False}),
+                      ("plugins_instructions", False), ("apps_instructions", False), ("agents_md", {})):
+        if state.get(key, want) != want:
+            bad.append(f"session state {key} = {state.get(key)!r}, not {want!r}")
+    for marker in ("Skill roots", "<skills_instructions>", "<apps_instructions>", "<plugins_instructions>"):
+        if marker in rendered:
+            bad.append(f"the rendered prompt carries {marker}")
+    lines = answer_lines(answer)
+    tools = lines[0].lower() if lines else ""
+    bad += [f"it names a tool it should not have: {t}" for t in ("image_gen", "imagegen", "web_search") if t in tools]
+    bad += [f"a never-name in its tools: {v}" for v in never_names() if v in tools]
+    return bad
+
+
+def codex_state(home: Path, thread: Optional[str]) -> Dict:
+    for f in (codexlog.find_sessions(home, thread) if thread else []):
+        for line in f.read_text(encoding="utf-8").splitlines():
+            try:
+                e = json.loads(line)
+            except ValueError:
+                continue
+            if e.get("type") == "world_state":
+                return e.get("payload", {}).get("state", {})
+    return {}
+
+
+def stream_events(text: str) -> List[Dict]:
+    out = []
+    for line in text.splitlines():
+        try:
+            e = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(e, dict):
+            out.append(e)
+    return out
+
+
+def probe_seat(seat: str, home: Path, logs: Optional[Path], builtins: Optional[Dict]) -> Dict:
+    """One probe pass on the seat's own vendor and launch form: what loaded, judged against its allowlist."""
+    job = probe_job(seat)
+    ctx = job["ctx"]
+    env = scrubbed_env(ctx, home)
+    belt = [s["skill"] for s in ctx["toolbelt"]["skills"]]
+    res = {"seat": seat, "vendor": ctx["vendor"], "toolbelt": belt, "image": ctx["toolbelt"]["image"]}
+    if ctx["vendor"] == "claude":
+        settings = claude_settings(ctx)
+        write_once(wall_file(ctx), json.dumps(settings, indent=2) + "\n")
+        argv = launch_argv(ctx, SEAT_PROBE_PROMPT)
+        r = run_probe(argv, ctx["scratch"], env, None)
+        events = stream_events(r.stdout)
+        init = next((e for e in events if e.get("type") == "system" and e.get("subtype") == "init"), {})
+        answer = next((str(e.get("result") or "") for e in events if e.get("type") == "result"), "")
+        res.update(tools=init.get("tools"), skills=init.get("skills"), mcp=init.get("mcp_servers"),
+                   plugins=[p.get("name") for p in init.get("plugins", [])],
+                   stamps=sorted(set(CLAUDE_STAMP.findall(r.stdout))),
+                   image_rule=image_rule(ctx) in settings["permissions"]["allow"],
+                   unsandboxed_allowed=settings["sandbox"]["allowUnsandboxedCommands"],
+                   problems=judge_claude(init, argv, seat, builtins) if init else ["no init line in the log"])
+    else:
+        write_once(wall_file(ctx), "\n".join(codex_layer(ctx)) + "\n")
+        link = home / f"{codex_profile(ctx)}.config.toml"
+        link.symlink_to(wall_file(ctx))
+        try:
+            argv = launch_argv(ctx, SEAT_PROBE_PROMPT, codex_profile(ctx), str(job["base"] / "answer.md"))
+            r = run_probe(argv, ctx["media_project"], env, None)
+            rendered = subprocess.run(["codex", "debug", "prompt-input"], cwd=ctx["media_project"], env=env,
+                                      stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=120).stdout
+        finally:
+            link.unlink()
+        events = stream_events(r.stdout)
+        answer = next((str(e["item"].get("text") or "") for e in reversed(events) if e.get("type") == "item.completed"
+                       and isinstance(e.get("item"), dict) and e["item"].get("type") == "agent_message"), "")
+        thread = codexlog.jsonl_thread(r.stdout)
+        state = codex_state(home, thread)
+        sessions = [codexlog.read_session(f.read_text(encoding="utf-8"), f.name)
+                    for f in (codexlog.find_sessions(home, thread) if thread else [])]
+        res.update(stamps=sorted({f"{m} {e}" for s in sessions if not s.helper for m, e in s.stamps}),
+                   helper_sessions=[s.path for s in sessions if s.helper],
+                   session_state={k: state.get(k) for k in ("skills", "host_skills", "plugins_instructions",
+                                                            "apps_instructions", "agents_md", "multi_agent_mode")},
+                   toolbelt_in_prompt=all(s["path"] in argv[-1] for s in ctx["toolbelt"]["skills"]),
+                   agents_md_in_prompt="The studios AGENTS.md" in argv[-1],
+                   problems=judge_codex(state, rendered, answer,
+                                        (home / "config.toml").read_text() + wall_file(ctx).read_text())
+                   if state else ["no session file for the pass"])
+    lines = answer_lines(answer)
+    res.update(answer=lines, exit=r.returncode)
+    if len(lines) < 3 or "BLOCKED" not in lines[2].upper():
+        res["problems"].append(f"the skill folders' wall: line 3 reads {lines[2] if len(lines) > 2 else 'nothing'!r}")
+    named = {n.strip().strip("`").lower() for n in lines[1].split(",")} if len(lines) > 1 else set()
+    if belt and not set(belt) <= named:
+        res["problems"].append(f"it could not read its own toolbelt: line 2 reads {lines[1] if len(lines) > 1 else 'nothing'!r}")
+    want_stamp = [CLAUDE_MODEL] if ctx["vendor"] == "claude" else [f"{CODEX_MODEL} {CODEX_EFFORT}"]
+    if res["stamps"] != want_stamp:
+        res["problems"].append(f"stamped {res['stamps']}, not {want_stamp}")
+    if logs is not None:
+        logs.mkdir(parents=True, exist_ok=True)
+        (logs / f"probe-{seat}.jsonl").write_text(redact(r.stdout))
+    shutil.rmtree(job["base"], ignore_errors=True)
+    shutil.rmtree(Path(ctx["scratch"]).parent, ignore_errors=True)
+    return res
+
+
+def cmd_seat_probe(a) -> None:
+    home = Path(os.path.expanduser(a.home))
+    logs = Path(a.logs) if a.logs else None
+    seats = a.seat or list(SEATS)
+    for s in seats:
+        if s not in SEATS + GATES:
+            die(f"unknown seat {s}")
+    env = {k: os.environ[k] for k in KEEP_ENV if k in os.environ}
+    builtins = claude_builtins(env) if any(default_vendor(s) == "claude" for s in seats) else None
+    results = [probe_seat(s, home, logs, builtins) for s in seats]
+    for r in results:
+        print(redact(json.dumps(r, indent=1)))
+    if logs is not None:
+        (logs / "seat-probe.json").write_text(redact(json.dumps({"builtins": builtins, "seats": results}, indent=2)) + "\n")
+    bad = [r["seat"] for r in results if r["problems"]]
+    print(f"seat probe on {machine()}, {now()}: " + ("each seat loads only its toolbelt" if not bad else f"PROBLEMS: {', '.join(bad)}"))
+    sys.exit(1 if bad else 0)
+
+
 # --- preflight --------------------------------------------------------------------------
 
 def cmd_check(a) -> None:
@@ -979,6 +1417,11 @@ def cmd_check(a) -> None:
         gaps += [f"the seat home leaves {f} on" for f in CODEX_FEATURES_OFF if f"{f} = false" not in text]
         if not (home / "auth.json").exists():
             gaps.append(f"the Codex seat home has no sign-in (CODEX_HOME={home} codex login)")
+    for s in SEATS + GATES:
+        gaps += belt_gaps(s)
+    path, apps = app_env()
+    gaps += [f"the allowlist's application path {p} is not on this machine" for p in path + list(apps.values())
+             if not os.path.exists(p)]
     for g in gaps:
         print(f"GAP: {g}")
     print(f"preflight on {machine()}: " + ("clean" if not gaps else f"{len(gaps)} gap(s)"))
@@ -1025,6 +1468,13 @@ def main() -> None:
     r.add_argument("--home", default=str(DEFAULT_HOME))
     r.add_argument("--logs", default="", help="a folder to keep each probe's raw log in, for the Route entry")
     r.set_defaults(fn=cmd_probe)
+    t = sub.add_parser("toolbelt", help="copy each seat's allowlisted skills into this machine's toolbelt folder")
+    t.set_defaults(fn=cmd_toolbelt)
+    q = sub.add_parser("seat-probe", help="one probe pass per seat on its own launch form: only its toolbelt loads")
+    q.add_argument("--seat", action="append", default=[], help="a seat or gate; repeat it; all four seats by default")
+    q.add_argument("--home", default=str(DEFAULT_HOME))
+    q.add_argument("--logs", default="", help="a folder for each probe's raw log (employer folders redacted)")
+    q.set_defaults(fn=cmd_seat_probe)
     k = sub.add_parser("check")
     k.add_argument("--home", default=str(DEFAULT_HOME))
     k.set_defaults(fn=cmd_check)

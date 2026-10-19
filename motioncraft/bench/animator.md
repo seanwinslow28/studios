@@ -54,7 +54,7 @@ As auditor of the **delivery package and check record**, before the technical ch
 
 ## Toolbelt
 
-A skill's output is raw material, never the artifact; installed skills are toolbelt, never canon. Codex reads `~/.agents/skills` but not the desktop skills, so the coordinator gives each skill by path; the paths are set on the plugin allowlist ticket. "Tested" means run in a recorded session; "docs" means only its instructions were read (plugin-routing brief).
+A skill's output is raw material, never the artifact; installed skills are toolbelt, never canon. Codex lists no skill in a seat run, so the launcher gives each skill by path, from this machine's copy of the seat's line in [`toolbelts.toml`](toolbelts.toml); the pass reads no other skill folder. "Tested" means run in a recorded session; "docs" means only its instructions were read (plugin-routing brief).
 
 - Blender's built-in Python, headless, Cycles CPU render (tested, #162: reopened renders matched pixel for pixel; Grease Pencil never run; Blender absent today): the editable scene, contact, settle, the turn through depth; Grease Pencil for changing silhouettes.
 - Resolve Fusion by `DaVinciResolveScript` (tested, #162: graph and renders, repeated save failures then recovery): Fusion part animation in an isolated project.

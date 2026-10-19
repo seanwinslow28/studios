@@ -1,0 +1,52 @@
+# The plugin allowlist for seat runs: the skills each seat's pass loads, and nothing else.
+#
+# Written on the Motioncraft build map's "Plugin allowlist and launch form for seat
+# runs" ticket (2026-10-19), from the seat files' toolbelts and the plugin-routing
+# brief. `seat.py toolbelt` copies each listed skill into this machine's toolbelt
+# folder (~/.local/share/motioncraft/toolbelt/<seat>/), outside every repo: on Claude
+# that folder is the seat's own plugin (`--plugin-dir`); on Codex the launcher names
+# each skill's path in the prompt. A copy, not a link, so a pass reads a fixed,
+# hashed copy and an edit upstream shows in `seat.py check` until the copy is rebuilt.
+# A seat or gate not listed here loads no skill. Change a line here only with the
+# seat file's toolbelt line, and only with Sean's yes for a new tool (bindings rule:
+# a tool Devcraft ships back joins a toolbelt only through this file).
+
+# Where each source's skills are found on a machine. A glob takes its newest match.
+[sources]
+agents = "~/.agents/skills"
+claude-desktop = "~/Library/Application Support/Claude/local-agent-mode-sessions/skills-plugin/*/*/skills"
+watch = "~/.claude/plugins/cache/claude-video/watch/*/skills"
+
+# `image = true`: the pass may call the Codex image path through `launcher/image.py`.
+# Only the Director and Art; only on Claude, and never on a read-only pass.
+[seats.visual-story-director]
+skills = ["agents:motion-art-direction", "agents:shot-composition", "agents:beat-sync-editing",
+          "agents:animation-vocabulary", "watch:watch"]
+image = true
+
+[seats.art-pose-designer]
+skills = ["claude-desktop:2d-animation-principles", "agents:shot-composition"]
+image = true
+
+[seats.animator]
+skills = ["claude-desktop:2d-animation-principles", "agents:animation-principles"]
+
+[seats.finishing-sound-designer]
+skills = ["agents:color-motion", "agents:beat-sync-editing"]
+
+# What every pass's environment carries for the two tested applications, since the
+# launcher scrubs the rest: Blender's folder joins PATH (`blender` is a shell alias
+# on these Macs, which a pass's shell never reads), and Resolve's scripting variables
+# as Blackmagic's scripting README sets them. A missing path is a gap in `seat.py check`.
+[env]
+path = ["/Applications/Blender.app/Contents/MacOS"]
+RESOLVE_SCRIPT_API = "/Library/Application Support/Blackmagic Design/DaVinci Resolve/Developer/Scripting"
+RESOLVE_SCRIPT_LIB = "/Applications/DaVinci Resolve/DaVinci Resolve.app/Contents/Libraries/Fusion/fusionscript.so"
+PYTHONPATH = "/Library/Application Support/Blackmagic Design/DaVinci Resolve/Developer/Scripting/Modules"
+
+# Names no seat's probe may show anywhere it lists a loaded skill, plugin, tool or
+# connector: the seat files' Never lines, as the plugin-routing brief named them.
+[never]
+names = ["higgsfield", "adobe", "hyperframes", "remotion", "creative-director", "animation-pipeline",
+         "gemini", "nanobanana", "notebooklm", "image-generator-prompt-science", "kinetic-typography",
+         "publish", "deploy", "tiktok"]
