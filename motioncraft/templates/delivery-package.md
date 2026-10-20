@@ -78,7 +78,15 @@ Every sound has a moment and a reason; silence is a choice and is planned too. T
 
 ## Mix
 
-The mix, by file and sha256, and the tool that made it (Fairlight by hand until a scripted path is tested).
+The mix is Resolve clip levels plus an ffmpeg filter file (limiter, fades, loudness to −23 LUFS), saved with the version so it repeats exactly; no seat mixes by hand.
+
+| What | Path | sha256 |
+|---|---|---|
+| The mixed sound | `media:…/finish/finish-vNN-<date>/<file>` | |
+| The filter file | `media:…/finish/finish-vNN-<date>/sources/<file>` | |
+| The command that ran it | pasted below | |
+
+Clip levels set in Resolve, by clip, and the filter command, pasted:
 
 ## Delivery package
 

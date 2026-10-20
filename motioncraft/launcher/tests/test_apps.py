@@ -340,6 +340,10 @@ def test_the_prompt_tells_a_seat_with_an_app_to_ask(env_of):
     assert "apps.py ask blender" in seatmod.codex_prompt(c, "work") and "ask blender --render" in seatmod.codex_prompt(c, "work")
     f = ctx_of(env_of, "finishing-sound-designer", "a7")
     assert "apps.py ask resolve" in seatmod.claude_prompt(f, "work") and "ask blender" not in seatmod.claude_prompt(f, "work")
+    assert "ask resolve" not in seatmod.codex_prompt(c, "work") and "sequencer" not in seatmod.codex_prompt(c, "work")
+    d = ctx_of(env_of, "visual-story-director", "a9b")
+    prompt = seatmod.claude_prompt(d, "work")
+    assert "ask blender --render" in prompt and "sequencer edit" in prompt and "`aud`" in prompt and "ask resolve" not in prompt
     g = ctx_of(env_of, "story-gate", "a8", "--anchor", "artifacts/story-packet.md")
     assert "apps.py" not in seatmod.codex_prompt(g, "work")
 
@@ -476,6 +480,95 @@ def test_grease_pencil_renders_only_through_the_render_request_and_repeats(env_o
     res, _ = ask_render(srv, blend, scratch / "preview", frames=(1, 1), engine="eevee")
     assert res["ok"], Path(res["log"]).read_text()[-2000:]
     assert (scratch / "preview" / "frame-0001.png").stat().st_size > 0
+    os.close(srv.fd)
+
+
+# The Director's animatic: two boards cut in Blender's sequencer over a scratch timing track whose clicks (frames 1, 13
+# and 37) and hit (from frame 25, the cut) the seat's script writes with Blender's own sound module, `aud`; the output
+# a movie with sound. Ruled on the build map's "Tool ownership" ticket (2026-10-20): the animatic stays in Blender.
+ANIMATIC_SCENE = r'''
+import bpy, aud, os, sys
+out = sys.argv[sys.argv.index("--") + 1]
+os.makedirs(os.path.join(out, "boards"), exist_ok=True)
+s = bpy.context.scene
+s.render.fps, s.render.fps_base, s.frame_start, s.frame_end = 24, 1, 1, 48
+s.render.resolution_x, s.render.resolution_y, s.render.resolution_percentage = 160, 90, 100
+boards = []
+for i, rgb in enumerate(((0.9, 0.85, 0.7), (0.2, 0.3, 0.5)), 1):
+    img = bpy.data.images.new(f"board-{i:02d}", 160, 90)
+    px = []
+    for y in range(90):
+        for x in range(160):
+            px += [0.05, 0.05, 0.05, 1.0] if abs(x - 80 + (i - 1) * 30) < 4 and abs(y - 45) < 20 else [*rgb, 1.0]
+    img.pixels = px
+    img.filepath_raw, img.file_format = os.path.join(out, "boards", f"board-{i:02d}.png"), "PNG"
+    img.save()
+    boards.append(img.filepath_raw)
+click = aud.Sound.sine(1000, 48000).limit(0, 0.04).volume(0.5)
+track = aud.Sound.silence(48000).limit(0, 2.0)
+for f in (1, 13, 37):
+    track = track.mix(click.delay((f - 1) / 24))
+track = track.mix(aud.Sound.sine(440, 48000).limit(0, 0.25).volume(0.5).delay(24 / 24)).limit(0, 2.0)
+wav = os.path.join(out, "timing-track.wav")
+track.write(wav, 48000, aud.CHANNELS_MONO, aud.FORMAT_S16, aud.CONTAINER_WAV, aud.CODEC_PCM, 0, 1024)
+se = s.sequence_editor_create()
+se.strips.new_image("SH1", boards[0], 2, 1, fit_method="FIT").frame_final_duration = 24
+se.strips.new_image("SH2", boards[1], 2, 25, fit_method="FIT").frame_final_duration = 24
+se.strips.new_sound("timing track (scratch)", wav, 1, 1)
+r = s.render
+r.use_sequencer, r.image_settings.media_type, r.image_settings.file_format = True, "VIDEO", "FFMPEG"
+r.ffmpeg.format, r.ffmpeg.codec, r.ffmpeg.constant_rate_factor = "MPEG4", "H264", "HIGH"
+r.ffmpeg.audio_codec, r.ffmpeg.audio_mixrate, r.ffmpeg.audio_channels = "AAC", 48000, "MONO"
+bpy.ops.wm.save_as_mainfile(filepath=os.path.join(out, "animatic.blend"))
+print("SAVED", [x.name for x in se.strips])
+'''
+
+
+def stream_md5(movie: Path, stream: str) -> list:
+    """Decoded frames of one stream, `v` as RGB pixels or `a` as samples: TC5 compares these, never file checksums."""
+    r = subprocess.run(["ffmpeg", "-v", "error", "-i", str(movie), "-map", f"0:{stream}",
+                        *(["-pix_fmt", "rgb24"] if stream == "v" else []), "-f", "framemd5", "-"],
+                       capture_output=True, text=True, check=True)
+    return [l.split(",")[-1].strip() for l in r.stdout.splitlines() if not l.startswith("#")]
+
+
+def sounding_frames(movie: Path, fps: int = 24, rate: int = 48000) -> list:
+    """The frames, from 1, whose decoded sound rises above a tenth of full scale."""
+    import array
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(movie), "-map", "0:a", "-ac", "1", "-ar", str(rate),
+                          "-f", "s16le", "-"], capture_output=True, check=True).stdout
+    a, n = array.array("h", raw), rate // fps
+    return [i // n + 1 for i in range(0, len(a), n) if max(abs(x) for x in a[i:i + n]) > 3277]
+
+
+@pytest.mark.skipif(not HAVE_BLENDER, reason="Blender is not installed on this machine")
+def test_the_directors_sequencer_animatic_renders_through_the_render_request_and_repeats(env_of):
+    srv, c = server(env_of, "visual-story-director", "r5")
+    scratch, v01 = Path(c["scratch"]), env_of["project"] / "story" / "animatic-v01-2026-10-20"
+    build = scratch / "animatic.py"
+    build.write_text(ANIMATIC_SCENE)
+    res, _ = ask(srv, "blender", build, str(v01))
+    assert res["ok"], Path(res["log"]).read_text()[-2000:]
+    assert (v01 / "timing-track.wav").stat().st_size > 190_000, "two seconds of tones and silence, written by aud"
+    res, entry = ask_render(srv, v01 / "animatic.blend", v01 / "render", frames=(1, 48))
+    log = Path(res["log"]).read_text()
+    assert res["ok"], log[-2000:]
+    assert "MOTIONCRAFT_RENDER done CYCLES 1 48" in log and "--disable-autoexec" in entry["argv"]
+    movie = v01 / "render" / "frame-0001-0048.mp4"
+    assert [p.name for p in (v01 / "render").iterdir()] == [movie.name], "one movie file, with its sound"
+    assert all(str(p).startswith(str(v01)) for p in res["new_or_changed_in_fence"]), "only the new version folder"
+    if subprocess.run(["which", "ffmpeg"], capture_output=True).returncode != 0:
+        os.close(srv.fd)
+        return
+    video, audio = stream_md5(movie, "v"), stream_md5(movie, "a")
+    assert len(video) == 48 and audio, "48 frames at 24 fps, and a sound stream"
+    beats = sounding_frames(movie)
+    assert {1, 13, 25, 37} <= set(beats) and not set(beats) & {2, 12, 20, 36, 40}, beats
+    # TC5: the same file rendered again in a fresh Blender gives the same pixels and the same samples
+    res, _ = ask_render(srv, v01 / "animatic.blend", scratch / "again", frames=(1, 48))
+    assert res["ok"]
+    again = scratch / "again" / movie.name
+    assert stream_md5(again, "v") == video and stream_md5(again, "a") == audio
     os.close(srv.fd)
 
 

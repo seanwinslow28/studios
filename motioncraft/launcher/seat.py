@@ -845,6 +845,12 @@ def apps_note(ctx: Dict) -> str:
                      "<a folder> --frames S-E [--engine cycles|eevee|workbench]`, which renders it with the launcher's own "
                      "script (Cycles on the CPU; scripts inside the file never run); a kept render is cycles into a new "
                      "version folder in your stage, and eevee or workbench render only into your scratch folder, as previews")
+        if ctx["seat"] == "visual-story-director":
+            usage.append("your animatic is a sequencer edit in a .blend of your own in your stage: the boards as image "
+                         "strips, the scratch timing track as a sound strip whose tones and silence your script writes with "
+                         "Blender's own sound module (`aud`), and the file's output set to a movie with sound (FFmpeg, H.264 "
+                         "with AAC) before it is saved; it renders through the render request like any scene, cycles into a "
+                         "new version folder, as one movie file")
     if "resolve" in apps:
         usage.append(f"`python3 -B {APPS_DOOR} ask resolve --script <a .py you wrote> [-- <the script's arguments>]` "
                      "runs your script with `DaVinciResolveScript` importable, connected to the Resolve already open on "

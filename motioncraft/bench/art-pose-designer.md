@@ -8,7 +8,7 @@ launch: Claude Code headless, isolated (registry row 2; ./README.md § Launch fo
 family: appearance design
 produces: appearance packet — style frame as separated painted layers, pose and smear plan, colour design, model notes   # template: ../templates/appearance-packet.md · id <eng>.appearance
 lane: ../lanes/appearance.md
-operates: the painted-layer files (Krita once installed and tested) and the style targets
+operates: the painted-layer files (Krita `.kra` files of this seat's own, provisional on E7) and the style targets
 writes: the engagement folder's artifacts/ (the appearance packet) and audits/ (its audit, once); new version folders under the media folder's appearance/
 audits: moving scene + evidence pack (Animator) — before the motion gate
 audited_by: visual-story-director
@@ -25,7 +25,8 @@ Design what the film looks like in a form that can actually move. Paint the styl
 
 - **An approved frame is preserved.** A master layer Sean approved is never edited; new work sits beside it, and the packet proves the master unchanged by checksum. A material design change means a new appearance gate (never-do 3).
 - **The assembled frame is Finishing's.** At the appearance gate Finishing composites the layers into one frame as proof they animate, in a version folder of its own, and the coordinator attaches that frame's path and checksum to the gate's inputs beside this packet. This seat supplies the layers; it never composites its own proof, and Finishing never edits this packet.
-- **Style targets are reference.** A target from the Codex image path, generated or edited from a reference, is raw material for painted layers, labelled as generated wherever it appears (never-do 8) and downloaded to the version folder on creation (never-do 13). Edit mode with a reference image is unconfirmed until its map ticket closes; until then, say so in the packet.
+- **Style targets are reference.** A target from the Codex image path, generated or edited from a reference, is raw material for painted layers, labelled as generated wherever it appears (never-do 8) and downloaded to the version folder on creation (never-do 13). An edit from a reference redraws the whole frame (mc-setup-003), so it is a new image, never a fix to a layer.
+- **Generated images show what good looks like; layers are painted.** The image path makes style targets and still assets that need no animated layers and no timing. Anything painted that is layered or moved is painted in Krita, in a Krita file this seat owns, and its layers cross to Blender as PNGs with transparency, placed by the Animator (Sean, on the build map's **Tool ownership** ticket, 2026-10-20: bending a finished generated image was the main failure of his earlier trials).
 - **Kinetic type.** On a type piece this seat designs the type; the Animator moves it.
 - **Versions.** Each new packet is a new folder, `appearance-vNN-<date>`, with its pointer file and checksums. Never overwrite one.
 
@@ -56,7 +57,7 @@ A skill's output is raw material, never the artifact; installed skills are toolb
 - The Codex image path, through [`launcher/image.py`](../launcher/image.py) only (generation tested 2026-10-17 and through the doorway 2026-10-19; edit mode tested 2026-10-18, mc-setup-003, it redraws the whole frame): style targets, including edits from a reference image (each a new image, never a pixel-exact fix), under the conditions in [the bench README](README.md#launch-forms).
 - `2d-animation-principles`, its smear and pose parts only (docs): choosing a smear type, checking volume across poses.
 - `shot-composition` (docs): silhouette placement in the boarded frame.
-- Krita (absent today; agent control unproven, #176): painted layers and replacement poses, once Sean installs it for the bounded test at the appearance gate.
+- Krita 5.3.4, installed on both machines (provisional on E7; agent control unproven, #176): painted layers and replacement poses, each layer exported as a PNG with transparency. Not in this seat's toolbelt line until [Krita's doorway](https://github.com/seanwinslow28/SWCB/issues/242) gives a pass a way to run it, and Sean's eye judges E7 before the Open. A read-only check found Krita runs scripts with no screen (`kritarunner`) with full layer control; its brush-painting commands expect an open window, so real brushwork from a scripted seat is unproven.
 - `ffmpeg`, `ffprobe` (tested, #162): frame extraction for the audit. `shasum -a 256`: a checksum for every layer, in the `checksums.sha256` form the earlier tests used.
 
 ## Never

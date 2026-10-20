@@ -51,7 +51,7 @@ Last on the path, in the order the book-to-seat brief set. Grease Pencil was rew
 - **Grease Pencil 4.3 and later** — [`grease-pencil-4-3-and-later.md`](../corpus/guides/grease-pencil-4-3-and-later.md) — owned: the introduction, draw mode, layers and onion skinning, animation and interpolation, the dope sheet, then the Noise and Time Offset modifiers, in that order; the Python reference last, read on the page (its licence is unconfirmed, so it is read-only).
 - **Grease Pencil by script in Blender 5.2** — [`grease-pencil-by-script-5-2.md`](../corpus/guides/grease-pencil-by-script-5-2.md) — owned: before every Grease Pencil script; the pre-4.3 names beside their 5.2 replacements, drawings, strokes and points, thickness and opacity, materials, layers and groups, one drawing per key, Noise and Time Offset for line boil. A Grease Pencil scene is saved by the seat's script and rendered by the doorway's render request (`ask blender --render`), never by the seat's own script.
 - **The scene by script for a painted 2D film** — [`the-scene-by-script.md`](../corpus/guides/the-scene-by-script.md) — owned: before every scene; keys and easing from the timing chart, on twos, squash and stretch with volume kept, layered image planes under a moving camera, layering and blending in Blender since Resolve cannot keyframe, and frame-repeatable CPU renders at 24 fps with the TC5 comparison. In place of the dropped "Compositing in Fusion".
-- Blender's built-in Python, `DaVinciResolveScript`, `ffmpeg` and `ffprobe` are toolbelt ([seat file](../bench/animator.md#toolbelt)), not corpus.
+- Blender's built-in Python, `ffmpeg` and `ffprobe` are toolbelt ([seat file](../bench/animator.md#toolbelt)), not corpus.
 
 ## Audit duty: the delivery package and check record
 

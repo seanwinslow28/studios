@@ -69,7 +69,7 @@ The boards played as a timed film over scratch sound, at the working frame rate.
 
 **Playback, full speed, with scratch sound:** `media:…/story/animatic-vNN-<date>/animatic.<ext>` · sha256 `<sha256>`
 **Muted copy:** `media:…/story/animatic-vNN-<date>/animatic-muted.<ext>` · sha256 `<sha256>`
-**Sequencer project:** the application, the project file, sha256 `<sha256>`. It is this seat's own project, never Finishing's delivery project.
+**Sequencer project:** Blender's sequencer, `media:…/story/animatic-vNN-<date>/sources/animatic.blend` · sha256 `<sha256>`, rendered through the doorway's render request (the call's id). It is this seat's own file, never Finishing's delivery project and never the Animator's scene.
 
 **Panel list in frames:**
 
@@ -79,7 +79,13 @@ The boards played as a timed film over scratch sound, at the working frame rate.
 
 The frame counts sum to `total_frames:` in the header. A mismatch is a technical fail in this packet before anything else is read.
 
-**Scratch sound:** what it is, where it came from, and that it is scratch, marked so it never reaches the delivery file.
+**Scratch sound:** the scratch timing track, made in the sequencer file by Blender's own sound module: tones, clicks and silence marking beats, hits and where music swells, at which frames. Labelled scratch, so it never reaches the delivery file; no generated sound and no spend. Sound the seat cannot make there is for Finishing, after Sean approves the cue list.
+
+| Mark | Frame | What it marks | Tone, click or silence |
+|---|---|---|---|
+| T<n> | | beat \| hit \| swell | |
+
+**Sean's guide recording:** `none`, or his own hummed or spoken guide, by path and sha256, counted as his own recording and placed on its own strip.
 
 **Muted reading:** one sentence on what the muted copy reads as, start to finish. The story reads with the sound off, or this sentence says where it does not.
 

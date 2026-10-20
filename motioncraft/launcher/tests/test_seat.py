@@ -68,12 +68,13 @@ desk = "{root}/skills/desk/*/*"
 [seats.visual-story-director]
 skills = ["agents:shot-composition"]
 image = true
+apps = ["blender"]
 [seats.art-pose-designer]
 skills = ["desk:2d-animation-principles", "agents:shot-composition"]
 image = true
 [seats.animator]
 skills = ["desk:2d-animation-principles", "agents:animation-principles"]
-apps = ["blender", "resolve"]
+apps = ["blender"]
 [seats.finishing-sound-designer]
 apps = ["resolve"]
 sound = true
@@ -738,7 +739,9 @@ def test_the_context_fixes_the_toolbelt(world):
     assert ctx_data(context(world, "visual-story-director", "t3", "--read-only"))["toolbelt"]["image"] is False
     assert ctx_data(context(world, "story-gate", "t4", *CLAUDE_ANCHOR))["toolbelt"] == {
         "dir": "", "skills": [], "manifest_sha256": "", "image": False, "sound": False, "apps": []}
-    assert data["toolbelt"]["apps"] == ["blender", "resolve"], "the Animator's apps, through the doorway"
+    assert data["toolbelt"]["apps"] == ["blender"], "the Animator's app, through the doorway"
+    assert ctx_data(context(world, "visual-story-director", "t2b"))["toolbelt"]["apps"] == ["blender"], "the animatic's sequencer"
+    assert ctx_data(context(world, "art-pose-designer", "t2c"))["toolbelt"]["apps"] == []
     assert ctx_data(context(world, "animator", "t5b", "--read-only"))["toolbelt"]["apps"] == [], "an audit runs no app"
 
 

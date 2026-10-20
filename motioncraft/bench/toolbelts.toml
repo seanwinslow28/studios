@@ -26,6 +26,7 @@ watch = "~/.claude/plugins/cache/claude-video/watch/*/skills"
 skills = ["agents:motion-art-direction", "agents:shot-composition", "agents:beat-sync-editing",
           "agents:animation-vocabulary", "watch:watch"]
 image = true
+apps = ["blender"]
 
 [seats.art-pose-designer]
 skills = ["claude-desktop:2d-animation-principles", "agents:shot-composition"]
@@ -33,7 +34,7 @@ image = true
 
 [seats.animator]
 skills = ["claude-desktop:2d-animation-principles", "agents:animation-principles"]
-apps = ["blender", "resolve"]
+apps = ["blender"]
 
 [seats.finishing-sound-designer]
 skills = ["agents:color-motion", "agents:beat-sync-editing"]
@@ -41,10 +42,11 @@ apps = ["resolve"]
 sound = true
 
 # `apps`: the applications a seat's drafting pass may run through the application
-# doorway (`launcher/apps.py`), on either vendor: the Animator's Blender scene,
-# Finishing's delivery project. Fusion is closed for every seat (2026-10-19), so the
-# Animator's `resolve` line has no work until a Fusion slice opens. The Director's
-# animatic sequencer joins here once the tool-ownership ticket names its application.
+# doorway (`launcher/apps.py`), on either vendor: the Director's animatic, in Blender's
+# sequencer; the Animator's Blender scene; Finishing's delivery project. Each pass
+# writes only its own stage, so two seats on Blender each work in their own files
+# (rule 5; the map's "Tool ownership" ticket, 2026-10-20, which also dropped the
+# Animator's `resolve` line: its renders cross to Finishing as files).
 # The paths below are what the doorway's locks run; a missing one is a gap in `seat.py check`.
 [apps]
 blender = "/Applications/Blender.app/Contents/MacOS/Blender"

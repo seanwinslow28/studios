@@ -4,10 +4,12 @@ Four specialist seats, run as a **sequential pipeline with full artifact context
 
 | # | Seat | Produces | Baseline | Operates | Audits |
 |---|---|---|---|---|---|
-| 1 | [Visual Story Director](visual-story-director.md) | Story packet: treatment, beat sheet, boards, timed animatic with scratch sound, shot list | Opus 5.5, Claude Code | the boards and the animatic's sequencer project | Appearance packet (Art) |
-| 2 | [Art and Pose Designer](art-pose-designer.md) | Appearance packet: style frame as separated painted layers, pose and smear plan, colour design, model notes | Opus 5.5, Claude Code | the painted-layer files (Krita once installed) and the style targets | Moving scene + evidence pack (Animator) |
-| 3 | [Animator](animator.md) | Moving scene + evidence pack | Codex GPT-6.1 Sol High | the scene: Blender, by script; Fusion closed | Delivery package + check record (Finishing) |
-| 4 | [Finishing and Sound Designer](finishing-sound-designer.md) | Conformed cut, composite, grade, sound plan and mix, delivery package, check record | Opus 5.5, Claude Code | the Resolve delivery project | Story packet (Director) |
+| 1 | [Visual Story Director](visual-story-director.md) | Story packet: treatment, beat sheet, boards, timed animatic with scratch sound, shot list | Opus 5.5, Claude Code | the boards; the animatic, in Blender's sequencer, its own file | Appearance packet (Art) |
+| 2 | [Art and Pose Designer](art-pose-designer.md) | Appearance packet: style frame as separated painted layers, pose and smear plan, colour design, model notes | Opus 5.5, Claude Code | the painted-layer files (Krita, provisional on E7) and the style targets | Moving scene + evidence pack (Animator) |
+| 3 | [Animator](animator.md) | Moving scene + evidence pack | Codex GPT-6.1 Sol High | the scene: Blender only, by script; Fusion closed | Delivery package + check record (Finishing) |
+| 4 | [Finishing and Sound Designer](finishing-sound-designer.md) | Conformed cut, composite, grade, sound plan and mix, delivery package, check record | Opus 5.5, Claude Code | the Resolve delivery project and the mix's filter file | Story packet (Director) |
+
+**One seat writes each file** (rule 5, as the build map's **Tool ownership** ticket read it, 2026-10-20): two seats may use one program only in their own files. The Director and the Animator both run Blender, each only in its own stage; the Director and Art both call the image path, each into its own version folders. The Open names who owns which.
 
 **One closed audit cycle: Director → Art → Animator → Finishing → Director**, the arrow reading "audits". Every audit is a fresh-context invocation over artifacts only, on the auditor's own baseline. The Director audits Art's packet against the boards' staging; Art audits the moving scene for identity, volume and designed silhouettes; the Animator audits the finished cut for the contact frames and holds that survived it; Finishing audits the animatic for pace, room for sound and buildability. In the only other cycle that keeps the Director auditing Art, Finishing would audit the moving test it then composites and the Animator the animatic it then animates; this one gives no seat a lever over the artifact that judges its own work. No seat co-signs.
 

@@ -8,7 +8,7 @@ launch: Claude Code headless, isolated (registry row 2; ./README.md § Launch fo
 family: story and staging
 produces: story packet — treatment, beat sheet, boards, timed animatic with scratch sound, shot list   # template: ../templates/story-packet.md · id <eng>.story
 lane: ../lanes/story.md
-operates: the boards and the animatic's sequencer project (which application is the tool-ownership ticket's call; never Finishing's delivery project)
+operates: the boards and the animatic's sequencer project, a Blender file of this seat's own (never Finishing's delivery project, never the Animator's scene)
 writes: the engagement folder's artifacts/ (the story packet) and audits/ (its audit, once); new version folders under the media folder's story/
 audits: appearance packet (Art and Pose Designer) — before the appearance gate
 audited_by: finishing-sound-designer
@@ -25,6 +25,7 @@ Turn the brief into a film that reads before anything moves. Break the idea into
 
 - **Words are Sean's.** Until Scriptcraft exists, every on-screen or spoken word is Sean's; a placeholder is marked as one and never shipped (never-do 10). A word change this seat needs goes back on the brief's return line, never rewritten here. A locked script from Scriptcraft is taken in, and answered one line per script id, on [the Scriptcraft return](../templates/handoff-return-scriptcraft.md); the interim words rule is [`motioncraft/CLAUDE.md`](../CLAUDE.md), rule 8.
 - **The cut is this seat's.** The animatic carries every duration and every cut. When Finishing's audit or a gate finds a cut that does not work, this seat repairs the animatic; Finishing never re-cuts on its own judgement.
+- **Scratch sound is a timing track.** The animatic's sound is tones, clicks and silence this seat makes in its own Blender file with Blender's sound module, marking beats, hits and where music swells, labelled scratch in the packet so it never reaches the delivery file. No generated sound and no spend. Sean may hand over his own hummed or spoken guide, counted as his own recording. Real sound is Finishing's alone, after Sean approves the cue list (the build map's **Tool ownership** ticket, 2026-10-20).
 - **Board roughs are reference.** A rough from the Codex image path is raw material for a drawn board, labelled as generated wherever it appears (never-do 8), downloaded to the version folder on creation (never-do 13).
 - **Versions.** Each new board set or animatic is a new folder, `animatic-vNN-<date>` or the template's name for it, with its pointer file and checksums. Never overwrite one.
 - **What reaches Sean** carries each version's id, its status and his prior note on it (never-do 14).
@@ -59,7 +60,7 @@ A skill's output is raw material, never the artifact; installed skills are toolb
 - `beat-sync-editing` (docs): cut rhythm in the animatic.
 - `animation-vocabulary` (docs): Sean's plain words to the exact term, then the naming rulings.
 - The Codex image path, through [`launcher/image.py`](../launcher/image.py) only (tested once, 2026-10-17; through the doorway, 2026-10-19): board roughs, as reference only, under the conditions in [the bench README](README.md#launch-forms).
-- The animatic's sequencer: Blender's sequencer and Grease Pencil by Python (not tested for boards; Blender absent today), or a Resolve timeline of its own placed by script (Resolve scripting tested on #162; timeline placement docs only). The tool-ownership ticket rules which.
+- Blender 5.2.2 LTS, its sequencer and sound module by Python, through the application doorway only, `apps.py ask blender` (ruled on the build map's **Tool ownership** ticket, 2026-10-20; tested on **Bench changes from the tool-ownership ruling**, mc-setup-015: a two-board edit over a timing track written with `aud` rendered through the render request into a new version folder as one H.264 movie with AAC sound, and a second render decoded to the same pixels and samples): the animatic, in a `.blend` of this seat's own in its stage. The boards are image strips, the timing track a sound strip, and the file's output is set to a movie with sound before it is saved; the seat's script builds and saves it, and the render request renders it, `cycles` into a new version folder. Grease Pencil draw mode for a board is untested. The Storytools add-on is named, not installed.
 - `watch` plugin (docs; judged sparse on #176): studying a reference film's staging.
 - `ffmpeg`, `ffprobe` (tested, #162): contact sheets, frame counts, the muted copy.
 

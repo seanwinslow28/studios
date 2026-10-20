@@ -47,11 +47,10 @@ Not yet written, so a topic for `thin_lane:` until it exists: **Shot size, direc
 
 ## Application
 
-Last on the path. Which application hosts the animatic (Blender's sequencer, or a Resolve timeline of this seat's own) is the tool-ownership ticket's call, and Blender's install is Sean's decision on its own ticket. Until both close, the chapters are named, not operated.
+Last on the path. The animatic lives in Blender's sequencer, in a file of this seat's own, with its scratch timing track made there by Blender's sound module (Sean, on the build map's **Tool ownership** ticket, 2026-10-20); it renders through the doorway's render request, tested on mc-setup-015. Blender 5.2.2 LTS is on both machines.
 
 - **Grease Pencil 4.3 and later** — [`grease-pencil-4-3-and-later.md`](../corpus/guides/grease-pencil-4-3-and-later.md) — the tool guide, read for drawn boards and the animatic's drawn panels: drawing keys, holds, onion skins.
-- **Blender's sequencer chapters, with the storyboarding template, then Grease Pencil draw mode** — no guide; the manual is open (CC BY-SA 4.0) and not ingested, so it is read on the page — the timed boards and the scratch track, if the animatic lives in Blender.
-- **A Resolve timeline placed by script** — the conform section of the Resolve guide above — if the animatic lives in Resolve instead.
+- **Blender's sequencer chapters, with the storyboarding template, then Grease Pencil draw mode** — no guide; the manual is open (CC BY-SA 4.0) and not ingested, so it is read on the page — the timed boards and the scratch timing track; the sound module (`aud`) is read in Blender's Python API pages.
 - `ffmpeg` and `ffprobe` for contact sheets, frame counts and the muted copy are toolbelt ([seat file](../bench/visual-story-director.md#toolbelt)), not corpus.
 
 ## Audit duty: the appearance packet

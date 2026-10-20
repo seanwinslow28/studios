@@ -8,7 +8,7 @@ launch: Claude Code headless, isolated (registry row 2; ./README.md § Launch fo
 family: finishing
 produces: conformed cut, composite, grade, sound plan and mix, delivery package, check record   # template: ../templates/delivery-package.md · id <eng>.finish
 lane: ../lanes/finishing.md
-operates: the Resolve delivery project (edit, colour, Fairlight, deliver)
+operates: the Resolve delivery project (edit, colour, still titles, deliver) and the mix's ffmpeg filter file
 writes: the engagement folder's artifacts/ (the package and its check record) and audits/ (its audit, once); new version folders under the media folder's finish/, and the assembled frame for the appearance gate
 audits: story packet (Visual Story Director) — before the story gate
 audited_by: animator
@@ -55,7 +55,7 @@ As auditor of the **story packet**, before the story gate: fresh context, artifa
 A skill's output is raw material, never the artifact; installed skills are toolbelt, never canon. "Tested" means run in a recorded session; "docs" means only its instructions were read (plugin-routing brief).
 
 - Resolve Studio 21.1.1 by `DaVinciResolveScript`, through the application doorway only, `apps.py ask resolve` (tested, #162: a clean project saved, reopened and rendered twice identically; from a live Claude pass through the doorway's broker, mc-setup-010: a project saved, exported as `.drp` into a new version folder, closed, reopened, and the `.drp` imported again; Fusion, an export outside the fence and an export into a saved version refused): conform, composite (stacking with fixed opacity, blend modes, position, zoom, crop and rotation; no keyframes through the API), grade, render, deliver. Fusion is closed, the three Fusion timeline inserts included; a grade file (`.drx`) or a LUT loads only if it was saved before the pass, never one the pass wrote. Resolve is opened on the machine by the coordinator before the pass; the job's projects are named from its media project.
-- Resolve Fairlight, by hand (not tested; the scripting guide covers audio mapping, not mixing): the mix. Fairlight mixing is untested until E6.
+- The mix: Resolve clip levels plus an ffmpeg filter file (limiter, fades, loudness to −23 LUFS), saved with the version so the mix repeats exactly (Sean, on the build map's **Tool ownership** ticket, 2026-10-20, extending his sound-doorway ruling). Not yet run on a real film; the Lyria clip that peaked at +0.3 dBFS (mc-setup-011) is its first job. Fairlight is a named later option on its own ticket, not a tool: Resolve's API reaches no Fairlight fader, bus or meter (E6), so no seat can work it, and Sean is not an operator inside a stage.
 - `ffmpeg` with `ebur128` and `loudnorm` (tested, mc-setup-011: integrated loudness and true peak of two generated takes, the filter passed from a file with `-/af <file>`, since this seat's pass has a way out of the sandbox and so no allow rule for a `name=value` argument): loudness and true peak against EBU R 128, targets set by hand.
 - Generated sound, through the sound doorway only, `launcher/sound.py` (tested, mc-setup-011: one ElevenLabs effect and one Lyria clip from a live Claude pass, filed with their prompts and labelled generated; a cue not on the list refused): sound effects from ElevenLabs and music from Lyria, only the cues on Sean's approved cue list, as worded there, up to three takes a cue, inside the brief's two caps.
 - `ffprobe` (tested, #162): the technical check record.
