@@ -27,11 +27,11 @@ This seat's words are rows of [the glossary](glossary.md), which every pass carr
 
 Learned after the rows above and before the guides. "Named, not read" means the canon title was not read and no copy is ingested.
 
-1. **Timing and spacing are two controls.** Canon: Williams, *The Animator's Survival Kit* (named, not read): plan both on a chart before the in-betweens. Carried by the timing chart in [`contact-weight-and-settling.md`](../corpus/guides/contact-weight-and-settling.md), until "Timing and spacing on a chart" is written.
+1. **Timing and spacing are two controls.** Canon: Williams, *The Animator's Survival Kit* (ingested, ch. 3–5 in [`books/the-animators-survival-kit/`](../corpus/books/the-animators-survival-kit/)): plan both on a chart before the in-betweens. Carried by the timing chart in [`contact-weight-and-settling.md`](../corpus/guides/contact-weight-and-settling.md) and the ingest, until "Timing and spacing on a chart" is written.
 2. **Slow in and slow out, named by pose and direction** ("slow into the rest"), never bare "ease in". Carried by the same guide.
 3. **Arcs.** An arc traced over adjacent frames runs smooth; a kink is a finding before anyone else finds it. Carried by the same guide.
 4. **Weight comes from timing, spacing and squash at contact, with anticipation before and settling after.** Canon: Thomas and Johnston, *The Illusion of Life* (named, not read): the source of the twelve principles, drawn from Disney's studio practice. Carried by the same guide, with the corrected sign: the chart widens into the contact and bunches at each rebound's peak and into the rest.
-5. **Follow-through and overlap.** No guide yet; the row and Lasseter 1987, p. 39, carry it until "Anticipation, follow-through, overlap" is written.
+5. **Follow-through and overlap.** No guide yet; the row, Lasseter 1987, p. 39, and the Williams ingest (ch. 8) carry it until "Anticipation, follow-through, overlap" is written.
 6. **Holds and cadence: what stays still, what keeps living, ones or twos.** Carried by [`grease-pencil-4-3-and-later.md`](../corpus/guides/grease-pencil-4-3-and-later.md) for drawing keys and holds, until "Holds and cadence" is written.
 
 ## Technique
@@ -42,7 +42,7 @@ The starred guides by file. This seat owns one principle guide and one tool guid
 - **Smears as designed poses** — [`smears-as-designed-poses.md`](../corpus/guides/smears-as-designed-poses.md) — this seat times what Art designed: each smear on the frames, between the keys and along the arc the plan lists, one to three frames until a team test settles it.
 - **Line boil and painted-texture continuity** — [`boil-and-painted-texture-continuity.md`](../corpus/guides/boil-and-painted-texture-continuity.md) — this seat moves what Art designed: paint travels with the subject, line boil at Art's cadence, pigment variation held steady, nothing sliding.
 
-Not yet written, so a topic for `thin_lane:` until it exists: **Timing and spacing on a chart**, **Anticipation, follow-through, overlap**, **Squash, stretch, constant volume** (with Art) and **Holds and cadence** (all ready now); **Straight ahead and pose to pose** and **Secondary action, exaggeration, appeal** (after the first film); **Multiples** (waits on a team test); **Staggers** (waits on Williams); **Kinetic type** (parked for a type engagement).
+Not yet written, so a topic for `thin_lane:` until it exists: **Timing and spacing on a chart**, **Anticipation, follow-through, overlap**, **Squash, stretch, constant volume** (with Art) and **Holds and cadence** (all ready now; Williams is ingested, so their depth can be drawn from it); **Straight ahead and pose to pose** and **Secondary action, exaggeration, appeal** (after the first film); **Multiples** (waits on a team test); **Staggers** (ready now: Williams, ch. 12); **Kinetic type** (parked for a type engagement).
 
 ## Application
 
@@ -86,9 +86,9 @@ The free sources this seat's rows, principles and guides draw on, with the licen
 
 ## Canon
 
-No book is ingested: `../corpus/books/` is empty, and every canon line in a guide says "named, not read" until an ingest lands there on its own ticket.
+One title on this lane is ingested: Williams, under `../corpus/books/the-animators-survival-kit/` (2026-10-19). Every other canon title stays "named, not read" until its own ingest lands there on its own ticket.
 
-- **Williams, *The Animator's Survival Kit*, expanded ed.** — the seat's primary: plan timing and spacing on a chart before the in-betweens; fast action is planned drawing by drawing, not left to blur (the brief marks this second idea the least certain of its canon lines). Named, not read.
+- **Williams, *The Animator's Survival Kit*, expanded ed.** — the seat's primary: plan timing and spacing on a chart before the in-betweens; fast action is planned drawing by drawing, not left to blur. Ingested: [`books/the-animators-survival-kit/`](../corpus/books/the-animators-survival-kit/). Cheatsheet first; ch. 3–5 (timing, spacing, keys and breakdowns, ones and twos) are the core, then ch. 6–7 (walks, runs), ch. 8–12 (overlap, weight, anticipation, takes and accents, staggers), ch. 17 for ones against twos and holds. The fast-action line, which the brief marked least certain, now reads: on fast action every drawing is drawn, with contact drawings, skipped frames and one stretched in-between on ones, and inked speed lines are dropped (ch. 5); only the very fastest runs fall back on blur drawings or two-frame dissolves (ch. 7). Its drawings are described, not stored; its moving examples were not captured.
 - **Thomas and Johnston, *The Illusion of Life*** — the source of the twelve principles, drawn from Disney's studio practice, where weight is felt through timing and the way a body gives and recovers on impact. Named, not read; print only.
 
 ## Reading path
@@ -99,7 +99,7 @@ Corpus states are as of the `updated:` date in the header. Format and audio fact
 |---|---|---|---|---|---|
 | 1 | Becker's twelve-principles series, 24 minutes | first on this path: the vocabulary, at a screen | video | needs the picture | read-only · listen |
 | 2 | Lasseter 1987 | the vocabulary and principles, with the page numbers the rows cite | PDF, a course copy | — | read-only |
-| 3 | Williams, *The Animator's Survival Kit* (expanded ed.) | the seat's canon, after Lasseter: the chart before the in-betweens | locked ebook (Apple Books, with moving examples) | none found | named · on hand, not ingested |
+| 3 | Williams, *The Animator's Survival Kit* (expanded ed.) | the seat's canon, after Lasseter: the chart before the in-betweens | Apple Books interactive ebook, screen-captured and ingested on Sean's word; its moving examples not captured | none found | ingested |
 | 4 | Thomas and Johnston, *The Illusion of Life* | the principles' source, when Williams is done; half of it is history | print only | — | named · not bought |
 | 5 | Blender Studio's animation page; Krita's walk cycle | principles, by a working studio and a manual | web | — | open, not ingested |
 | 6 | Goldberg, *Character Animation Crash Course!* (2008) | the fast-action fill the brief named beside Williams, for the smear guide's depth | ebook | — | on hand, not ingested |

@@ -13,7 +13,7 @@ writes: the engagement folder's artifacts/ (the scene record) and audits/ (its a
 audits: delivery package + check record (Finishing and Sound Designer) — before the technical checks and Sean's yes
 audited_by: art-pose-designer
 escalation: high → xhigh → stop and ask Sean; never ultra
-canon: Williams, The Animator's Survival Kit (named, not read); Thomas and Johnston, The Illusion of Life (named, not read)
+canon: Williams, The Animator's Survival Kit (ingested: ../corpus/books/the-animators-survival-kit/); Thomas and Johnston, The Illusion of Life (named, not read)
 ```
 
 ## Mandate
@@ -41,7 +41,7 @@ First read, every invocation: [the lane manifest](../lanes/motion.md); follow on
 
 ## Craft rules
 
-- Every material choice ships with a one-breath why-A-over-B and names what it leaned on from the canon: Williams for timing, spacing and planned fast action, Thomas and Johnston for weight and the principles, each "named, not read" until ingested.
+- Every material choice ships with a one-breath why-A-over-B and names what it leaned on from the canon: Williams for timing, spacing and planned fast action, from its ingest under `../corpus/books/the-animators-survival-kit/`; Thomas and Johnston for weight and the principles, "named, not read" until ingested.
 - Weight comes from timing, spacing and squash at contact, with anticipation before and settling after. A falling object speeds up into the floor: its timing chart widens into the contact and bunches at each rebound's peak and into the rest.
 - Squash lands on the contact frame with volume kept; stretch only on fast frames.
 - Name the pose and the direction ("slow into the rest"), never bare "ease in".
