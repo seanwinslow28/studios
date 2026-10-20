@@ -6,6 +6,11 @@ eng-005 on, and rung-0 line 11 (recorded runtime vs the transcript's model stamp
 is the guard against the alias drift that decision 2 fixed. Earlier engagements
 are not retrofitted.
 
+Folders (SWCB #212): no named folder is currently needed. Design artifacts,
+checks and frozen inbound/outbound handoffs live inside the engagement;
+shared machinery and corpus use the studio repo prefixes. Keep those paths
+as they are. See README.md beside this profile for the adoption audit.
+
 The shape: the five-seat pipeline (bench/README.md) as stages 1-5, the record
 kinds a Systemcraft engagement produces (the handoff modifier's intake check
 among them), the one closed audit cycle in which the Evals & Evidence Architect's

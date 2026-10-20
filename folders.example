@@ -9,5 +9,12 @@
 # One line per name, `name = folder`. The folder is a full path, or one
 # starting ~/. Names are lower case: letters, digits and hyphens.
 
+# Motioncraft: media:<project>/<version>/<file>.
 media = ~/Movies/Studio-Media
-# target = ~/Code-Brain            # Devcraft, later: target:<repo>/<path>
+
+# Devcraft: target:<repo>/<path>, for records written after SWCB #212.
+# Map the parent of the target repos, not one repo or a temporary worktree.
+# These are illustrative folders: set both lines for this machine before use.
+target = ~/Projects/Targets
+# Productcraft and Systemcraft currently need no named folder: engagement
+# files stay relative; studio-prefixed paths already resolve in studios.
