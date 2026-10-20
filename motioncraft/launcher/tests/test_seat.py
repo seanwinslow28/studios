@@ -444,6 +444,8 @@ if Path(sys.argv[0]).name == "claude":
     if b.get("child"):  # a helper's own message under its parent's tool use
         out({"type": "assistant", "parent_tool_use_id": "t0", "message": {"model": model, "content": [{"type": "text", "text": "x"}]}})
     out({"type": "assistant", "message": {"model": b.get("stamp", model), "content": [{"type": "text", "text": "done"}]}})
+    for e in b.get("extra_lines", []):  # lines as Claude Code writes them when a pass reads an image
+        out(e)
     for r in [argv[j + 1] for j, x in enumerate(argv) if x == "--add-dir"] + [os.getcwd()]:
         if b.get("claude_dirs_under") and r.startswith(b["claude_dirs_under"]):
             (Path(r) / ".claude").mkdir(exist_ok=True)
@@ -461,7 +463,8 @@ home = Path(os.environ["CODEX_HOME"]) / "sessions" / "2026" / "10" / "19"
 home.mkdir(parents=True, exist_ok=True)
 (home / f"rollout-{thread}.jsonl").write_text(
     json.dumps({"type": "session_meta", "payload": {"id": thread, "session_id": thread}}) + "\n"
-    + json.dumps({"type": "turn_context", "payload": {"model": b.get("stamp", model), "effort": effort}}) + "\n")
+    + json.dumps({"type": "turn_context", "payload": {"model": b.get("stamp", model), "effort": effort}}) + "\n"
+    + "".join(json.dumps(e) + "\n" for e in b.get("rollout_lines", [])))
 if b.get("helper"):
     (home / f"rollout-h-{thread}.jsonl").write_text(json.dumps({"type": "session_meta", "payload": {
         "id": "h-" + thread, "session_id": thread, "thread_source": "subagent", "parent_thread_id": thread}}) + "\n")

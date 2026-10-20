@@ -1199,13 +1199,27 @@ def cmd_launch(a) -> None:
         code = 3
     if output and Path(output).exists():
         record["outputs"] = [{"path": rel(output), "sha256": sha256(Path(output))}]
+    # Filing (launcher/filing.py, SWCB #245): the images and sound the pass opened are stripped from its logs, and
+    # the employer folders replaced by a placeholder, before anything can be committed; the launcher refuses to
+    # finish if either survives.
+    import filing  # noqa: E402  launcher/filing.py, beside this file
+    media_root, employer = filing.setting()
+    filed = filing.file_logs(logs, [pid], media_root, employer)
+    record["filing"] = {"media_stripped": filed["media_stripped"], "rewritten": len(filed["rewritten"]),
+                        "employer_paths_checked": bool(employer), "survivors": filed["survivors"],
+                        "not_read": filed["not_read"]}
     if run["stopped"]:
         record["outcome"] = f"Blocked: budget ({run['stopped']} cap reached)"
         code = 2
     elif run["exit_code"] != 0 and not code:
         record["outcome"] = f"the vendor exited {run['exit_code']}; see {rel(err)}"
         code = 1
-    rec.write_text(json.dumps(record, indent=2) + "\n")
+    if filed["survivors"] or filed["not_read"]:
+        refused = ("filing refused: media or an employer path survives in " + ", ".join(
+            sorted(filed["survivors"]) + filed["not_read"]) + "; nothing from this pass may be committed")
+        record["outcome"] = f"{record['outcome']}; {refused}" if record.get("outcome") else refused
+        code = 4
+    rec.write_text(filing.redact(json.dumps(record, indent=2), filing.employer_forms(employer)) + "\n")
     print(f"{pid}: {record.get('outcome', 'returned')}; {run['tool_calls']} tool call(s), {run['wall_clock_s']}s → {rel(rec)}")
     sys.exit(code)
 
