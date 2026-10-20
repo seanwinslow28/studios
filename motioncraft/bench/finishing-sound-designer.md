@@ -39,7 +39,7 @@ First read, every invocation: [the lane manifest](../lanes/finishing.md); follow
 
 ## Craft rules
 
-- Every material choice ships with a one-breath why-A-over-B and names what it leaned on from the canon: Murch for why a cut lands where it does, from its ingest under `../corpus/books/suddenly-something-clicked/`.
+- Every material choice ships with a one-breath why-A-over-B and names what it leaned on from the canon: Murch for why a cut lands where it does, from *In the Blink of an Eye* (ch. 6 and 14–15, under `../corpus/books/in-the-blink-of-an-eye/`), and for how a cut is executed and the sound designed and mixed, from *Suddenly Something Clicked* (under `../corpus/books/suddenly-something-clicked/`).
 - Frames, rate and duration match the source at every step; a mismatch is a technical fail before any look is judged.
 - Correct first, then grade to one look, written down before grading starts.
 - Every sound has a moment and a reason in the sound plan; silence is a choice and is planned too.

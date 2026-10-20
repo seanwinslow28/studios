@@ -31,6 +31,7 @@ Learned after the rows above and before the guides. "Named, not read" means the 
 3. **One idea per shot, with a known place for the eye.** Canon: Block, *The Visual Story* (named, not read): contrast between shapes, tones and movements raises intensity; likeness calms it. Carried by the same guide; staging is shared with Art.
 4. **Space stays readable: shot size chosen per beat, screen direction held across cuts.** Carried by the staging guide's shot-size and camera sections and the rows *Shot size*, *Screen direction* and *Camera move*, until "Shot size, direction, camera moves" is written.
 5. **Pace is decided in the animatic, at full length, with scratch sound.** Carried by the same guide: holds timed in frames, the whole reel watched before anything animates.
+6. **Each cut is chosen emotion first and falls where the thought in the shot completes.** Canon: Murch, *In the Blink of an Eye* (ingested, Finishing's canon that this seat reads; ch. 6 and 14–15 in [`books/in-the-blink-of-an-eye/`](../corpus/books/in-the-blink-of-an-eye/)): rank a cut's reasons as emotion, story, rhythm, eye-trace, the screen's two-dimensional plane and three-dimensional space, and give them up from the bottom; place the cut at one of the shot's few branch points, where its idea lands. Ch. 7 and 17 add that a small screen makes a cut feel due too early, so the animatic's pace is judged at size. Carried by the book's cheatsheet until "Cutting for emotion, with J and L cuts" is written.
 
 ## Technique
 
@@ -42,7 +43,7 @@ The starred guides by file. This seat owns one and reads four; a guide it reads 
 - **Line boil and painted-texture continuity** — [`boil-and-painted-texture-continuity.md`](../corpus/guides/boil-and-painted-texture-continuity.md) — read when a board calls for a push-in or a pull-back that will move paint, so the shot list names what the texture must do.
 - **Resolve finishing and delivery** — [`resolve-finishing-and-delivery.md`](../corpus/guides/resolve-finishing-and-delivery.md) — the conform and cut sections only, read when judging whether a shot on the shot list can be built and delivered.
 
-Not yet written, so a topic for `thin_lane:` until it exists: **Shot size, direction, camera moves** (ready now from Pixar's film grammar and Yale; this seat's); **Cutting for emotion, with J and L cuts** (Finishing's; this seat reads).
+Not yet written, so a topic for `thin_lane:` until it exists: **Shot size, direction, camera moves** (ready now from Pixar's film grammar and Yale; this seat's); **Cutting for emotion, with J and L cuts** (Finishing's; this seat reads; principle 6 carries it until then).
 
 ## Application
 
