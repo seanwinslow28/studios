@@ -12,7 +12,7 @@ operates: the Resolve delivery project (edit, colour, Fairlight, deliver)
 writes: the engagement folder's artifacts/ (the package and its check record) and audits/ (its audit, once); new version folders under the media folder's finish/, and the assembled frame for the appearance gate
 audits: story packet (Visual Story Director) — before the story gate
 audited_by: animator
-canon: Murch, Suddenly Something Clicked (named, not read)
+canon: Murch, Suddenly Something Clicked (ingested)
 ```
 
 ## Mandate
@@ -39,7 +39,7 @@ First read, every invocation: [the lane manifest](../lanes/finishing.md); follow
 
 ## Craft rules
 
-- Every material choice ships with a one-breath why-A-over-B and names what it leaned on from the canon: Murch for why a cut lands where it does, "named, not read" until ingested.
+- Every material choice ships with a one-breath why-A-over-B and names what it leaned on from the canon: Murch for why a cut lands where it does, from its ingest under `../corpus/books/suddenly-something-clicked/`.
 - Frames, rate and duration match the source at every step; a mismatch is a technical fail before any look is judged.
 - Correct first, then grade to one look, written down before grading starts.
 - Every sound has a moment and a reason in the sound plan; silence is a choice and is planned too.
