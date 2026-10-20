@@ -12,7 +12,7 @@ operates: the Resolve delivery project (edit, colour, Fairlight, deliver)
 writes: the engagement folder's artifacts/ (the package and its check record) and audits/ (its audit, once); new version folders under the media folder's finish/, and the assembled frame for the appearance gate
 audits: story packet (Visual Story Director) — before the story gate
 audited_by: animator
-canon: Murch, Suddenly Something Clicked (ingested)
+canon: Murch, Suddenly Something Clicked (ingested); Murch, In the Blink of an Eye (ingested)
 ```
 
 ## Mandate
