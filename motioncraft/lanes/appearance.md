@@ -45,7 +45,7 @@ The starred guides by file. This seat owns one, designs the layers of a second, 
 - **The animatic and staging** — [`animatic-and-staging.md`](../corpus/guides/animatic-and-staging.md) — read when posing into a boarded frame, since staging is shared and every key must read at its panel's size.
 - **Contact, weight and settling** — [`contact-weight-and-settling.md`](../corpus/guides/contact-weight-and-settling.md) — read when designing the squash and stretch keys, so volume is designed here and not left to the Animator.
 
-Not yet written, so a topic for `thin_lane:` until it exists: **Pose, line of action, silhouette** (ready now; *FORCE* is ingested, so its depth can be drawn from it); **Value and temperature for one world** (ready now, thin; Gurney's book later); **Squash, stretch, constant volume** (ready now; with the Animator); **Multiples** (waits on a team test); **Secondary action, exaggeration, appeal** (after the first film); **Kinetic type** (waits on a type engagement and Lupton); **Krita painted layers**, a tool guide (waits on Krita's bounded test at the appearance gate).
+Not yet written, so a topic for `thin_lane:` until it exists: **Pose, line of action, silhouette** (ready now; *FORCE* is ingested, so its depth can be drawn from it); **Value and temperature for one world** (ready now, thin; Gurney's book later); **Squash, stretch, constant volume** (ready now; with the Animator); **Multiples** (waits on a team test); **Secondary action, exaggeration, appeal** (after the first film); **Kinetic type** (waits on a type engagement; *Thinking with Type* is ingested, so its depth can be drawn from it); **Krita painted layers**, a tool guide (waits on Krita's bounded test at the appearance gate).
 
 ## Application
 
@@ -87,9 +87,10 @@ The free sources this seat's rows, principles and guides draw on, with the licen
 
 ## Canon
 
-One title on this lane is ingested: Mattesi, under `../corpus/books/force-dynamic-life-drawing/` (2026-10-19). Every other canon title stays "named, not read" until its own ingest lands there on its own ticket.
+Two titles on this lane are ingested: Mattesi, under `../corpus/books/force-dynamic-life-drawing/`, and Lupton, under `../corpus/books/thinking-with-type/` (both 2026-10-19). Every other canon title stays "named, not read" until its own ingest lands there on its own ticket.
 
 - **Mattesi, *FORCE: Dynamic Life Drawing*, 10th anniversary ed.** — the seat's primary: draw the force running through a body, not its outline; one explicit gesture system that turns into checkable rules. Ingested: [`books/force-dynamic-life-drawing/`](../corpus/books/force-dynamic-life-drawing/). Cheatsheet first; ch. 1 (line of action as Directional FORCE, the rib cage-to-pelvis C and S, leading edge, balance) and ch. 3 (straight against curve, silhouette) are the core, ch. 2 for volume, overlap and foreshortening. Its drawings are described, not stored; its companion videos were not captured.
+- **Lupton, *Thinking with Type*, 3rd ed. (2024)** — the seat's canon for type, read for a type engagement, not before: choose and set type by testing it against real content, use the style drawn for the job, and let space, alignment and a grid carry hierarchy. Ingested: [`books/thinking-with-type/`](../corpus/books/thinking-with-type/). Cheatsheet first; ch. 4 (variable fonts and their axes, optical sizes, true italics and small caps, numerals), ch. 6 (kerning, tracking, leading, line length) and ch. 3 (choosing and pairing faces, widths) are the core for a title card or kinetic type; ch. 7 (hierarchy, type scale) and ch. 10–11 (balance, grouping, alignment, grids, serial design) for the frame; ch. 8 before setting any non-Latin script. Its specimens are described, not stored; non-Latin scripts are described, never transcribed.
 
 ## Reading path
 
@@ -104,7 +105,7 @@ Corpus states are as of the `updated:` date in the header. Format and audio fact
 | 5 | Butterick, *Practical Typography* | principles for type, when a type piece is near | web book | — | read-only |
 | 6 | Chromosphere's *June* case study; Frame.io on *Wolfwalkers* | technique: painted pipelines | web | — | read-only |
 | 7 | Krita manual: brushes, layers, colour concepts | the application chapters, last | web | — | open, not ingested |
-| 8 | Lupton, *Thinking with Type* (2024) | for a type engagement, not before | locked ebook | — | on hand, not ingested |
+| 8 | Lupton, *Thinking with Type* (2024) | for a type engagement, not before | locked ebook | — | ingested |
 | 9 | Kathy Altieri's Animation Guild oral history, 50 minutes | the listening order's art-direction item | audio | by ear | listen |
 
 ### Next
