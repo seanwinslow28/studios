@@ -41,6 +41,12 @@ seat mode; the shared process-waste family is the kit's.
 The kit finds this file by walking up from an engagement folder, so
 `python3 craftwork/trace/check.py devcraft/ledger/engagements/<eng-id>` needs no
 flag. Loading it registers the structure check.
+
+Folders (SWCB #212): new records use `target:<repo>/<path>` for files in
+target repositories; each machine maps `target` to their common parent in
+`folders.local`. Engagement files stay relative and studio machinery keeps
+its repo prefixes. Closed records are immutable and are not migrated.
+See README.md beside this profile for worktrees and frozen-diff evidence.
 """
 from __future__ import annotations
 

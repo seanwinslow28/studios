@@ -8,6 +8,11 @@ the check that the full train ran its own shape. Its taxonomy file
 (`taxonomy.md`, beside this one) holds the seat failure modes ratified on #299;
 the shared process-waste family is the kit's.
 
+Folders (SWCB #212): no named folder is currently needed. Evidence snapshots,
+artifacts and frozen handoffs live inside the engagement; shared machinery
+and corpus use the studio repo prefixes. Keep those paths as they are.
+See README.md beside this profile for the adoption audit.
+
 The kit finds this file by walking up from an engagement folder, so
 `python3 craftwork/trace/check.py productcraft/ledger/engagements/<eng-id>` needs
 no flag. Loading it registers the structure check.

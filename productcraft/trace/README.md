@@ -19,3 +19,9 @@ python3 craftwork/trace/render.py productcraft/ledger/engagements/<eng-id>
 ```
 
 Everything else about the kit — the record layout inside an engagement, the rung-0 lines, the viewer, the registry numbers, the next-id helper — is in [craftwork/trace/README.md](../../craftwork/trace/README.md).
+
+## Folder audit, 2026-10-20.
+
+[SWCB #212](https://github.com/seanwinslow28/SWCB/issues/212) found **no named folder needed under the current contract**. Evidence snapshots, artifacts, audits and frozen handoffs belong inside the engagement; machinery and corpus already resolve inside studios. Web sources are captured as evidence rather than treated as local folder paths.
+
+Keep those path forms; no records switch and closed records are not migrated. Coordinator transcript pointers follow the shared session-log convention separately. [folders.example](../../folders.example) lists the names used by other teams; Productcraft adds none. If a later engagement needs an external folder, name and configure it before writing that engagement's first such record. Handoffs keep their frozen copies rather than pointing into another team's ledger.
