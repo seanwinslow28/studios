@@ -864,7 +864,9 @@ def apps_note(ctx: Dict) -> str:
                      "on a `QImage` in `Format_ARGB32`, its bytes being Krita's RGBA 8-bit layer bytes) and put them on a "
                      "layer with `Node.setPixelData`. Krita gives the layers, their order, blend modes and opacity, its "
                      "filters (`Krita.filter`), the `.kra` file (`Document.saveAs`) and each layer as a PNG with "
-                     "transparency (`Node.save`, which returns nothing, so check the file); `Document.exportImage` stalls with no screen, so a flattened image is "
+                     "transparency (`Node.save`, which returns nothing, so check the file, and which bakes the layer's opacity "
+                     "into the PNG's alpha: export at opacity 255 and restore it, so the stated opacity is applied once "
+                     "downstream); `Document.exportImage` stalls with no screen, so a flattened image is "
                      "`Document.pixelData` read into a `QImage` (`Format_ARGB32`, then `.copy()`) and saved with "
                      "`QImage.save`; save only into a new version folder in your stage. A call succeeds only "
                      "if your script runs to its end; exit non-zero (`sys.exit(1)`) when it fails")
