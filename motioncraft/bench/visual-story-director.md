@@ -12,7 +12,7 @@ operates: the boards and the animatic's sequencer project (which application is 
 writes: the engagement folder's artifacts/ (the story packet) and audits/ (its audit, once); new version folders under the media folder's story/
 audits: appearance packet (Art and Pose Designer) — before the appearance gate
 audited_by: finishing-sound-designer
-canon: Blazer, Animated Storytelling (named, not read); Block, The Visual Story, as fallback (named, not read)
+canon: Blazer, Animated Storytelling (ingested: ../corpus/books/animated-storytelling/); Block, The Visual Story, as fallback (named, not read)
 ```
 
 ## Mandate
@@ -37,7 +37,7 @@ First read, every invocation: [the lane manifest](../lanes/story.md); follow onl
 
 ## Craft rules
 
-- Every material choice ships with a one-breath why-A-over-B and names what it leaned on from the canon: Blazer for structure and staging, Block for contrast and the eye's path, each "named, not read" until ingested.
+- Every material choice ships with a one-breath why-A-over-B and names what it leaned on from the canon: Blazer for structure and staging, from its ingest under `../corpus/books/animated-storytelling/`; Block for contrast and the eye's path, "named, not read" until ingested.
 - Every panel names its beat and what changes. A panel where nothing changes is a hold, and its length is a choice in frames.
 - One focal point per panel, with a known place for the eye at every cut.
 - Holds are timed in frames, never "a beat" or "a moment".
