@@ -26,6 +26,7 @@ import seat as seatmod  # noqa: E402
 PROJECT = "Film/proj-2026-10-19"
 # The application doorway's tests run the real Blender where it is installed (launcher/tests/test_apps.py).
 BLENDER = "/Applications/Blender.app/Contents/MacOS/Blender"
+KRITA = "/Applications/Krita.app/Contents/MacOS/kritarunner"
 
 
 @pytest.fixture(scope="module")
@@ -72,6 +73,7 @@ apps = ["blender"]
 [seats.art-pose-designer]
 skills = ["desk:2d-animation-principles", "agents:shot-composition"]
 image = true
+apps = ["krita"]
 [seats.animator]
 skills = ["desk:2d-animation-principles", "agents:animation-principles"]
 apps = ["blender"]
@@ -80,6 +82,7 @@ apps = ["resolve"]
 sound = true
 [apps]
 blender = "{BLENDER}"
+krita = "{KRITA}"
 python = "{sys.executable}"
 [env]
 path = ["{root}/Blender.app"]
@@ -741,7 +744,8 @@ def test_the_context_fixes_the_toolbelt(world):
         "dir": "", "skills": [], "manifest_sha256": "", "image": False, "sound": False, "apps": []}
     assert data["toolbelt"]["apps"] == ["blender"], "the Animator's app, through the doorway"
     assert ctx_data(context(world, "visual-story-director", "t2b"))["toolbelt"]["apps"] == ["blender"], "the animatic's sequencer"
-    assert ctx_data(context(world, "art-pose-designer", "t2c"))["toolbelt"]["apps"] == []
+    assert ctx_data(context(world, "art-pose-designer", "t2c"))["toolbelt"]["apps"] == ["krita"], "the painted layers"
+    assert ctx_data(context(world, "art-pose-designer", "t2d", "--read-only"))["toolbelt"]["apps"] == []
     assert ctx_data(context(world, "animator", "t5b", "--read-only"))["toolbelt"]["apps"] == [], "an audit runs no app"
 
 

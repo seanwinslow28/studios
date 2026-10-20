@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""The application doorway: Blender and Resolve for a seat pass, run by the launcher outside the pass's sandbox, under a lock of its own.
+"""The application doorway: Blender, Resolve and Krita for a seat pass, run by the launcher outside the pass's sandbox, under a lock of its own.
 
     apps.py ask blender --script F [--blend B] [--timeout S] [--wait S] [-- ARG...]    (from inside a pass)
     apps.py ask blender --render --blend B --out D [--frames S-E] [--engine E] [--timeout S] [--wait S]
     apps.py ask resolve --script F [--timeout S] [--wait S] [-- ARG...]
+    apps.py ask krita --script F [--timeout S] [--wait S] [-- ARG...]
     apps.py wait <id> [--wait S]
-    apps.py lock <context> blender|resolve                                            (the coordinator: print a lock)
+    apps.py lock <context> blender|resolve|krita                                      (the coordinator: print a lock)
 
 Neither vendor's sandbox lets Blender or Resolve work from inside a pass. Both hide
 the Mac's graphics chip (no IOKit opening for `AGXDeviceUserClient`, and no setting
@@ -52,10 +53,23 @@ Mac (FSEvents) and sorts them into the fence, Resolve's own folders, frozen path
 and everything else; the check record carries anything outside the fence, which
 another program on the Mac may also have written in that window.
 
+Krita runs with no screen: `kritarunner`, Qt's offscreen platform, the seat's script
+inside Krita's own Python by the launcher's wrapper module (`KRITA_WRAPPER`). Layers,
+blend modes, opacity, filters, `.kra` files and per-layer exports work there. Krita's
+brush engine does not: its paint calls need a canvas view, and every way to open one
+with no screen crashes (Sean chose, on the map's "Krita's doorway" ticket, 2026-10-20,
+to build the doorway without it: Art draws its strokes with Qt's painter and puts them
+on layers). kritarunner keeps its settings, resources and caches under its own name in
+the home folder, and Python modules there are on its path, so each call gets a home of
+its own (`CFFIXED_USER_HOME`): a fresh clone of a template the launcher built once with
+no code of a seat's, deleted after the call, so no pass leaves anything for a later one
+and Sean's own Krita is never read or written. kritarunner exits 0 when a script fails
+to load, so a call succeeds only when the wrapper's closing line says the script ended.
+
 Every call is logged to `trace/logs/pass-NN.apps.jsonl`, and its result, log, lock
 and script copy go to `trace/logs/pass-NN.apps/`, which the pass reads but cannot
 write. Written on the Motioncraft build map's "Blender and Resolve inside the seat
-sandboxes" ticket (2026-10-19).
+sandboxes" ticket (2026-10-19), Krita on "Krita's doorway" (2026-10-20).
 """
 from __future__ import annotations
 
@@ -63,7 +77,9 @@ import argparse
 import json
 import os
 import re
+import plistlib
 import secrets
+import shutil
 import stat
 import subprocess
 import sys
@@ -73,8 +89,8 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 HERE = Path(__file__).resolve().parent
-APPS = ("blender", "resolve")
-REQUEST = re.compile(r"(blender|resolve)-[0-9]{6}-[0-9a-f]{6}\.json")
+APPS = ("blender", "resolve", "krita")
+REQUEST = re.compile(r"(blender|resolve|krita)-[0-9]{6}-[0-9a-f]{6}\.json")
 MAX_REQUEST_BYTES = 64_000
 MAX_SCRIPT_BYTES = 256_000
 MAX_ARGS, MAX_ARG = 32, 2048
@@ -102,6 +118,33 @@ s.render.filepath = os.path.join(out, "frame-")
 s.render.use_file_extension = True
 bpy.ops.render.render(animation=True)
 print("MOTIONCRAFT_RENDER done", engine, start, end)
+'''
+# Krita: the module kritarunner imports (`-s`), from a folder of the launcher's put on Krita's Python path by
+# PYTHONUSERBASE (kritarunner ignores PYTHONPATH). It runs the seat's script as `__main__` with its arguments, then
+# prints how it ended and exits with that code; a call with no script (the template build) starts Krita and stops.
+KRITA_MODULE = "motioncraft_krita"
+KRITA_DONE = "MOTIONCRAFT_KRITA done"
+KRITA_WRAPPER = r'''"""Motioncraft's wrapper: runs one seat script inside Krita (motioncraft/launcher/apps.py)."""
+import json, os, runpy, sys, traceback
+
+
+def main(_args):
+    from krita import Krita
+    Krita.instance().setBatchmode(True)  # no dialogs: a script's file calls never wait on a person
+    script = os.environ.get("MOTIONCRAFT_KRITA_SCRIPT", "")
+    sys.argv = [script] + json.loads(os.environ.get("MOTIONCRAFT_KRITA_ARGS", "[]"))
+    code = 0
+    if script:
+        try:
+            runpy.run_path(script, run_name="__main__")
+        except SystemExit as e:
+            code = e.code if isinstance(e.code, int) else (0 if e.code is None else 1)
+        except BaseException:
+            traceback.print_exc()
+            code = 1
+    print("MOTIONCRAFT_KRITA done", code, flush=True)
+    sys.stderr.flush()
+    os._exit(code)  # kritarunner itself exits 0 whatever happened
 '''
 
 
@@ -191,18 +234,47 @@ def user_cache() -> str:
     return r.stdout.strip() if r.returncode == 0 else ""
 
 
+def user_temp() -> str:
+    """This user's temporary folder (`/var/folders/…/T/`), which Qt on the Mac uses whatever TMPDIR says."""
+    try:
+        r = subprocess.run(["/usr/bin/getconf", "DARWIN_USER_TEMP_DIR"], capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    return r.stdout.strip() if r.returncode == 0 else ""
+
+
+def sb_regex_literal(s: str) -> str:
+    """A path as a literal inside a Seatbelt regex: every character but letters, digits, `/` and `_` escaped."""
+    return "".join(c if c.isalnum() or c in "/_" else "\\" + c for c in s)
+
+
 def blender_cache() -> str:
     seat = _seat()
     return seat.real(os.path.expanduser(os.environ.get("MOTIONCRAFT_APPS_CACHE", "~/.cache/motioncraft/apps/blender")))
 
 
-def lock(ctx: Dict, app: str, socket_path: str = "", render: bool = False) -> str:
+def krita_cache() -> str:
+    seat = _seat()
+    return seat.real(os.path.expanduser(os.environ.get("MOTIONCRAFT_KRITA_CACHE", "~/.cache/motioncraft/apps/krita")))
+
+
+def krita_version(kritarunner: str) -> str:
+    """The installed Krita's version, from its bundle; a new version gets a template of its own."""
+    try:
+        with open(Path(kritarunner).parents[1] / "Info.plist", "rb") as f:
+            return str(plistlib.load(f).get("CFBundleShortVersionString") or "unknown")
+    except (OSError, IndexError, plistlib.InvalidFileException):
+        return "unknown"
+
+
+def lock(ctx: Dict, app: str, socket_path: str = "", render: bool = False, home: str = "") -> str:
     """The Seatbelt lock for one application call, written from the pass's context.
 
     Deny by default, as Codex's own base policy does; read as the pass reads (its
     denies kept); write only the fence's folders, with everything frozen in them
     refused after; no network. Blender adds the graphics chip and Metal's shader
-    compiler; a Resolve script adds only the broker's one local socket. A render
+    compiler; a Resolve script adds only the broker's one local socket; Krita adds
+    only the call's own home folder (`home`) and the font server. A render
     request (`render`, Blender only) adds LaunchServices, which Blender's GPU drawing
     engine registers with on start, and nothing else.
     """
@@ -262,6 +334,20 @@ def lock(ctx: Dict, app: str, socket_path: str = "", render: bool = False) -> st
             ]
     elif render:
         raise ValueError("only Blender has a render request")
+    elif app == "krita":
+        if not home:
+            raise ValueError("a Krita call runs in a home folder of its own")
+        lines += [
+            "; Krita's home for this call: a fresh copy of the launcher's template, its settings, resources and caches",
+            f"(allow file-write* (subpath {sb(seat.real(home))}))",
+            "; Krita saves a .kra through a hidden copy named .XXXXXX.<ext> in the Mac's own temporary folder, which Qt",
+            "; uses whatever TMPDIR says; without it a save waits for ever (2026-10-20). That file name only, nothing else",
+            "; (Seatbelt's regexes take no {n} counts, so the name is one or more letters or digits, a dot, an extension)",
+            *([f'(allow file-write* (regex #"^{sb_regex_literal(seat.real(user_temp()))}/\\.[A-Za-z0-9]+\\.[A-Za-z0-9]+$"))']
+              if user_temp() else []),
+            "; the fonts Krita draws text with; no graphics chip, no window server (Qt's offscreen platform)",
+            "(allow mach-lookup (global-name \"com.apple.fonts\") (global-name \"com.apple.FontObjectsServer\"))",
+        ]
     else:
         lines += ["; the broker's socket, and nothing else: never Resolve's own ports, which would let a script make it run code"]
         if socket_path:
@@ -732,6 +818,27 @@ def sort_writes(ctx: Dict, paths: List[str], mine: List[str]) -> Dict[str, List[
     return out
 
 
+def krita_swap(home: Path) -> None:
+    """Point Krita's tile swap file into the call's own home. Left to itself, Krita swaps into the folder its first
+    start named, or falls back to the Mac's own temporary folder; the lock refuses both, and a save then waits for
+    ever (found 2026-10-20)."""
+    swap = Path(home) / "swap"
+    swap.mkdir(exist_ok=True)
+    rc = Path(home) / "Library" / "Preferences" / "kritarunnerrc"
+    rc.parent.mkdir(parents=True, exist_ok=True)
+    kept = [l for l in rc.read_text(encoding="utf-8").splitlines() if not l.startswith("swaplocation=")] if rc.exists() else []
+    # a key before the first [group] is in Krita's top-level settings, where it reads this one
+    rc.write_text("\n".join([f"swaplocation={os.path.realpath(swap)}"] + kept) + "\n", encoding="utf-8")
+
+
+def krita_finished(log: Path) -> bool:
+    """Whether the wrapper's closing line is in a Krita call's log, saying the script ran to its end."""
+    try:
+        return any(l.startswith(KRITA_DONE) for l in Path(log).read_text(encoding="utf-8", errors="replace").splitlines())
+    except OSError:
+        return False
+
+
 def tree(roots: List[str]) -> Dict[str, tuple]:
     """Every file under the fence's folders, by size and change time."""
     seen: Dict[str, tuple] = {}
@@ -916,13 +1023,18 @@ class AppServer:
         env = {k: os.environ[k] for k in ("HOME", "USER", "LOGNAME", "LANG", "LC_ALL") if k in os.environ}
         env.update(PATH="/usr/bin:/bin:/usr/sbin:/sbin", TMPDIR=ctx["scratch"])
         timeout = max(1, min(c["timeout"], self.deadline - time.time()))
-        broker, sock = None, ""
+        broker, sock, home = None, "", ""
         if c["app"] == "blender":
             Path(blender_cache()).mkdir(parents=True, exist_ok=True)
             env["XDG_CACHE_HOME"] = blender_cache()
             # a render request opens its scene with auto-run off, before the file loads: no code the file carries runs
             argv = [paths["blender"], "-b", "--factory-startup", *(["--disable-autoexec"] if c.get("render") else []),
                     *([c["blend"]] if c["blend"] else []), "--python-exit-code", "1", "--python", str(copy), "--", *c["args"]]
+        elif c["app"] == "krita":
+            home = self.krita_home(rid, env, entry)
+            env.update(self.krita_env(rid, home, env), MOTIONCRAFT_KRITA_SCRIPT=str(copy),
+                       MOTIONCRAFT_KRITA_ARGS=json.dumps(c["args"]))
+            argv = [paths["krita"], "-s", KRITA_MODULE, "-f", "main"]
         else:
             broker, sock = self.start_broker(rid, env, timeout)
             shim = self.results / f"{rid}.shim"
@@ -931,7 +1043,7 @@ class AppServer:
             # no Resolve variables and no Resolve module: only the stand-in, and the broker's socket
             env.update(PYTHONPATH=str(shim), MOTIONCRAFT_RESOLVE_SOCKET=sock)
             argv = [paths["python"], "-s", "-B", str(copy), *c["args"]]
-        rules = lock(ctx, c["app"], sock, render=bool(c.get("render")))
+        rules = lock(ctx, c["app"], sock, render=bool(c.get("render")), home=home)
         sbf = self.write_new(f"{rid}.sb", rules.encode())
         log = self.results / f"{rid}.log"
         before = tree(ctx["fence"]["write"])
@@ -955,7 +1067,12 @@ class AppServer:
         finally:
             if broker:
                 self.stop_broker(broker, sock)
+            if home:
+                shutil.rmtree(home, ignore_errors=True)  # the call's own home: nothing in it outlives the call
         entry.update(completed=seat.now(), wall_clock_s=round(time.time() - t0), exit_code=code)
+        if c["app"] == "krita" and code == 0 and not krita_finished(log):
+            entry["error"] = ("Krita ended without the script finishing (kritarunner exits 0 when a script fails to "
+                              "load); see the log")
         after = tree(ctx["fence"]["write"])
         changed = sorted(p for p, v in after.items() if before.get(p) != v and not seat.under(p, str(self.requests)))
         if writes is not None:
@@ -972,6 +1089,53 @@ class AppServer:
         else:
             entry["written"] = {"fence": changed, "frozen": [p for p in changed if any(
                 seat.under(p, f) for f in ctx["fence"]["frozen"])], "outside": []}
+
+    def krita_env(self, rid: str, home: str, env: Dict[str, str]) -> Dict[str, str]:
+        """Krita's environment for one call: its own home, no screen, and the launcher's wrapper on its Python path."""
+        base = self.results / f"{rid}.krita"
+        site = base / "lib" / "python" / "site-packages"
+        site.mkdir(parents=True)
+        (site / f"{KRITA_MODULE}.py").write_text(KRITA_WRAPPER, encoding="utf-8")
+        # HOME for Qt and fontconfig, CFFIXED_USER_HOME for macOS's own folder lookups (Library/...), which ignore HOME
+        return {"HOME": home, "CFFIXED_USER_HOME": home, "PYTHONUSERBASE": str(base), "QT_QPA_PLATFORM": "offscreen",
+                "LANG": "en_US.UTF-8", "LC_ALL": "en_US.UTF-8"}
+
+    def krita_home(self, rid: str, env: Dict[str, str], entry: Dict) -> str:
+        """A fresh clone of this Krita version's template home, built first if this machine has none."""
+        seat, paths = self.seat, app_paths()
+        root = Path(krita_cache())
+        template = root / f"template-{krita_version(paths['krita'])}"
+        if not template.is_dir():
+            entry["krita_template"] = self.build_krita_template(rid, template, env)
+        home = root / "calls" / rid
+        home.parent.mkdir(parents=True, exist_ok=True)
+        # APFS clones: the 110 MB of resources cost nothing until Krita changes a file
+        subprocess.run(["/bin/cp", "-c", "-R", str(template), str(home)], check=True, capture_output=True)
+        krita_swap(home)
+        return seat.real(str(home))
+
+    def build_krita_template(self, rid: str, template: Path, env: Dict[str, str]) -> Dict:
+        """Start Krita once in an empty home, under the call's lock and with no script, so it writes its first-run
+        resources there; the result becomes this version's template. No code of a seat's runs in it."""
+        build = template.with_name(f".{template.name}.{rid}")
+        build.mkdir(parents=True)
+        krita_swap(build)
+        tenv = dict(env, **self.krita_env(f"{rid}.template", self.seat.real(str(build)), env), MOTIONCRAFT_KRITA_SCRIPT="")
+        sbf = self.write_new(f"{rid}.template.sb", lock(self.ctx, "krita", home=str(build)).encode())
+        log = self.results / f"{rid}.template.log"
+        try:
+            with open(log, "xb") as logf:
+                r = subprocess.run(["/usr/bin/sandbox-exec", "-f", str(sbf), app_paths()["krita"], "-s", KRITA_MODULE,
+                                    "-f", "main"], cwd=self.ctx["scratch"], env=tenv, stdin=subprocess.DEVNULL, stdout=logf,
+                                   stderr=subprocess.STDOUT, start_new_session=True,
+                                   timeout=max(1, min(600, self.deadline - time.time())))
+            if r.returncode != 0 or not krita_finished(log):
+                raise RuntimeError(f"Krita's first start for its template failed (exit {r.returncode}); see {log}")
+            if not template.is_dir():  # another job on this machine may have built it meanwhile; theirs stands
+                os.rename(build, template)
+        finally:
+            shutil.rmtree(build, ignore_errors=True)
+        return {"built": str(template), "log": str(log), "lock": str(sbf)}
 
     def resolve_env(self, env: Dict[str, str]) -> Dict[str, str]:
         """The broker's environment, outside the lock: Resolve's own scripting variables (the allowlist's [env])."""
@@ -1028,13 +1192,14 @@ class AppServer:
 def cmd_lock(a) -> None:
     seat = _seat()
     ctx = seat.load(a.context)
-    sys.stdout.write(lock(ctx, a.app, "/private/tmp/mc-<call>/s" if a.app == "resolve" else ""))
+    home = os.path.join(krita_cache(), "calls", "<call>") if a.app == "krita" else ""
+    sys.stdout.write(lock(ctx, a.app, "/private/tmp/mc-<call>/s" if a.app == "resolve" else "", home=home))
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
-    k = sub.add_parser("ask", help="from inside a pass: ask the launcher to run Blender or Resolve")
+    k = sub.add_parser("ask", help="from inside a pass: ask the launcher to run Blender, Resolve or Krita")
     k.add_argument("app", choices=APPS)
     k.add_argument("--script", default="", help="a .py the pass wrote, in its scratch folder or a new version folder")
     k.add_argument("--blend", default="", help="blender: a .blend in the media project to open first")

@@ -49,9 +49,9 @@ Not yet written, so a topic for `thin_lane:` until it exists: **Pose, line of ac
 
 ## Application
 
-Last on the path. Krita 5.3.4 is installed on both machines and is this seat's painting tool, provisional on E7, which tests it before the Open (Sean, on the build map's **Tool ownership** ticket, 2026-10-20, moving the test from the appearance gate). Until E7 passes, this seat works from Codex style targets, and the style-target path is toolbelt ([seat file](../bench/art-pose-designer.md#toolbelt)), not corpus.
+Last on the path. Krita 5.3.4 is installed on both machines and is this seat's painting tool, provisional on E7, which tests it before the Open (Sean, on the build map's **Tool ownership** ticket, 2026-10-20, moving the test from the appearance gate). Krita runs for this seat through the application doorway with no screen, so without its brush engine: strokes are drawn by script with Qt's painter and Krita holds the layers, blend modes, filters and files (Sean, on the build map's **Krita's doorway** ticket, 2026-10-20). Until E7 passes, this seat works from Codex style targets, and the style-target path is toolbelt ([seat file](../bench/art-pose-designer.md#toolbelt)), not corpus.
 
-- **Krita's brushes, layers and colour concepts** — no guide yet; the manual is open (GFDL 1.3 or later) and not ingested, so it is read on the page — painted layers and replacement poses, each exported as a PNG with transparency for the Animator; the Krita tool guide waits on E7.
+- **Krita's layers, blend modes, filters and colour concepts** (its brushes do not run for a seat) — no guide yet; the manual is open (GFDL 1.3 or later) and not ingested, so it is read on the page — painted layers and replacement poses, each exported as a PNG with transparency for the Animator; the Krita tool guide waits on E7.
 - **Grease Pencil materials, if painting in Blender** — [`grease-pencil-4-3-and-later.md`](../corpus/guides/grease-pencil-4-3-and-later.md) — the layers and materials sections only, read if a layer is painted in Blender rather than Krita.
 
 ## Audit duty: the moving scene and its evidence pack

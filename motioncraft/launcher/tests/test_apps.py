@@ -1,9 +1,9 @@
-"""Motioncraft's application doorway: the lock, the request checks, and Blender and Resolve run under it for real.
+"""Motioncraft's application doorway: the lock, the request checks, and Blender, Resolve and Krita run under it for real.
 
 The lock tests read the Seatbelt text a call would run under. The doorway tests run
 the launcher's side (`AppServer`) against the test world's own context, and the
-seat's side (`apps.py ask`) as a pass would. Blender's run under the real lock is
-skipped where Blender is not installed, and Resolve's where Resolve is not open;
+seat's side (`apps.py ask`) as a pass would. Blender's and Krita's runs under the real
+lock are skipped where they are not installed, and Resolve's where Resolve is not open;
 both use the real `sandbox-exec`. One launch runs the whole loop through the fake
 vendor: the pass asks from its shell, the launcher runs it, the record shows it.
 """
@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pytest
 
-from test_seat import (BLENDER, LAUNCHER, behave, codex_home, codex_pass, context, ctx_data, fake,  # noqa: F401
+from test_seat import (BLENDER, KRITA, LAUNCHER, behave, codex_home, codex_pass, context, ctx_data, fake,  # noqa: F401
                        launch, record, seat, world)
 
 sys.path.insert(0, str(LAUNCHER))
@@ -26,6 +26,7 @@ import apps  # noqa: E402
 
 APPS = LAUNCHER / "apps.py"
 HAVE_BLENDER = os.access(BLENDER, os.X_OK)
+HAVE_KRITA = os.access(KRITA, os.X_OK)
 
 
 @pytest.fixture()
@@ -34,6 +35,7 @@ def env_of(world):
     old = dict(os.environ)
     os.environ.update({k: v for k, v in world["env"].items() if k.startswith(("MOTIONCRAFT_", "TRACEKIT_"))})
     os.environ["MOTIONCRAFT_APPS_CACHE"] = str(world["root"] / "appcache")
+    os.environ["MOTIONCRAFT_KRITA_CACHE"] = str(world["root"] / "kritacache")
     import seat as seatmod
     import importlib
     importlib.reload(seatmod)
@@ -95,6 +97,20 @@ def test_the_render_lock_adds_launchservices_and_nothing_else(env_of):
         assert never not in "\n".join(render)
     with pytest.raises(ValueError):
         apps.lock(c, "resolve", "", render=True)
+
+
+def test_the_krita_lock_opens_only_its_own_home_and_the_fonts(env_of):
+    c = ctx_of(env_of, "art-pose-designer", "k1")
+    home = str(env_of["root"] / "kritacache" / "calls" / "x")
+    text = apps.lock(c, "krita", home=home)
+    assert "(deny default)" in text and f'(subpath "{home}")' in text and "com.apple.fonts" in text
+    for shut in ("network", "AGXDeviceUserClient", "launchservicesd", "MTLCompilerService"):
+        assert shut not in text, f"Krita's lock has no {shut}: no screen, no graphics chip, no network"
+    for w in c["fence"]["write"]:
+        assert f'(subpath "{w}")' in text
+    assert text.index("(deny file-write*") > text.index("(allow file-write*"), "the frozen list comes after the allows"
+    with pytest.raises(ValueError):
+        apps.lock(c, "krita")  # never without a home of its own
 
 
 def test_the_resolve_lock_opens_only_the_brokers_socket(env_of):
@@ -286,6 +302,14 @@ def test_a_request_is_held_to_the_pass_fence(env_of):
     assert "args are at most" in ask(srv, "blender", good, *["x"] * 40)[0]["refused"]
     assert "--timeout" in refused("blender", good, timeout=99999)
     os.close(srv.fd)
+    art, a = server(env_of, "art-pose-designer", "k2")
+    mine = Path(a["scratch"]) / "paint.py"
+    mine.write_text("print(1)\n")
+    assert "may not run blender" in ask(art, "blender", mine)[0]["refused"], "Art's app is Krita only"
+    assert "a .blend file" in ask(art, "krita", mine, blend=str(out))[0]["refused"], "--blend is Blender's"
+    assert "scratch folder or a new version folder" in ask(art, "krita", out)[0]["refused"]
+    assert "may not run krita" in ask(server(env_of, "animator", "k3")[0], "krita", good)[0]["refused"]
+    os.close(art.fd)
 
 
 def ask_render(srv, blend, out, frames=(1, 3), engine="cycles", timeout=300, **extra):
@@ -344,6 +368,11 @@ def test_the_prompt_tells_a_seat_with_an_app_to_ask(env_of):
     d = ctx_of(env_of, "visual-story-director", "a9b")
     prompt = seatmod.claude_prompt(d, "work")
     assert "ask blender --render" in prompt and "sequencer edit" in prompt and "`aud`" in prompt and "ask resolve" not in prompt
+    a = ctx_of(env_of, "art-pose-designer", "a9c")
+    prompt = seatmod.claude_prompt(a, "work")
+    assert prompt.count("apps.py ask krita") == 1 and "brush engine is not available" in prompt and "QPainter" in prompt
+    assert prompt.index("Krita: none runs") > 0 and "ask blender" not in prompt and "ask krita" not in seatmod.codex_prompt(c, "work")
+    assert "image.py" in prompt, "Art keeps the image path beside Krita"
     g = ctx_of(env_of, "story-gate", "a8", "--anchor", "artifacts/story-packet.md")
     assert "apps.py" not in seatmod.codex_prompt(g, "work")
 
@@ -627,6 +656,148 @@ def test_without_resolve_open_the_call_says_so(env_of, monkeypatch):
     res, _ = ask(srv, "resolve", script)
     assert res["ok"] is False and "Resolve is not running" in res["error"]
     os.close(srv.fd)
+
+
+# --- Krita under the real lock -----------------------------------------------------------------
+
+# Art's kind of script: Qt's painter for the strokes, Krita for the layers, a filter, the file and the exports; then
+# writes that must be refused, and a module planted in the call's own Krita home for a later call to find.
+KRITA_PAINT = r"""
+import os, socket, sys
+from krita import Krita, InfoObject
+from PyQt5.QtCore import QPointF, QRect, Qt
+from PyQt5.QtGui import QBrush, QColor, QImage, QPainter, QPainterPath, QPen
+out, eng, frozen, sean = sys.argv[1:5]
+W = H = 128
+k = Krita.instance()
+doc = k.createDocument(W, H, "paint", "RGBA", "U8", "", 72.0)
+root = doc.rootNode()
+paper = doc.createNode("paper", "paintlayer"); root.addChildNode(paper, None)
+paper.setPixelData(bytes([200, 220, 230, 255]) * (W * H), 0, 0, W, H)
+noise = k.filter("noise"); cfg = noise.configuration(); cfg.setProperty("level", 30); noise.setConfiguration(cfg)
+noise.apply(paper, 0, 0, W, H)
+img = QImage(W, H, QImage.Format_ARGB32); img.fill(Qt.transparent)
+p = QPainter(img); p.setRenderHint(QPainter.Antialiasing)
+path = QPainterPath(QPointF(10, 100)); path.cubicTo(40, 10, 90, 120, 118, 20)
+p.setPen(QPen(QColor(150, 40, 30, 200), 9, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)); p.drawPath(path)
+p.setPen(Qt.NoPen); p.setBrush(QBrush(QColor(30, 60, 140, 160))); p.drawEllipse(QPointF(64, 64), 20, 14); p.end()
+bits = img.constBits(); bits.setsize(img.sizeInBytes())
+ink = doc.createNode("ink", "paintlayer"); root.addChildNode(ink, paper)
+ink.setPixelData(bytes(bits), 0, 0, W, H); ink.setBlendingMode("multiply"); ink.setOpacity(220)
+doc.waitForDone()
+os.makedirs(out, exist_ok=True)
+print("SAVED", doc.saveAs(os.path.join(out, "layers.kra")))
+for n in (paper, ink):
+    n.save(os.path.join(out, n.name() + ".png"), 72.0, 72.0, InfoObject(), QRect(0, 0, W, H))
+doc.refreshProjection(); doc.waitForDone()
+flat = QImage(bytes(doc.pixelData(0, 0, W, H)), W, H, QImage.Format_ARGB32).copy()
+print("FLAT", flat.save(os.path.join(out, "flat.png")))
+for name, target in (("ENGAGEMENT", os.path.join(eng, "brief.md")), ("FROZEN", os.path.join(frozen, "x.kra")),
+                     ("SEANS_KRITA", os.path.join(sean, "motioncraft-test-must-not-exist"))):
+    try:
+        open(target, "a").write("x"); print(name, "WROTE")
+    except OSError as e: print(name, "REFUSED", type(e).__name__)
+try:
+    socket.create_connection(("1.1.1.1", 80), timeout=3); print("NET WROTE")
+except OSError as e: print("NET REFUSED", type(e).__name__)
+home_pykrita = os.path.join(os.environ["HOME"], "Library", "Application Support", "kritarunner")
+open(os.path.join(home_pykrita, "planted.py"), "w").write("print('PLANTED RAN')\n")
+print("HOME", os.environ["HOME"])
+"""
+
+KRITA_REOPEN = r"""
+import os, sys
+from krita import Krita, InfoObject
+from PyQt5.QtCore import QRect
+kra, out = sys.argv[1:3]
+doc = Krita.instance().openDocument(kra)
+for n in doc.rootNode().childNodes():
+    if n.name() in ("paper", "ink"):
+        print("LAYER", n.name(), n.blendingMode(), n.opacity())
+        n.save(os.path.join(out, "reopen-" + n.name() + ".png"), 72.0, 72.0, InfoObject(), QRect(0, 0, 128, 128))
+try:
+    import planted
+    print("PLANTED FOUND")
+except ImportError:
+    print("PLANTED GONE")
+"""
+
+
+def decoded(png: Path) -> str:
+    r = subprocess.run(["ffmpeg", "-v", "error", "-i", str(png), "-f", "framemd5", "-pix_fmt", "rgba", "-"],
+                       capture_output=True, text=True, check=True)
+    return [l for l in r.stdout.splitlines() if not l.startswith("#")][0].split(",")[-1].strip()
+
+
+@pytest.mark.skipif(not HAVE_KRITA, reason="Krita is not installed on this machine")
+def test_krita_paints_layers_inside_the_fence_and_nowhere_else(env_of):
+    stage = env_of["project"] / "appearance"
+    frozen = stage / "appearance-v01-2026-10-20"
+    frozen.mkdir(exist_ok=True)
+    (frozen / "x.kra").write_text("v01")
+    srv, c = server(env_of, "art-pose-designer", "k4")
+    scratch, out = Path(c["scratch"]), stage / "appearance-v02-2026-10-20"
+    sean = Path(os.path.expanduser("~/Library/Application Support/krita"))
+    (scratch / "paint.py").write_text(KRITA_PAINT)
+    before = (frozen / "x.kra").read_text(), (env_of["eng"] / "brief.md").read_text()
+    try:
+        res, entry = ask(srv, "krita", scratch / "paint.py", str(out), str(env_of["eng"]), str(frozen), str(sean))
+        log = Path(res["log"]).read_text()
+        assert res["ok"], log[-3000:]
+        assert entry["krita_template"]["built"], "the first call builds this version's template"
+        assert "SAVED True" in log and "FLAT True" in log and "MOTIONCRAFT_KRITA done 0" in log
+        for name in ("ENGAGEMENT", "FROZEN", "SEANS_KRITA", "NET"):
+            assert f"{name} REFUSED" in log, name
+        assert ((frozen / "x.kra").read_text(), (env_of["eng"] / "brief.md").read_text()) == before
+        assert {p.name for p in out.iterdir()} == {"layers.kra", "paper.png", "ink.png", "flat.png"}
+        assert str(out / "layers.kra") in res["new_or_changed_in_fence"]
+        home = [l.split(" ", 1)[1] for l in log.splitlines() if l.startswith("HOME ")][0]
+        assert not os.path.exists(home), "the call's home is gone with the call"
+        assert not str(home).startswith(os.path.expanduser("~/Library")), "never Sean's own Library"
+        # each layer exported with its transparency: the ink is see-through where nothing was drawn
+        r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=pix_fmt", "-of", "csv=p=0", str(out / "ink.png")],
+                           capture_output=True, text=True, check=True)
+        assert "a" in r.stdout.strip(), r.stdout
+        # a second call reopens the file: same layers, same decoded pixels, and nothing of the first call's home
+        (scratch / "reopen.py").write_text(KRITA_REOPEN)
+        res2, entry2 = ask(srv, "krita", scratch / "reopen.py", str(out / "layers.kra"), str(scratch))
+        log2 = Path(res2["log"]).read_text()
+        assert res2["ok"], log2[-3000:]
+        assert "krita_template" not in entry2, "the template is built once"
+        assert "LAYER paper normal 255" in log2 and "LAYER ink multiply 220" in log2
+        assert "PLANTED GONE" in log2 and "PLANTED RAN" not in log2, "a call's home never reaches a later call"
+        for n in ("paper", "ink"):
+            assert decoded(out / f"{n}.png") == decoded(scratch / f"reopen-{n}.png"), n
+    finally:
+        stray = sean / "motioncraft-test-must-not-exist"
+        if stray.exists():
+            stray.unlink()
+        os.close(srv.fd)
+
+
+@pytest.mark.skipif(not HAVE_KRITA, reason="Krita is not installed on this machine")
+def test_a_krita_call_that_fails_says_so(env_of):
+    srv, c = server(env_of, "art-pose-designer", "k5")
+    scratch = Path(c["scratch"])
+    cases = {
+        "raises.py": "raise RuntimeError('no')\n",
+        # the brush engine with no screen: Krita itself crashes, and the call says so
+        "brush.py": ("from krita import Krita\nd = Krita.instance().createDocument(8, 8, 'b', 'RGBA', 'U8', '', 72.0)\n"
+                     "print(d.rootNode().childNodes()[0].paintAbility())\n"),
+        # leaving Krita before the wrapper's closing line, which kritarunner would report as exit 0
+        "quits.py": "import os; os._exit(0)\n",
+    }
+    try:
+        for name, body in cases.items():
+            (scratch / name).write_text(body)
+            res, entry = ask(srv, "krita", scratch / name)
+            assert res["ok"] is False, name
+            if name == "quits.py":
+                assert res["exit_code"] == 0 and "without the script finishing" in res["error"]
+            else:
+                assert res["exit_code"] != 0, name
+    finally:
+        os.close(srv.fd)
 
 
 # --- the whole loop, through a launch ------------------------------------------------------------

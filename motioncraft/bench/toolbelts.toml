@@ -31,6 +31,7 @@ apps = ["blender"]
 [seats.art-pose-designer]
 skills = ["claude-desktop:2d-animation-principles", "agents:shot-composition"]
 image = true
+apps = ["krita"]
 
 [seats.animator]
 skills = ["claude-desktop:2d-animation-principles", "agents:animation-principles"]
@@ -43,13 +44,16 @@ sound = true
 
 # `apps`: the applications a seat's drafting pass may run through the application
 # doorway (`launcher/apps.py`), on either vendor: the Director's animatic, in Blender's
-# sequencer; the Animator's Blender scene; Finishing's delivery project. Each pass
+# sequencer; Art's painted layers, in Krita with no screen and so without Krita's brush
+# engine (the map's "Krita's doorway" ticket, 2026-10-20: Art draws strokes with Qt's
+# painter); the Animator's Blender scene; Finishing's delivery project. Each pass
 # writes only its own stage, so two seats on Blender each work in their own files
 # (rule 5; the map's "Tool ownership" ticket, 2026-10-20, which also dropped the
 # Animator's `resolve` line: its renders cross to Finishing as files).
 # The paths below are what the doorway's locks run; a missing one is a gap in `seat.py check`.
 [apps]
 blender = "/Applications/Blender.app/Contents/MacOS/Blender"
+krita = "/Applications/Krita.app/Contents/MacOS/kritarunner"
 python = "/opt/homebrew/bin/python3"
 
 # What every pass's environment carries for the two tested applications, since the

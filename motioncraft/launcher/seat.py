@@ -157,10 +157,10 @@ CLAUDE_DENIED_COMMANDS = ("codex", "higgsfield", "nlm", "hyperframes")
 # pass with no way out of the sandbox; on a pass with a doorway (the Director's, Art's and Finishing's drafting
 # passes) the same rule would let them out, so not there: those passes put a filter in a file instead.
 CLAUDE_HELD_COMMANDS = ("ffmpeg", "ffprobe")
-# Blender and Resolve run for a pass only through the application doorway (launcher/apps.py), on the launcher's
-# side of the sandbox under a lock written from the pass's context; neither vendor's sandbox lets them work inside.
+# Blender, Resolve and Krita run for a pass only through the application doorway (launcher/apps.py), on the
+# launcher's side of the sandbox under a lock written from the pass's context; none works inside a vendor's sandbox.
 APPS_DOOR = HERE / "apps.py"
-SEAT_APPS = ("blender", "resolve")
+SEAT_APPS = ("blender", "resolve", "krita")
 
 
 def die(msg: str) -> None:
@@ -306,7 +306,7 @@ def context_belt(seat: str, vendor: str, read_only: bool) -> Dict:
             "manifest_sha256": sha256(belt_dir(seat) / "manifest.json") if skills else "",
             "image": belt["image"] and vendor == "claude" and not read_only,
             "sound": belt["sound"] and vendor == "claude" and not read_only,
-            # Blender and Resolve, through the application doorway: a drafting pass's, on either vendor
+            # Blender, Resolve and Krita, through the application doorway: a drafting pass's, on either vendor
             "apps": [] if read_only else belt["apps"]}
 
 
@@ -855,8 +855,22 @@ def apps_note(ctx: Dict) -> str:
         usage.append(f"`python3 -B {APPS_DOOR} ask resolve --script <a .py you wrote> [-- <the script's arguments>]` "
                      "runs your script with `DaVinciResolveScript` importable, connected to the Resolve already open on "
                      "this machine; render and export only into a version folder in your stage")
-    return ("Blender and Resolve: neither runs inside this pass's sandbox, so never run `blender` or a Resolve script "
-            "yourself. Ask the launcher, from your shell: " + "; ".join(usage) + ". Write the script in your scratch "
+    if "krita" in apps:
+        usage.append(f"`python3 -B {APPS_DOOR} ask krita --script <a .py you wrote> [-- <the script's arguments>]` "
+                     "runs your script inside Krita with no screen (`from krita import Krita, InfoObject`; your arguments "
+                     "are `sys.argv[1:]`). Krita's brush engine is not available: `Node.paintLine`, the other `paint...` "
+                     "calls and `paintAbility`, and anything that opens a window or view (`openWindow`, `addView`, "
+                     "`activeWindow`), crash Krita with no screen. Draw strokes with Qt's painter (`PyQt5.QtGui.QPainter` "
+                     "on a `QImage` in `Format_ARGB32`, its bytes being Krita's RGBA 8-bit layer bytes) and put them on a "
+                     "layer with `Node.setPixelData`. Krita gives the layers, their order, blend modes and opacity, its "
+                     "filters (`Krita.filter`), the `.kra` file (`Document.saveAs`) and each layer as a PNG with "
+                     "transparency (`Node.save`, which returns nothing, so check the file); `Document.exportImage` stalls with no screen, so a flattened image is "
+                     "`Document.pixelData` read into a `QImage` (`Format_ARGB32`, then `.copy()`) and saved with "
+                     "`QImage.save`; save only into a new version folder in your stage. A call succeeds only "
+                     "if your script runs to its end; exit non-zero (`sys.exit(1)`) when it fails")
+    names = " and ".join(", ".join(n.capitalize() for n in apps).rsplit(", ", 1))
+    return (f"{names}: none runs inside this pass's sandbox, so never run one yourself. "
+            "Ask the launcher, from your shell: " + "; ".join(usage) + ". Write the script in your scratch "
             "folder or a new version folder in your stage. The launcher runs a copy under a lock as tight as your own "
             "fence and prints the end of the application's log and a result: what it wrote in your fence, and, for "
             "Resolve, every path written elsewhere on the Mac during the call, which goes in your check record. If it "
@@ -1544,12 +1558,14 @@ def cmd_check(a) -> None:
     path, apps = app_env()
     gaps += [f"the allowlist's application path {p} is not on this machine" for p in path + list(apps.values())
              if not os.path.exists(p)]
-    # The application doorway: Seatbelt's own runner, and the two programs its locks run.
+    # The application doorway: Seatbelt's own runner, and the programs its locks run (Resolve's broker runs on python).
     door = {k: os.path.expanduser(str(v)) for k, v in toolbelts().get("apps", {}).items()}
-    if any(seat_belt(s)["apps"] for s in SEATS):
+    listed = {x for s in SEATS for x in seat_belt(s)["apps"]}
+    if listed:
         if not os.access("/usr/bin/sandbox-exec", os.X_OK):
             gaps.append("no /usr/bin/sandbox-exec, which the application doorway's locks run under")
-        gaps += [f"the allowlist's [apps] has no `{k}` path" for k in ("blender", "python") if k not in door]
+        gaps += [f"the allowlist's [apps] has no `{k}` path" for k in sorted((listed - {"resolve"}) | {"python"})
+                 if k not in door]
         gaps += [f"the doorway's {k} {p} is not on this machine" for k, p in door.items() if not os.access(p, os.X_OK)]
     # The sound doorway: the keys file it reads, and the two keys, by name only.
     if any(seat_belt(s)["sound"] for s in SEATS):
