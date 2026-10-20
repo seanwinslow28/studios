@@ -9,3 +9,9 @@ Until then a label carries a shared process-waste code or leaves the column blan
 ## Seat failure modes
 
 None yet.
+
+## Sighted, not coded
+
+Shapes seen in a fail's critique, kept here so later labels can confirm or dissolve them. A shape earns a code only when it leads fails across Motioncraft's own labels, proposed with its counts and ratified by Sean.
+
+- **Evidence without its frames** — an evidence item the brief asked for is made, but not on the frames it is meant to show: a motion path plotted on a blank plate instead of over a stack of the rendered frames. First sighted 2026-10-20 on the bouncing-ball exercise, the Animator's draft, the lead shape of its fail; the motion itself met every measured criterion. "Floaty weight", the shape earlier tests predicted, was not seen.
