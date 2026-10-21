@@ -360,6 +360,118 @@ def test_reads_travel_along_one_artifact_only_never_sideways(eng_dir):
     assert any("pass-09" in f and cite in f for f in c.findings)
 
 
+# --------------------------------------------------------------------------- #
+# SWCB #251 · a repair written as a new file (`name-r2.md`) is the same artifact's next revision
+# --------------------------------------------------------------------------- #
+
+MOVES = "Every move names an existing upstream item; splits are subsets"
+
+
+def as_new_file_revision(eng_dir: Path, rel: str, first: str) -> str:
+    """Re-file the train as if the repair of `rel` had written `name-r2.md` beside it, as Motioncraft's
+    seats do, instead of overwriting in place: `rel` goes back to its first revision (`first`, the bytes
+    its draft hashed), the repair's bytes move to the new file, and every record that hashed them points
+    there. Returns the new path."""
+    import hashlib
+    import re
+    p = eng_dir / rel
+    second = p.read_bytes()
+    after = hashlib.sha256(second).hexdigest()
+    new_rel = re.sub(r"(\.[^./]+)$", r"-r2\1", rel)
+    (eng_dir / new_rel).write_bytes(second)
+    p.write_text(first, encoding="utf-8")
+    from synth import hash_path
+    folder = rel.rsplit("/", 1)[0] + "/"   # the close gate hashes the whole folder, which now holds both files
+    for rec in (eng_dir / "trace").glob("pass-*.md"):
+        t = rec.read_text()
+        t = re.sub(rf"path: {re.escape(rel)}(\n\s+sha256: {after})", rf"path: {new_rel}\1", t)
+        t = re.sub(rf"(path: {re.escape(folder)}\n\s+sha256: )[0-9a-f]{{64}}", rf"\g<1>{hash_path(eng_dir, folder)}", t)
+        rec.write_text(t)
+    return new_rel
+
+
+@pytest.fixture
+def eng_r2(eng_dir) -> Path:
+    """pass-07 repairs the discovery packet as `artifacts/discovery-packet-r2.md`; pass-05's draft stays on disk."""
+    from synth import discovery
+    as_new_file_revision(eng_dir, "artifacts/discovery-packet.md", discovery(1))
+    return eng_dir
+
+
+def test_a_train_whose_repair_writes_a_new_file_is_still_clean(eng_r2):
+    assert (eng_r2 / "artifacts/discovery-packet-r2.md").is_file()
+    failing = [(c.name, c.findings) for c in run_checks(load_engagement(eng_r2)) if not c.ok]
+    assert failing == []
+
+
+def test_a_new_file_repair_inherits_its_drafts_reads(eng_r2):
+    """mc-eng-001's pass-10 and pass-33: the repaired packet keeps the draft's `grounding: full` and its
+    citations, the repair opens no library file, and the reads happened in the draft (SWCB #251)."""
+    cite = "corpus/discovery/the-mom-test.md"
+    assert cite in (eng_r2 / "artifacts/discovery-packet-r2.md").read_text()
+    edit(record(eng_r2, "pass-07"), f"- {cite}\n", "")
+    c = results(eng_r2)[CORPUS]
+    assert c.ok, c.findings
+    assert any("earlier revision" in n for n in c.notes)
+    assert any("pass-07" in n and "grounding" in n and "pass-05" in n for n in c.notes)
+
+
+def test_a_new_file_inherits_only_from_a_revision_the_pass_took_as_input(eng_r2):
+    """The `-r2` name alone is not a chain: the repair worked from the earlier revision, so it is an input."""
+    cite = "corpus/discovery/the-mom-test.md"
+    edit(record(eng_r2, "pass-07"), f"- {cite}\n", "")
+    rec = record(eng_r2, "pass-07")
+    t = rec.read_text()
+    i = t.index("  - path: artifacts/discovery-packet.md\n")
+    j = t.index("  - path:", i + 1)
+    rec.write_text(t[:i] + t[j:])
+    c = results(eng_r2)[CORPUS]
+    assert not c.ok
+    assert any("pass-07" in f and cite in f for f in c.findings)
+    assert any("pass-07" in f and "grounding: full" in f for f in c.findings)
+
+
+def test_a_new_file_repair_restating_its_drafts_split_is_not_charged(eng_r2):
+    """E6's pass-04 restated the draft's `ASK3 → SP1 … SP7`; the draft is on disk, so the kit can tell
+    a restatement from a new split by reading the draft's own Moves, and does."""
+    edit_artifact(eng_r2, "artifacts/discovery-packet-r2.md", "- kept — O1–O4 from pc-eng-000.discovery revision 1\n",
+                  "- split — B2 → O2, O3 from pc-eng-000.strategy\n- kept — O1, O4 from pc-eng-000.discovery revision 1\n")
+    c = results(eng_r2)[MOVES]
+    assert c.ok, c.findings
+    assert any("pass-07" in n and "previous revision" in n for n in c.notes)
+
+
+def test_a_new_file_repair_whose_split_its_draft_never_made_is_still_caught(eng_r2):
+    edit_artifact(eng_r2, "artifacts/discovery-packet-r2.md", "- kept — O1–O4 from pc-eng-000.discovery revision 1\n",
+                  "- split — B1 → O2, O3 from pc-eng-000.strategy\n- kept — O1, O4 from pc-eng-000.discovery revision 1\n")
+    c = results(eng_r2)[MOVES]
+    assert not c.ok
+    assert any("pass-07" in f and "O2" in f and "already exists upstream" in f for f in c.findings)
+
+
+def test_a_split_may_keep_its_parents_id_for_one_child(eng_dir):
+    """mc-eng-001's pass-05: `P20 → P20, P20a, P20b` keeps the panel by name beside its new children."""
+    edit_artifact(eng_dir, "artifacts/metrics-evidence-plan.md",
+                  "- split — OC-1 → OC-1a, OC-1b from pc-eng-000.strategy", "- split — OC-1 → OC-1, OC-1a, OC-1b from pc-eng-000.strategy")
+    c = results(eng_dir)[MOVES]
+    assert c.ok, c.findings
+    assert any("keep" in n and "OC-1" in n and "pass-" in n for n in c.notes)
+
+
+def test_a_split_that_only_keeps_its_parent_is_caught(eng_dir):
+    edit_artifact(eng_dir, "artifacts/metrics-evidence-plan.md",
+                  "- split — OC-1 → OC-1a, OC-1b from pc-eng-000.strategy", "- split — OC-1 → OC-1 from pc-eng-000.strategy")
+    c = results(eng_dir)[MOVES]
+    assert not c.ok and any("OC-1" in f and "no new child" in f for f in c.findings)
+
+
+def test_a_kept_name_beside_a_child_that_already_exists_is_still_caught(eng_dir):
+    edit_artifact(eng_dir, "artifacts/metrics-evidence-plan.md",
+                  "- split — OC-1 → OC-1a, OC-1b from pc-eng-000.strategy", "- split — OC-1 → OC-1, OC-2 from pc-eng-000.strategy")
+    c = results(eng_dir)[MOVES]
+    assert not c.ok and any("OC-2" in f and "already exists upstream" in f for f in c.findings)
+
+
 def test_a_meter_may_report_one_total_as_the_runtime_reported_it(eng_dir):
     """The Agent tool's usage field and the Codex footer each report one number."""
     edit(record(eng_dir, "pass-05"), "meter:\n", "meter:\n  total: 203700\n")

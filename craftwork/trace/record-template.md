@@ -101,7 +101,7 @@ Artifacts are redrafted **in place** with `revision:` bumped (#274); the pass re
 
 ## Corpus reads along a revision chain
 
-A repair that fixes one paragraph hands back a file still carrying every citation its earlier revisions made. The checker does not charge the repairing pass with reading all of them: a citation is accounted for by this pass's `## Corpus read` **or** by that of any earlier pass which recorded the same artifact path as an output. Reads travel along one artifact's own revision chain and never sideways to another artifact. So write `## Corpus read` as what this pass actually opened — never pad it to cover inherited lines.
+A repair that fixes one paragraph hands back a file still carrying every citation its earlier revisions made. The checker does not charge the repairing pass with reading all of them: a citation is accounted for by this pass's `## Corpus read` **or** by that of any earlier pass which recorded the same artifact path as an output. A repair written as a new file (`artifacts/scene-record-r2.md` beside `artifacts/scene-record.md`) is on the same chain when the earlier revision is among its `inputs` (SWCB #251), and so is its `grounding: full`: a repair that opens no corpus file of its own keeps the header on its draft's reads, and the checker names it in a note. Reads travel along one artifact's own revision chain and never sideways to another artifact. So write `## Corpus read` as what this pass actually opened — never pad it to cover inherited lines.
 
 ## Corpus read, by script
 

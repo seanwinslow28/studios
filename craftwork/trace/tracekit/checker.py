@@ -16,7 +16,7 @@ from pathlib import Path
 from .labels import decided
 from .codexlog import jsonl_helpers, jsonl_thread, parse_runtime, read_sessions, rollout_dir
 from .engagement import METER_SOURCES, Engagement, Record, normalize_meter, sha256_path
-from .moves import extract_ids
+from .moves import extract_ids, parse_moves
 from .studio import Studio
 from .taxonomy import Taxonomy, critique_quotes, taxonomy_for
 
@@ -310,24 +310,64 @@ def _hashes(eng: Engagement) -> Check:
 # --------------------------------------------------------------------------- #
 
 
-def _prior_reads(eng: Engagement) -> dict[str, dict[str, set[str]]]:
-    """Per pass, the corpus reads an earlier revision of each output path can account for.
+_REVISION_SUFFIX = re.compile(r"-r\d+(?=\.[^./]+$)")
+
+
+def _revision_stem(path: str) -> str:
+    """`artifacts/scene-record-r3.md` → `artifacts/scene-record.md`, the artifact a new-file revision revises."""
+    return _REVISION_SUFFIX.sub("", path)
+
+
+def _new_file_revisions(eng: Engagement) -> dict[str, dict[str, list[str]]]:
+    """Per pass, per output path, the earlier revisions of that artifact the pass wrote it from as a new file.
+
+    A Claude seat redrafts in place, but a seat whose redraft is filed from its final message writes
+    `name-r2.md` beside `name.md`, since an output is written once (Motioncraft's artifact header, after
+    Devcraft's rule, SWCB #145). That is the same artifact's next revision, not another artifact (SWCB #251).
+    It counts as one only when the pass took the earlier revision as an input and an earlier pass wrote it:
+    the `-rN` name alone links nothing.
+    """
+    written: set[str] = set()
+    out: dict[str, dict[str, list[str]]] = {}
+    for r in eng.records:                           # eng.records is in pass order
+        ins = [i.path for i in r.inputs]
+        out[r.pass_id] = {
+            o.path: [p for p in ins if p != o.path and p in written and _revision_stem(p) == _revision_stem(o.path)]
+            for o in r.artifact_outputs
+        }
+        written.update(o.path for o in r.artifact_outputs)
+    return out
+
+
+def _prior_reads(eng: Engagement) -> tuple[dict[str, dict[str, set[str]]], dict[str, dict[str, set[str]]]]:
+    """Per pass, the corpus reads an earlier revision of each output path can account for, and the
+    earlier passes that made them.
 
     Artifacts are redrafted in place (#274), so a repair that fixed one paragraph still
     hands back a file carrying every citation its earlier revisions made. Charging the
     repairing pass with reading all of them would be a false finding — the read happened,
     in the pass that wrote the line. So a citation is satisfied by this pass's own
     `## Corpus read` or by that of any earlier pass which recorded the same path as an
-    output. Reads never travel sideways: only along one artifact's own revision chain.
+    output, or wrote an earlier revision this pass redrafted as a new file. Reads never
+    travel sideways: only along one artifact's own revision chain.
     """
-    seen: dict[str, set[str]] = {}                  # path → reads recorded by earlier writers of it
+    seen: dict[str, set[str]] = {}                  # path → reads its writers, and its chain's, recorded
+    readers: dict[str, set[str]] = {}               # path → the passes that made those reads
     out: dict[str, dict[str, set[str]]] = {}        # pass id → path → those reads
+    by: dict[str, dict[str, set[str]]] = {}         # pass id → path → those passes
+    revisions = _new_file_revisions(eng)
     for r in eng.records:                           # eng.records is in pass order
-        paths = [o.path for o in r.artifact_outputs]
-        out[r.pass_id] = {path: set(seen.get(path, ())) for path in paths}
-        for path in paths:
-            seen.setdefault(path, set()).update(r.corpus_read)
-    return out
+        out[r.pass_id], by[r.pass_id] = {}, {}
+        for o in r.artifact_outputs:
+            chain = [o.path] + revisions[r.pass_id][o.path]
+            out[r.pass_id][o.path] = set().union(*(seen.get(p, set()) for p in chain))
+            by[r.pass_id][o.path] = set().union(*(readers.get(p, set()) for p in chain))
+        for o in r.artifact_outputs:
+            seen.setdefault(o.path, set()).update(r.corpus_read, out[r.pass_id][o.path])
+            readers.setdefault(o.path, set()).update(by[r.pass_id][o.path])
+            if any("corpus/" in x for x in r.corpus_read):
+                readers[o.path].add(r.pass_id)
+    return out, by
 
 
 def _same_file(a: str, b: str) -> bool:
@@ -346,7 +386,8 @@ def _corpus(eng: Engagement) -> Check:
         return c
     skipped_superseded = 0
     inherited = 0
-    prior = _prior_reads(eng)
+    grounded_earlier: list[str] = []   # "pass (the earlier passes)" whose grounding rests on an earlier revision's reads
+    prior, prior_by = _prior_reads(eng)
     for r in eng.records:
         if not r.hands_forward:
             continue
@@ -354,6 +395,7 @@ def _corpus(eng: Engagement) -> Check:
         cited: dict[str, set[str]] = {}   # corpus path → the reads that may account for it
         grounding = None
         grounding_reads = set(own)
+        grounding_by: set[str] = set()
         for o in r.outputs:
             text = None
             reads = set(own)
@@ -363,6 +405,7 @@ def _corpus(eng: Engagement) -> Check:
                     continue  # a later revision is on disk; its citations are that pass's, not this one's
                 reads |= prior.get(r.pass_id, {}).get(o.path, set())
                 grounding_reads |= reads
+                grounding_by |= prior_by.get(r.pass_id, {}).get(o.path, set())
                 text = eng.read_text(o.path)
                 if text is not None and grounding is None:
                     m = re.search(r"^grounding:\s*(\S+)", text, re.M)
@@ -388,6 +431,8 @@ def _corpus(eng: Engagement) -> Check:
         corpus_opened = [x for x in grounding_reads if "corpus/" in x]
         if grounding == "full" and not corpus_opened:
             c.findings.append(f"{r.pass_id}: artifact declares grounding: full but the transcript shows no corpus read")
+        elif grounding == "full" and not [x for x in own if "corpus/" in x]:
+            grounded_earlier.append(f"{r.pass_id} ({', '.join(sorted(grounding_by))})")
         if grounding == "none" and [x for x in own if "corpus/" in x]:
             c.findings.append(f"{r.pass_id}: artifact declares grounding: none but the transcript shows corpus reads")
     if skipped_superseded:
@@ -395,7 +440,12 @@ def _corpus(eng: Engagement) -> Check:
     if inherited:
         c.notes.append(
             f"{inherited} citation(s) accounted for by an earlier revision's pass, not this one's — the artifact was "
-            f"redrafted in place and kept the line"
+            f"redrafted, in place or as a new revision file, and kept the line"
+        )
+    if grounded_earlier:
+        c.notes.append(
+            f"{len(grounded_earlier)} pass(es) keep the artifact's grounding: full on the corpus reads of an earlier "
+            f"revision's pass and open no corpus file of their own: " + ", ".join(grounded_earlier)
         )
     return c
 
@@ -469,16 +519,35 @@ def _present(item: str, texts: list[str], id_re: re.Pattern | None = None) -> bo
     return any(phrase in t.lower() for t in texts)
 
 
+def _earlier_splits(eng: Engagement, r: Record, earlier: list[str]) -> dict[str, set[str]]:
+    """Parent → children, from the split lines of the earlier revisions a new-file revision was written
+    from, each read only at the hash this pass recorded for it."""
+    seen_at = {i.path: i.sha256 for i in r.inputs}
+    out: dict[str, set[str]] = {}
+    for path in earlier:
+        if eng.hash_of(path) != seen_at.get(path):
+            continue
+        text = eng.read_text(path)
+        mv = parse_moves(text) if text is not None else None
+        for m in mv.lines if mv else []:
+            if m.op == "split":
+                out.setdefault(m.item, set()).update(m.children)
+    return out
+
+
 def _moves(eng: Engagement) -> Check:
     c = Check(CHECK_NAMES[5])
     id_re = eng.studio.id_re
     superseded_passes: list[str] = []
     restated: dict[str, int] = {}   # pass → split lines a redraft carried from its overwritten revision
+    repeated: dict[str, int] = {}   # pass → split lines a new-file revision repeats from its previous revision's Moves
+    kept_name: list[str] = []       # "pass: child" where a split keeps its parent's id for one child
     start_only: list[str] = []      # "pass: child" named upstream only as where new numbering starts
     first_writer: dict[str, str] = {}
     for r in eng.records:
         for o in r.artifact_outputs:
             first_writer.setdefault(o.path, r.pass_id)
+    revisions = _new_file_revisions(eng)
     for r in eng.records:
         state = eng.moves_state(r)
         if state == "none-kind":
@@ -502,6 +571,9 @@ def _moves(eng: Engagement) -> Check:
         # a redraft in place restates the splits its earlier revision made; the audit and prompt it
         # repairs against already cite those children, and that revision is no longer on disk
         redraft = first_writer.get(rel, r.pass_id) != r.pass_id
+        # a redraft written as a new file leaves its previous revision on disk, so a restated split is
+        # read there rather than taken on trust (SWCB #251)
+        earlier_splits = _earlier_splits(eng, r, revisions[r.pass_id].get(rel, []))
         for m in mv.lines:
             c.n_total += 1
             if m.op == "added":
@@ -512,9 +584,22 @@ def _moves(eng: Engagement) -> Check:
             if all(v is True for v in verdicts):
                 ok = True
                 if m.op == "split":
-                    carried = False
+                    carried = again = False
+                    if all(child == m.item for child in m.children):
+                        c.findings.append(f"{r.pass_id}: split of {m.item} keeps only {m.item}: no new child (line {m.lineno})")
+                        ok = False
                     for child in m.children:
-                        if _present(child, upstream_items, id_re) is True:
+                        if child == m.item:
+                            # the parent kept by name beside its new children (P20 → P20, P20a, P20b, SWCB #251)
+                            if _present(child, [own], id_re) is False:
+                                c.findings.append(f"{r.pass_id}: split child {child} does not appear in {rel} (line {m.lineno})")
+                                ok = False
+                            else:
+                                kept_name.append(f"{r.pass_id}: {child}")
+                        elif _present(child, upstream_items, id_re) is True:
+                            if child in earlier_splits.get(m.item, ()):
+                                again = True
+                                continue
                             if redraft:
                                 carried = True
                                 continue
@@ -527,6 +612,8 @@ def _moves(eng: Engagement) -> Check:
                             start_only.append(f"{r.pass_id}: {child}")
                     if carried:
                         restated[r.pass_id] = restated.get(r.pass_id, 0) + 1
+                    if again:
+                        repeated[r.pass_id] = repeated.get(r.pass_id, 0) + 1
                 c.n_ok += 1 if ok else 0
             elif any_unreadable:
                 c.n_unverifiable += 1   # the item may live only in a revision rung 0 cannot read
@@ -545,6 +632,17 @@ def _moves(eng: Engagement) -> Check:
             f"{sum(restated.values())} split(s) in a redrafted artifact restate a split its earlier revision made, so "
             f"their children are already upstream; counted as kept, since rung 0 cannot read that revision to tell a "
             f"restatement from a new split: " + ", ".join(f"{p} ({n})" for p, n in restated.items())
+        )
+    if repeated:
+        c.notes.append(
+            f"{sum(repeated.values())} split(s) in a revision written as a new file repeat a split its previous "
+            f"revision's own Moves made, read on disk, so their children are already upstream; counted as kept: "
+            + ", ".join(f"{p} ({n})" for p, n in repeated.items())
+        )
+    if kept_name:
+        c.notes.append(
+            f"{len(kept_name)} split(s) keep the parent's id for one child beside new ones, so that child is not "
+            f"charged as already existing: " + ", ".join(kept_name)
         )
     if start_only:
         c.notes.append(
