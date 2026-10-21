@@ -1,7 +1,7 @@
 ---
 lane: finishing
 seat: finishing-sound-designer
-updated: 2026-10-19
+updated: 2026-10-21
 ---
 # Lane manifest — Finishing and Sound Designer
 
@@ -21,7 +21,7 @@ The five things this seat holds before mc-eng-001 opens (the book-to-seat brief'
 
 ## Vocabulary
 
-This seat's words are rows of [the glossary](glossary.md), which every pass carries after this manifest, with each row's definition, field terms and sources, which seats share it, and the four naming rulings. This seat's rows, in learning order: *Cut*, *Match cut*, *Line boil*, *Image jitter*, *Texture sliding*, *Texture continuity*, *J-cut and L-cut*, *Compositing*, *Grade*, *Linear and output colour*, *Loudness*, *True peak* and *Sound layers*.
+This seat's words are rows of [the glossary](glossary.md), which every pass carries after this manifest, with each row's definition, field terms and sources, which seats share it, and the four naming rulings. This seat's rows, in learning order: *Cut*, *Match cut*, *Line boil*, *Image jitter*, *Texture sliding*, *Texture continuity*, *J-cut and L-cut*, *Compositing*, *Grade*, *Linear and output colour*, *Loudness*, *True peak* and *Sound layers*; on a film that sets text, *Title safe*, from the glossary's type rows.
 
 ## Principles, in learning order
 
@@ -50,6 +50,10 @@ Last on the path, in the order the book-to-seat brief set: the beginner's guide,
 - **Resolve finishing and delivery** — [`resolve-finishing-and-delivery.md`](../corpus/guides/resolve-finishing-and-delivery.md) — owned: before the conform, before the grade, before the mix and before every delivery; the six technical checks, the loudness record with the targets set by hand, the save-reopen-render comparison, and the scripting calls that are known to fail while the application is busy.
 - **Blackmagic's beginner's guide, then the manual's five parts** — no guide beyond the one above; all rights reserved, read on the page — the application chapters, as the brief ordered them.
 - **The Resolve scripting documents shipped with the installed application** — cited in the Resolve guide — render settings, project colour management, the audio-normalise call whose default is not the target.
+- **Title and credit cards** — no guide yet — read when the film sets text, before placing the first card. Art's cards arrive as PNGs with transparency; this seat places, times and fades them as clips and never sets words in Resolve (Sean's type ruling, SWCB #244). Two entries from the corpus, then the hold:
+  - **Titles a little under full white, less saturated than the picture** — Van Hurkman, *Color Correction Handbook*, ch. 10, [`chapters/ch10-quality-control-and-broadcast-safe.md`](../corpus/books/color-correction-handbook/chapters/ch10-quality-control-and-broadcast-safe.md) — read when checking a card in the graded frame; its figure is about 90–93% white.
+  - **Safe areas** — Goldberg, *Character Animation Crash Course!*, ch. 4, pp. 133–134, [`chapters/ch04-technique-exposure-sheet-layout-staging.md`](../corpus/books/character-animation-crash-course/chapters/ch04-technique-exposure-sheet-layout-staging.md) (the Animator's lane's book) — flagged as **old TV practice**: a 12-field chart for a television picture that edges cut off. For this film's 1920×1080 delivery, title safe is the glossary's row, from EBU R 95: 5% in from each edge.
+  - How long a card holds is the Director's, from the animatic; no corpus source gives an on-screen hold time for text (a thin topic on [the story lane](story.md)).
 - `ffmpeg` with `ebur128` and `loudnorm`, `ffprobe`, `color-motion` and `beat-sync-editing` are toolbelt ([seat file](../bench/finishing-sound-designer.md#toolbelt)), not corpus.
 
 ## Audit duty: the story packet
@@ -76,6 +80,7 @@ The free sources this seat's rows, principles and guides draw on, with the licen
 | Blackmagic's Resolve colour page and Fairlight page; the Resolve 20 and 21 guides and the Fusion guide | edit, colour, Fairlight, Fusion, deliver | all rights reserved | read-only | the Resolve guide (the two pages); the guides none yet |
 | The Resolve scripting documents shipped with the installed application | render and project calls, the audio-normalise default | shipped with the application; read only, local | local, read-only | the Resolve guide |
 | ACES documentation, output transforms | linear and output colour | CC BY 4.0 | open, not ingested | the Resolve guide |
+| EBU R 95, safe areas for 16:9 television (2016) | title safe (graphics safe, 5%) and action safe (3.5%) | free download, licence not checked | read-only | the glossary's *Title safe* row |
 | Meier 1996; the Paperman talk; Bénard 2010; Disney's SIGGRAPH 2024 page | texture continuity and its failures in the composite | all rights reserved, or the authors' and the Eurographics Association's | read-only | the texture guide |
 | Thom, "Designing a Movie for Sound" (filmsound.org) | designing for sound from the start | © Randy Thom 1999, on a tier C host | read-only | none yet |
 | Murch on Transom; Murch on Web of Stories, segments 293 to 295 | sound layers; emotion first | no terms stated; automatic captions | read-only | none yet |

@@ -105,6 +105,7 @@ Every finding names the line it came from, as `gate schedule § <list>, "<line>"
 - **Identity judged from memory.** A new key or smear with no still beside the approved frame, or a model note that cannot be checked in a single frame.
 - **An approval carried across a change.** A design change to an approved frame, pose or palette that the packet does not name as one and route to Sean (never-do 3).
 - **Colour that does not carry the beats.** A beat with no palette, value or temperature line, or a colour choice the grade would have to invent.
+- **Type not set for the screen.** A film that sets text with no Type section; a face not on the font shelf; a size, spacing or placement row with no why or no canon; a card outside title safe or off the hang line; a size not read at delivery size; real words where the film has none yet from Sean or Scriptcraft.
 - **A target passed as a design.** A generated style target not labelled, not downloaded, or standing in for a painted layer; edit mode relied on while unconfirmed and not said.
 - **The rejected look back.** A composed frame that reuses the earlier look Sean did not accept, or a frame whose layers could not move under the camera construction the shot list names.
 

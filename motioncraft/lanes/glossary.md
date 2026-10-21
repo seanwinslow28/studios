@@ -1,6 +1,6 @@
 # Glossary
 
-Motioncraft's words: the curriculum brief's 45 terms (section 1, ratified by Sean on 2026-10-17), each defined once, and the four naming rulings. Every seat pass carries this file after its lane manifest, and every gate carries it whole ([bench § What an invocation carries](../bench/README.md); [the gate schedule](../templates/gate-schedule.md#the-three-craft-gates)). A craft fail is a term from this file and a frame number (rule 6 of [`../CLAUDE.md`](../CLAUDE.md)), written in the **Glossary term** column exactly as the row's **Term** names it. A fault this file has no word for is written in plain words and flagged as a finding against this folder, never given a word from memory. Written on the Motioncraft build map's **Glossary for the gates** ticket (2026-10-19), lifting the rows the four lane manifests used to copy; the lanes now name their rows and point here.
+Motioncraft's words: the curriculum brief's 45 terms (section 1, ratified by Sean on 2026-10-17) and five type terms added from Sean's type ruling (SWCB #244, written in on #254, 2026-10-21), each defined once, and the four naming rulings. Every seat pass carries this file after its lane manifest, and every gate carries it whole ([bench § What an invocation carries](../bench/README.md); [the gate schedule](../templates/gate-schedule.md#the-three-craft-gates)). A craft fail is a term from this file and a frame number (rule 6 of [`../CLAUDE.md`](../CLAUDE.md)), written in the **Glossary term** column exactly as the row's **Term** names it. A fault this file has no word for is written in plain words and flagged as a finding against this folder, never given a word from memory. Written on the Motioncraft build map's **Glossary for the gates** ticket (2026-10-19), lifting the rows the four lane manifests used to copy; the lanes now name their rows and point here.
 
 The definition is the brief's, checked against the named source. **Seats** names the first-named seat first, then the seats that share the row and how. Lasseter 1987 is John Lasseter, "Principles of Traditional Animation Applied to 3D Computer Animation", *Computer Graphics* 21(4); its [course copy](https://www.ics.uci.edu/~fowlkes/class/ics162/exercises/lasseter.pdf) is read-only and the page numbers are the paper's. Every source here is a web page or a paper, read on the page; none is corpus.
 
@@ -77,3 +77,15 @@ They hold in every artifact, check and gate, and in the templates' own wording.
 | Loudness | The whole mix's measured loudness, averaged over the film. | Integrated, in LUFS, equal to LKFS; target −23. | Finishing | [EBU R 128](https://tech.ebu.ch/publications/r128) |
 | True peak | The waveform's real highest level, including between samples. | dBTP; at most −1. | Finishing | EBU R 128 |
 | Sound layers | The separate strands of a mix, from the animatic's scratch track on. | Tracks, stems, density. | Finishing | [Murch on Transom](https://transom.org/2005/walter-murch/) |
+
+## Type: rows Art designs, shared with the Animator and Finishing
+
+Added for a film that sets text (SWCB #244). Google Fonts Knowledge is CC BY-SA 4.0, read on the page.
+
+| Term | Plain definition | Field term and synonyms | Seats | Source |
+|---|---|---|---|---|
+| Kerning | The space between two particular letters, adjusted so the pair looks even; a font carries its designer's pairs inside the file. | Kerning pairs; pair kerning. Not tracking. | Art sets it, first-named; the Animator keeps it | [Google Fonts Knowledge](https://fonts.google.com/knowledge/glossary/kerning_kerning_pairs) |
+| Tracking | The same extra space added between every letter of a line or word. | Letter-spacing. Tightens as type grows. | Art, first-named; the Animator | [Google Fonts Knowledge](https://fonts.google.com/knowledge/glossary/tracking_letter_spacing) |
+| Leading | The distance from one line's baseline to the next. | Line height; line spacing. | Art | [Google Fonts Knowledge](https://fonts.google.com/knowledge/glossary/line_height_leading) |
+| Optical size | A version of a typeface drawn for a size range, with sturdier strokes for small text and finer detail for large. | Display, subhead, text and caption cuts; the `opsz` axis. | Art | [Google Fonts Knowledge](https://fonts.google.com/knowledge/glossary/optical_sizes) |
+| Title safe | The area inside the frame's edges where words are kept, so no screen crops them. | Graphics safe area; title safety. EBU: 5% in from each edge of 16:9, inside the 3.5% action safe area. | Art places, first-named; Finishing checks | [EBU R 95](https://tech.ebu.ch/docs/r/r095.pdf) |

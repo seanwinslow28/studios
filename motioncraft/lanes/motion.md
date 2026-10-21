@@ -1,7 +1,7 @@
 ---
 lane: motion
 seat: animator
-updated: 2026-10-19
+updated: 2026-10-21
 ---
 # Lane manifest — Animator
 
@@ -21,7 +21,7 @@ The five things this seat holds before mc-eng-001 opens (the book-to-seat brief'
 
 ## Vocabulary
 
-This seat's words are rows of [the glossary](glossary.md), which every pass carries after this manifest, with each row's definition, field terms and sources, which seats share it, and the four naming rulings. This seat's rows, in learning order: *Volume*, *Smear*, *Multiple*, *Pigment variation*, *Timing*, *Spacing*, *Slow in and slow out*, *Weight*, *Anticipation*, *Squash and stretch*, *Follow-through and overlap*, *Arc*, *Deformation*, *In-between*, *Hold*, *Moving hold*, *On ones, on twos*, *Line boil* and *Texture continuity*.
+This seat's words are rows of [the glossary](glossary.md), which every pass carries after this manifest, with each row's definition, field terms and sources, which seats share it, and the four naming rulings. This seat's rows, in learning order: *Volume*, *Smear*, *Multiple*, *Pigment variation*, *Timing*, *Spacing*, *Slow in and slow out*, *Weight*, *Anticipation*, *Squash and stretch*, *Follow-through and overlap*, *Arc*, *Deformation*, *In-between*, *Hold*, *Moving hold*, *On ones, on twos*, *Line boil* and *Texture continuity*; on a piece that moves type, *Kerning* and *Tracking*, from the glossary's type rows.
 
 ## Principles, in learning order
 
@@ -42,7 +42,7 @@ The starred guides by file. This seat owns one principle guide and one tool guid
 - **Smears as designed poses** — [`smears-as-designed-poses.md`](../corpus/guides/smears-as-designed-poses.md) — this seat times what Art designed: each smear on the frames, between the keys and along the arc the plan lists, each strong smear one frame on ones, then one or two folding drawings into the next key (the canon's count, by Sean's ruling of 2026-10-19).
 - **Line boil and painted-texture continuity** — [`boil-and-painted-texture-continuity.md`](../corpus/guides/boil-and-painted-texture-continuity.md) — this seat moves what Art designed: paint travels with the subject, line boil at Art's cadence, pigment variation held steady, nothing sliding.
 
-Not yet written, so a topic for `thin_lane:` until it exists: **Timing and spacing on a chart**, **Anticipation, follow-through, overlap**, **Squash, stretch, constant volume** (with Art) and **Holds and cadence** (all ready now; Williams is ingested, so their depth can be drawn from it); **Straight ahead and pose to pose** and **Secondary action, exaggeration, appeal** (after the first film); **Multiples** (waits on a team test; Goldberg, ch. 12, now gives its timing); **Staggers** (ready now: Williams, ch. 12; Goldberg, ch. 12); **Kinetic type** (parked for a type engagement).
+Not yet written, so a topic for `thin_lane:` until it exists: **Timing and spacing on a chart**, **Anticipation, follow-through, overlap**, **Squash, stretch, constant volume** (with Art) and **Holds and cadence** (all ready now; Williams is ingested, so their depth can be drawn from it); **Straight ahead and pose to pose** and **Secondary action, exaggeration, appeal** (after the first film); **Multiples** (waits on a team test; Goldberg, ch. 12, now gives its timing); **Staggers** (ready now: Williams, ch. 12; Goldberg, ch. 12); **Kinetic type** (parked for a type engagement: the font is loaded by path from the version's `assets/fonts/` and packed into the `.blend`, and Blender applies no pair kerning, so the kerning helper, SWCB #255, comes first; the bench file's Moving type rule).
 
 ## Application
 

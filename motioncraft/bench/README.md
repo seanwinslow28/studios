@@ -48,7 +48,7 @@ The trace kit's registry numbers group seats by family, one family per seat so a
 
 - **Evidence, never report** (never-do 2). Every motion claim ships its evidence pack: adjacent frames around every contact and transformation, plus full-speed playback. A seat's own "done" is not evidence.
 - **Three finding kinds** (rule 6). A **technical fail**, decided by a measurement; a **craft fail**, a glossary term and a frame number; a **taste call**, written as a question for Sean and never ruled by a seat. Severity is the protocol's CRITICAL, MATERIAL, NOTE. Every review says that an agent reads decoded frames, not a real-time viewing.
-- **The four naming rulings**, in [the glossary](../lanes/glossary.md#the-four-naming-rulings), beside the 45 terms every seat and gate names a craft fail in.
+- **The four naming rulings**, in [the glossary](../lanes/glossary.md#the-four-naming-rulings), beside the 50 terms (the curriculum brief's 45 and five type terms) every seat and gate names a craft fail in.
 - **Canon is named, not read.** Each seat names its canon title and the idea in its own words, and marks it "named, not read" until a bought copy is ingested. Installed skills are toolbelt, never canon: the shelf wins any disagreement, and no ledger entry names a skill under `## From the canon`.
 - **One operator per application, versions kept** (rule 5). Each seat writes new version folders, `<artifact>-vNN-<date>`, and never overwrites one.
 

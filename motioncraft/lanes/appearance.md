@@ -1,7 +1,7 @@
 ---
 lane: appearance
 seat: art-pose-designer
-updated: 2026-10-19
+updated: 2026-10-21
 ---
 # Lane manifest — Art and Pose Designer
 
@@ -23,7 +23,7 @@ The curriculum brief adds a sixth for this film: **texture designed in separate 
 
 ## Vocabulary
 
-This seat's words are rows of [the glossary](glossary.md), which every pass carries after this manifest, with each row's definition, field terms and sources, which seats share it, and the four naming rulings. This seat's rows, in learning order: *Staging*, *Layout*, *Pose*, *Line of action*, *Silhouette*, *Volume*, *Smear*, *Multiple*, *Style frame*, *Value and temperature*, *Pigment variation*, *Paper grain*, *Squash and stretch*, *Line boil* and *Texture continuity*.
+This seat's words are rows of [the glossary](glossary.md), which every pass carries after this manifest, with each row's definition, field terms and sources, which seats share it, and the four naming rulings. This seat's rows, in learning order: *Staging*, *Layout*, *Pose*, *Line of action*, *Silhouette*, *Volume*, *Smear*, *Multiple*, *Style frame*, *Value and temperature*, *Pigment variation*, *Paper grain*, *Squash and stretch*, *Line boil* and *Texture continuity*; on a film that sets text, the type rows *Kerning*, *Tracking*, *Leading*, *Optical size* and *Title safe*.
 
 ## Principles, in learning order
 
@@ -44,6 +44,8 @@ The starred guides by file. This seat owns one, designs the layers of a second, 
 - **Line boil and painted-texture continuity** — [`boil-and-painted-texture-continuity.md`](../corpus/guides/boil-and-painted-texture-continuity.md) — the design half is this seat's: before the style frame is separated into line, pigment and paper, so each layer has its change rule and the Animator can move it.
 - **The animatic and staging** — [`animatic-and-staging.md`](../corpus/guides/animatic-and-staging.md) — read when posing into a boarded frame, since staging is shared and every key must read at its panel's size.
 - **Contact, weight and settling** — [`contact-weight-and-settling.md`](../corpus/guides/contact-weight-and-settling.md) — read when designing the squash and stretch keys, so volume is designed here and not left to the Animator.
+
+- **Type for a film that sets text** — no guide yet; Lupton is ingested, [`books/thinking-with-type/`](../corpus/books/thinking-with-type/) — read when the film sets text, before writing the packet's Type section (Sean's type ruling, SWCB #244): ch. 3 to cast faces by role (title, cards, credits); ch. 4 for optical sizes, true italics and small caps; ch. 6 for kerning each display pair by eye and tracking that tightens as size grows; ch. 7 for a gentle size scale, judged at delivery size; ch. 10–11 for credits grouped by proximity and one hang line held from card to card. Faces come from the font shelf only ([source-contract.md § 10](../templates/source-contract.md#10-the-font-shelf)); title safe is the glossary's row; the card's colour, a little under full white and less saturated than the picture, is on [Finishing's lane](finishing.md); how long a card holds is the Director's call in the animatic, with no corpus source.
 
 Not yet written, so a topic for `thin_lane:` until it exists: **Pose, line of action, silhouette** (ready now; *FORCE* is ingested, so its depth can be drawn from it); **Value and temperature for one world** (ready now, thin; Gurney's book later); **Squash, stretch, constant volume** (ready now; with the Animator); **Multiples** (waits on a team test); **Secondary action, exaggeration, appeal** (after the first film); **Kinetic type** (waits on a type engagement; *Thinking with Type* is ingested, so its depth can be drawn from it); **Krita painted layers**, a tool guide (waits on Krita's bounded test at the appearance gate).
 
@@ -81,7 +83,7 @@ The free sources this seat's rows, principles and guides draw on, with the licen
 | Chromosphere case studies (*Carmen*, *Volta X*, *June*) | style frames, value and temperature, painted pipelines | all rights reserved | read-only | none yet |
 | Gurney Journey; Mark Kennedy's blog | colour and light; staging | no licence stated | read-only | none yet |
 | Frame.io's *Wolfwalkers* piece | a painted pipeline | trade press | read-only | none yet |
-| Google Fonts Knowledge | choosing and setting type; vocabulary | CC BY-SA 4.0 (the google/fonts README) | open, not ingested | none yet (kinetic type waits) |
+| Google Fonts Knowledge | choosing and setting type; vocabulary | CC BY-SA 4.0 (the google/fonts README) | open, not ingested | the glossary's type rows |
 | Butterick, *Practical Typography* | type | read-only web book | read-only | none yet |
 | Krita manual | brushes, layers, colour, a walk cycle | GFDL 1.3 or later (the animation page) | open, not ingested | none yet (the Krita tool guide waits) |
 

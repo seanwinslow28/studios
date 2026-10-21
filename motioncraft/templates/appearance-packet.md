@@ -74,6 +74,43 @@ The palette and its order, and how value and temperature carry the beat order. C
 |---|---|---|---|---|
 | B<n> | | | warm against cool | |
 
+## Type
+
+For a film that sets text: how its words look on screen. `none` when the film sets no text. The words themselves are Sean's or Scriptcraft's (the interim words rule); until they arrive, cards carry marked placeholders. Every face comes from the font shelf ([source-contract.md § 10](source-contract.md#10-the-font-shelf)); every size is judged at `viewing_size`, never zoomed. Terms are the glossary's type rows.
+
+**Faces, cast by role.** One row per role the film uses.
+
+| Role | Face, size cut and style | Designer and foundry | Shelf path | Why this over that | Canon |
+|---|---|---|---|---|---|
+| title | | | `media:fonts/<family>-<version>/<file>` | <this face> over <the strongest alternative>, because <reason> | |
+| cards | | | | | |
+| credits | | | | | |
+
+**Sizes, on a gentle scale.** Few sizes, each a step the eye reads as different, every one read at delivery size.
+
+| Role | Size (px at 1920×1080) | Leading | Step from the next size | Read at delivery size? | Why | Canon |
+|---|---|---|---|---|---|---|
+| title | | | | yes | | |
+
+**Spacing.** Tracking per role, tightening as size grows; the kerning of each display pair, as the font's own pair value and any change made by eye.
+
+| Role or pair | Tracking | Pair kerning (font's value → set value) | Why | Canon |
+|---|---|---|---|---|
+| title | | | | |
+| `Wo` in <word> | | <n> → <n> | | |
+
+**Placement.** One hang line held from card to card, inside title safe (5% in from each edge at 1920×1080: x 96–1824, y 54–1026). Credits grouped by proximity.
+
+| Card | Hang line (x px) | Baseline (y px) | Inside title safe? | Grouping | Why | Canon |
+|---|---|---|---|---|---|---|
+| C<n> | | | yes | | | |
+
+**Legibility against the picture.** Each card read over the frames it sits on.
+
+| Card | Frames it sits on | Value contrast with the picture behind | Colour (kept a little under full white, less saturated than the picture) | Reads at delivery size? | Why | Canon |
+|---|---|---|---|---|---|---|
+| C<n> | <a>–<b> | | | yes | | |
+
 ## Model notes
 
 What must stay the same about each subject through every pose and transformation: its identity, written so the Animator and the motion gate can check it frame by frame.

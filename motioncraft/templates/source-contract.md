@@ -1,6 +1,6 @@
 # Source and version contract — every shot reproducible and revisable
 
-How every version Motioncraft makes is named, kept, described, frozen, backed up and proved revisable, and what the finished film is delivered as. It answers SWCB #165 (*what source and delivery contract makes every shot reproducible and revisable?*), sized to a fifteen-second film. Written on the Motioncraft build map's **Source and version contract** ticket (2026-10-18). The folder and version naming come from the layout ruling (SWCB #186, sections 2–6), copied here so a seat reads one file. The delivery targets and the TC5 rule are Sean's rulings of 2026-10-18.
+How every version Motioncraft makes is named, kept, described, frozen, backed up and proved revisable, and what the finished film is delivered as. It answers SWCB #165 (*what source and delivery contract makes every shot reproducible and revisable?*), sized to a fifteen-second film. Written on the Motioncraft build map's **Source and version contract** ticket (2026-10-18). The folder and version naming come from the layout ruling (SWCB #186, sections 2–6), copied here so a seat reads one file. The delivery targets and the TC5 rule are Sean's rulings of 2026-10-18. The font shelf (§ 10) and the Fonts table are Sean's type ruling (SWCB #244, 2026-10-21), written in on SWCB #254.
 
 Every seat that saves a version follows sections 1–6. Finishing, the accountable integrator, reads every manifest at TC5 and TC6 and fails the film on any gap. Nothing here approves artistry: a version passing every rule below is reproducible, not good.
 
@@ -30,7 +30,7 @@ media:<film>/<project>-<YYYY-MM-DD>/        # the project folder: named for the 
 | `pointer.txt` | at creation, never edited | one line: the engagement id and its ledger folder, e.g. `mc-eng-001 · ledger: engagements/idea-seed-2026-10-17/` |
 | `manifest.md` | by the seat that made the version, before freezing | the version's parts list, section 3 |
 | `sources/` | | the native authoring files: Blender `.blend`, the Resolve project export `.drp`, Krita `.kra`, painted layers, composition HTML and scripts |
-| `assets/` | | everything a source depends on: painted layers, textures, audio stems, font files where their licence allows |
+| `assets/` | | everything a source depends on: painted layers, textures, audio stems, and the font files the version sets, copied from the shelf with their licence text (§ 10) |
 | `renders/` | | what the sources render: frame sequences, clips, stills |
 | `evidence/` | | the evidence pack (adjacent frames, full-speed playback, burned-in frame numbers) and command output |
 | `checksums.sha256` | last, when the version is finished | `shasum -a 256` of every other file in the folder, in the form `shasum -a 256 -c` reads |
@@ -77,10 +77,11 @@ Plugins, add-ons, brushes, LUTs or anything else the source needs that is not in
 
 ## Fonts
 
-| Font | File | Licence | Video use allowed? | Licence text kept at |
-|---|---|---|---|---|
+| Font | Version | File | sha256 | Licence | Licence text kept at | Licence sha256 | From the shelf |
+|---|---|---|---|---|---|---|---|
+| <family, size cut and style> | <version> | `assets/fonts/<file>` | | SIL OFL 1.1 | `assets/fonts/<family>-<version>-LICENSE.md` | | `media:fonts/<family>-<version>/<path to the file>` |
 
-`none` when no text is set. A font whose licence does not allow use in a published video is a technical fail.
+One row per font file the version sets. Both sha256 values must match the shelf family's `checksums.sha256`. `none` when no text is set. **A technical fail at TC5:** a font not on the shelf, a file or licence whose sha256 differs from the shelf's, a font missing from `assets/`, an Apple system font (SF Pro and New York above all), or an Adobe Fonts face.
 
 ## Settings
 
@@ -173,7 +174,29 @@ Duration is the approved animatic's, to the frame: the frame count in `ffprobe` 
 |---|---|
 | TC1, TC2 | the delivered files of § 8 |
 | TC4 and the loudness record | the audio targets of § 8, measured on each file |
-| TC5 | every manifest in the delivery's chain (§ 3) with nothing missing; the save, reopen and render comparison of § 7 on the finished timeline; fonts licensed |
+| TC5 | every manifest in the delivery's chain (§ 3) with nothing missing; the save, reopen and render comparison of § 7 on the finished timeline; every font in every Fonts table from the shelf, its file and licence matching the shelf's sha256 (§ 10) |
 | TC6 | the targets of § 8, read from `ffprobe` on each file |
 
 A manifest that is missing, or a file in a version that is not in its `checksums.sha256`, fails TC5.
+
+## 10. The font shelf
+
+Every font a film sets comes from one shelf in the studio's media folder, so a version never depends on what is installed on a machine. Sean's type ruling (SWCB #244, 2026-10-21) is why: Apple's system fonts are licensed for display on the Mac and SF Pro and New York are barred from artwork; Adobe's terms forbid embedding the files and end use when the subscription lapses; only open-licence fonts allow the file to be copied into a project, packed into a `.blend` and moved between machines, with video and commercial use allowed.
+
+```
+media:fonts/
+├── README.md                       # the shelf index: one line per family, its licence, when it was fetched, its ledger record
+└── <family>-<version>/             # e.g. source-serif-4.005/
+    ├── <the release's font files>  # unchanged, in the release's own folders
+    ├── LICENSE.md                  # the licence text as released
+    ├── SOURCE.md                   # source URL, release, the download's sha256, designer and foundry, Sean's yes
+    └── checksums.sha256            # every other file, in the form shasum -a 256 -c reads
+```
+
+- **Open-licence only.** A family on the shelf is under the SIL Open Font License. A font under any other licence is a purchase: a separate yes from Sean, per font, and its licence must name video use and online distribution in writing before it is shelved.
+- **Fetched in a live session.** Seats have no network, so a family is downloaded only in a live session Sean drives, each download with his yes, and recorded in the ledger's `setup/` with the download's sha256.
+- **Read-only.** A family folder is frozen like a version (§ 4): `checksums.sha256` written last, then `chmod -R a-w`. A newer release is a new folder beside it, never a change to it.
+- **Backed up with the studio folder.** The shelf sits inside `~/Movies/Animation-Studio/`, so Drive mirrors it (§ 5). Each machine keeps its own copy, matched file for file by `checksums.sha256`.
+- **Copied into the version.** A version that sets text copies each font file it uses, and the family's `LICENSE.md`, from the shelf into its own `assets/fonts/`, and lists each in its manifest's Fonts table with both sha256 values and the shelf path it came from (§ 3). The version then stays self-contained: it opens and renders with no shelf and no installed font. The licence copy is named `<family>-<version>-LICENSE.md`, so two families' licences can sit side by side.
+
+The shelf as it stands is listed in its own `README.md`; the first family, Source Serif 4, was fetched on 2026-10-21 (ledger mc-setup-017).

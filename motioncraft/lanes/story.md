@@ -1,7 +1,7 @@
 ---
 lane: story
 seat: visual-story-director
-updated: 2026-10-19
+updated: 2026-10-21
 ---
 # Lane manifest — Visual Story Director
 
@@ -43,7 +43,7 @@ The starred guides by file. This seat owns one and reads four; a guide it reads 
 - **Line boil and painted-texture continuity** — [`boil-and-painted-texture-continuity.md`](../corpus/guides/boil-and-painted-texture-continuity.md) — read when a board calls for a push-in or a pull-back that will move paint, so the shot list names what the texture must do.
 - **Resolve finishing and delivery** — [`resolve-finishing-and-delivery.md`](../corpus/guides/resolve-finishing-and-delivery.md) — the conform and cut sections only, read when judging whether a shot on the shot list can be built and delivered.
 
-Not yet written, so a topic for `thin_lane:` until it exists: **Shot size, direction, camera moves** (ready now from Pixar's film grammar and Yale; this seat's); **Cutting for emotion, with J and L cuts** (Finishing's; this seat reads; principle 6 carries it until then).
+Not yet written, so a topic for `thin_lane:` until it exists: **Shot size, direction, camera moves** (ready now from Pixar's film grammar and Yale; this seat's); **Cutting for emotion, with J and L cuts** (Finishing's; this seat reads; principle 6 carries it until then); **On-screen hold time for text** (no corpus source holds it: neither *Thinking with Type* nor the finishing books give one, so the hold of each title and credit card is this seat's timing call in the animatic, judged at full speed; SWCB #244).
 
 ## Application
 
