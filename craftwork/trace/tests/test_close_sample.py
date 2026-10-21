@@ -213,3 +213,61 @@ def test_blind_page_preserves_access_to_a_sampled_trials_actual_artifact(eng):
     loaded.labels = {"pass-18": loaded.labels["pass-18"]}
     page = draw(loaded).read_text()
     assert 'href="../trials/outcome-roadmap-trial.md"' in page
+
+
+# ---- the plain account (SWCB #253) -------------------------------------------
+
+
+def test_each_sampled_run_gets_a_plain_account_and_no_fingerprints(eng):
+    import re
+    assert run(eng, "draw").returncode == 0
+    page = (review(eng) / "blind.html").read_text()
+    for heading in ("The step's job.", "What came in.", "What came out.", "What later checks found."):
+        assert page.count(heading) == 3
+    assert not re.search(r"\b[0-9a-f]{64}\b", page)  # the files stay a click away, folded; no hashes
+
+
+def test_a_repairs_account_names_its_job_the_finding_it_answered_and_what_checked_it(eng):
+    from tracekit.close_sample import plain_account
+    from tracekit.engagement import load_engagement
+    loaded = load_engagement(eng)
+    text = plain_account(loaded, loaded.by_id["pass-03"])
+    assert "reworking its own earlier version, after findings from Run 2" in text
+    assert "made by Run 2" in text and "STRATEGY FAIL — QUALITY VERDICT ONLY" in text
+    assert "STRATEGY PASS — QUALITY VERDICT ONLY" in text and "AUDIT CLEAN — stake held" in text
+    assert "SECRET COORDINATOR CRITIQUE" not in text
+    gate = plain_account(loaded, loaded.by_id["pass-02"])
+    assert "Launched in answer to this run: Run 3" in gate
+
+
+def test_the_account_never_quotes_the_coordinators_files_or_a_replaced_revision(eng):
+    from tracekit.close_sample import _quote, plain_account
+    from tracekit.engagement import OutputRef, load_engagement, sha256_path
+    close = eng / "close.md"
+    close.write_text("# Close\n\nSECRET COORDINATOR CRITIQUE across the whole drafted batch: 12 fail, 13 pass.\n")
+    loaded = load_engagement(eng)
+    record = loaded.by_id["pass-25"]
+    record.outputs = [OutputRef(o.path, sha256_path(close)) if o.path == "close.md" else o for o in record.outputs]
+    assert "SECRET COORDINATOR CRITIQUE" not in plain_account(loaded, record)
+    assert "SECRET COORDINATOR CRITIQUE" in _quote(loaded, "close.md", record.outputs[0].sha256, None)  # the rule, not luck
+    assert "replaced by a later revision" in plain_account(loaded, loaded.by_id["pass-01"])
+
+
+def test_a_studio_profile_can_word_a_runs_job_itself(eng):
+    import dataclasses
+    from tracekit.close_sample import plain_account
+    from tracekit.engagement import load_engagement
+    loaded = load_engagement(eng)
+    loaded.studio = dataclasses.replace(loaded.studio, kind_jobs=(("repair", "mending what the gate found"),))
+    assert "mending what the gate found" in plain_account(loaded, loaded.by_id["pass-03"])
+
+
+def test_gist_prefers_the_means_paragraph_and_carries_a_list_it_introduces():
+    from tracekit.close_sample import _gist
+    doc = ("---\nverdict: AUDIT LOOPBACK — 2 material\n---\n\n## Verdict line\n\n**AUDIT LOOPBACK — 2 material**\n\n"
+           "Some preamble that is long enough to count as a paragraph of prose.\n\n"
+           "**Means:** The packet verifies, but the look fails in two places:\n- the seed is lost\n- the mound is weak\n")
+    assert _gist(doc) == ("AUDIT LOOPBACK — 2 material",
+                          "The packet verifies, but the look fails in two places: the seed is lost. the mound is weak.")
+    table = "---\nid: x\n---\n\n## Repair\n\n| Finding | What changed |\n|---|---|\n| F1 | Fixed the stagger |\n"
+    assert _gist(table) == ("", "F1: Fixed the stagger.")

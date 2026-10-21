@@ -68,6 +68,7 @@ class Studio:
     check_implications: tuple[str, ...] = ()   # one sentence per rung-0 line, in check order
     review_prompts: tuple[tuple[str, str], ...] = ()
     review_prompts_version: str = ""
+    kind_jobs: tuple[tuple[str, str], ...] = ()   # kind → a run's job in plain words, over the kit's own (the blind Close page)
     root_markers: tuple[str, ...] = ("craftwork", ".claude")   # a repo root holds CLAUDE.md and one of these
 
     # ---- derived ------------------------------------------------------------
