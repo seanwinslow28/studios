@@ -64,7 +64,7 @@ This seat audits Art's packet against the boards' staging, before the appearance
 - line, pigment and paper arrive as separate layers, each with its change rule;
 - a greyscale value study finds the focal point the board asks for.
 
-A craft fail is pinned to a panel or a frame in these rows of [the glossary](glossary.md): *Pose*, *Line of action*, *Silhouette*, *Volume*, *Smear*, *Multiple*, *Style frame*, *Value and temperature*, *Pigment variation*, *Paper grain*, *Squash and stretch*, *Line boil* and *Texture continuity*, beside *Staging* and *Layout*, which Art shares.
+A craft fail is pinned to a panel or a frame in these rows of [the glossary](glossary.md): *Pose*, *Line of action*, *Silhouette*, *Volume*, *Smear*, *Multiple*, *Style frame*, *Value and temperature*, *Pigment variation*, *Paper grain*, *Squash and stretch*, *Line boil*, *Texture continuity* and *Edge in frame*, beside *Staging* and *Layout*, which Art shares.
 
 ## Free layer
 

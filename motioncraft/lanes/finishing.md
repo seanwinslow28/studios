@@ -21,7 +21,7 @@ The five things this seat holds before mc-eng-001 opens (the book-to-seat brief'
 
 ## Vocabulary
 
-This seat's words are rows of [the glossary](glossary.md), which every pass carries after this manifest, with each row's definition, field terms and sources, which seats share it, and the four naming rulings. This seat's rows, in learning order: *Cut*, *Match cut*, *Line boil*, *Image jitter*, *Texture sliding*, *Texture continuity*, *J-cut and L-cut*, *Compositing*, *Grade*, *Linear and output colour*, *Loudness*, *True peak* and *Sound layers*; on a film that sets text, *Title safe*, from the glossary's type rows.
+This seat's words are rows of [the glossary](glossary.md), which every pass carries after this manifest, with each row's definition, field terms and sources, which seats share it, and the four naming rulings. This seat's rows, in learning order: *Cut*, *Match cut*, *Line boil*, *Image jitter*, *Texture sliding*, *Texture continuity*, *Edge in frame*, *J-cut and L-cut*, *Compositing*, *Grade*, *Linear and output colour*, *Loudness*, *True peak* and *Sound layers*; on a film that sets text, *Title safe*, from the glossary's type rows.
 
 ## Principles, in learning order
 

@@ -23,7 +23,7 @@ The curriculum brief adds a sixth for this film: **texture designed in separate 
 
 ## Vocabulary
 
-This seat's words are rows of [the glossary](glossary.md), which every pass carries after this manifest, with each row's definition, field terms and sources, which seats share it, and the four naming rulings. This seat's rows, in learning order: *Staging*, *Layout*, *Pose*, *Line of action*, *Silhouette*, *Volume*, *Smear*, *Multiple*, *Style frame*, *Value and temperature*, *Pigment variation*, *Paper grain*, *Squash and stretch*, *Line boil* and *Texture continuity*; on a film that sets text, the type rows *Kerning*, *Tracking*, *Leading*, *Optical size* and *Title safe*.
+This seat's words are rows of [the glossary](glossary.md), which every pass carries after this manifest, with each row's definition, field terms and sources, which seats share it, and the four naming rulings. This seat's rows, in learning order: *Staging*, *Layout*, *Pose*, *Line of action*, *Silhouette*, *Volume*, *Smear*, *Multiple*, *Style frame*, *Value and temperature*, *Pigment variation*, *Paper grain*, *Squash and stretch*, *Line boil*, *Texture continuity* and *Edge in frame*; on a film that sets text, the type rows *Kerning*, *Tracking*, *Leading*, *Optical size* and *Title safe*.
 
 ## Principles, in learning order
 
@@ -67,7 +67,7 @@ This seat audits the Animator's scene against the appearance packet alone, befor
 - holds state their cadence, and moving holds stay alive;
 - adjacent frames around every contact ship with full-speed playback.
 
-Felt weight and snap go to Sean's playback; the audit says so. A craft fail is pinned to frame numbers in these rows of [the glossary](glossary.md): *Timing*, *Spacing*, *Slow in and slow out*, *Weight*, *Anticipation*, *Follow-through and overlap*, *Arc*, *Deformation*, *In-between*, *Hold*, *Moving hold* and *On ones, on twos*, beside *Volume*, *Smear*, *Multiple*, *Pigment variation*, *Squash and stretch*, *Line boil* and *Texture continuity*, which this seat shares.
+Felt weight and snap go to Sean's playback; the audit says so. A craft fail is pinned to frame numbers in these rows of [the glossary](glossary.md): *Timing*, *Spacing*, *Slow in and slow out*, *Weight*, *Anticipation*, *Follow-through and overlap*, *Arc*, *Deformation*, *In-between*, *Hold*, *Moving hold* and *On ones, on twos*, beside *Volume*, *Smear*, *Multiple*, *Pigment variation*, *Squash and stretch*, *Line boil*, *Texture continuity* and *Edge in frame*, which this seat shares.
 
 ## Free layer
 
@@ -80,6 +80,7 @@ The free sources this seat's rows, principles and guides draw on, with the licen
 | Meier 1996; the Paperman talk; Bénard 2010; Disney's SIGGRAPH 2024 page | paint and line held coherent in motion; the texture layers | all rights reserved, or the authors' and the Eurographics Association's | read-only | the texture guide |
 | Jam Filled interview on *Wylde Pak* (Toon Boom) | line boil in production | Toon Boom copyright | read-only | the texture guide |
 | Avender on Cartoon Research; AnimSchool's smear basics | smear terms, when to use one, multiples | no reuse licence; no licence shown | read-only | the smear guide |
+| Steinberg 1987, pp. 10 and 12 | painting past the camera's reach, so no artwork edge enters the frame | studio publication, hosted by animationmeat.com; licence not checked | read-only | none yet |
 | Chromosphere case studies (*Carmen*, *Volta X*, *June*) | style frames, value and temperature, painted pipelines | all rights reserved | read-only | none yet |
 | Gurney Journey; Mark Kennedy's blog | colour and light; staging | no licence stated | read-only | none yet |
 | Frame.io's *Wolfwalkers* piece | a painted pipeline | trade press | read-only | none yet |

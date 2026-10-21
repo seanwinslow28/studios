@@ -21,7 +21,7 @@ The five things this seat holds before mc-eng-001 opens (the book-to-seat brief'
 
 ## Vocabulary
 
-This seat's words are rows of [the glossary](glossary.md), which every pass carries after this manifest, with each row's definition, field terms and sources, which seats share it, and the four naming rulings. This seat's rows, in learning order: *Volume*, *Smear*, *Multiple*, *Pigment variation*, *Timing*, *Spacing*, *Slow in and slow out*, *Weight*, *Anticipation*, *Squash and stretch*, *Follow-through and overlap*, *Arc*, *Deformation*, *In-between*, *Hold*, *Moving hold*, *On ones, on twos*, *Line boil* and *Texture continuity*; on a piece that moves type, *Kerning* and *Tracking*, from the glossary's type rows.
+This seat's words are rows of [the glossary](glossary.md), which every pass carries after this manifest, with each row's definition, field terms and sources, which seats share it, and the four naming rulings. This seat's rows, in learning order: *Volume*, *Smear*, *Multiple*, *Pigment variation*, *Timing*, *Spacing*, *Slow in and slow out*, *Weight*, *Anticipation*, *Squash and stretch*, *Follow-through and overlap*, *Arc*, *Deformation*, *In-between*, *Hold*, *Moving hold*, *On ones, on twos*, *Line boil*, *Texture continuity* and *Edge in frame*; on a piece that moves type, *Kerning* and *Tracking*, from the glossary's type rows.
 
 ## Principles, in learning order
 
@@ -63,7 +63,7 @@ This seat audits Finishing's package against the scene record's evidence pack, b
 - the cut list gives each cut's reason, emotion first;
 - the composite shows no texture sliding through the pull-back, and line boil at Art's cadence.
 
-A craft fail is pinned to frame numbers in both versions in these rows of [the glossary](glossary.md): *Cut*, *Match cut*, *Image jitter*, *Texture sliding*, *J-cut and L-cut*, *Compositing*, *Grade*, *Linear and output colour*, *Loudness*, *True peak* and *Sound layers*, beside *Line boil* and *Texture continuity*, which this seat shares.
+A craft fail is pinned to frame numbers in both versions in these rows of [the glossary](glossary.md): *Cut*, *Match cut*, *Image jitter*, *Texture sliding*, *J-cut and L-cut*, *Compositing*, *Grade*, *Linear and output colour*, *Loudness*, *True peak* and *Sound layers*, beside *Line boil*, *Texture continuity* and *Edge in frame*, which this seat shares.
 
 ## Free layer
 

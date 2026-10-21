@@ -137,6 +137,7 @@ The world's moving test:
 - **Depth broken.** Ground contact lost or depth order wrong as the camera travels.
 - **Growth mistaken for scenery.** New growth and scenery entering the frame cannot be told apart.
 - **A move with no motive.** The camera travels before the growth's direction reads.
+- **Edge in frame.** A painted layer's edge, or bare canvas, inside the frame anywhere along the camera move: crops along the frame's edges at every frame where the camera nears a layer's end, and the whole frame across the move.
 - **The arrival cut short.** The three-second living arrival is shorter than three seconds, or does not hold.
 - **The leaf stretched.** The leaf unfold shows fewer than three distinct drawn poses (folded, half, open), or one pose stretched, or no follow-through from the branch.
 - **Outside the construction.** The test goes beyond the limits Sean's choice on the camera ticket recorded.
