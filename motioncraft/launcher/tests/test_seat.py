@@ -842,7 +842,47 @@ def test_a_claude_prompt_names_the_image_door_only_for_the_director_and_art(worl
     assert f"{LAUNCHER / 'sound.py'} --context {finishing['source']}" in prompt and "-/af <file>" in prompt
     assert "sound.py" not in seatmod.launch_argv(director, "do the work")[-1]
     gate = seatmod.load(context(world, "motion-gate", "t10", "--anchor", "artifacts/scene-record.md"))
-    assert seatmod.launch_argv(gate, "do the work")[-1] == "do the work", "a gate gets neither door"
+    prompt = seatmod.launch_argv(gate, "do the work")[-1]
+    assert prompt == f"do the work\n\n---\n\n{seatmod.library_note()}", "a gate gets neither door"
+
+
+def test_every_prompt_names_the_private_library_by_its_full_path(world, codex_home, monkeypatch):
+    """A `../corpus/` pointer means nothing from where a pass runs, so the launcher names the folder (SWCB #250)."""
+    root = os.path.realpath(seatmod.CORPUS)
+    audit = seatmod.load(context(world, "finishing-sound-designer", "lb1", "--read-only"))
+    animator = seatmod.load(codex_pass(world, codex_home, "lb2"))
+    for prompt in (seatmod.launch_argv(audit, "do the work")[-1],
+                   seatmod.launch_argv(seatmod.load(context(world, "art-pose-designer", "lb3")), "do the work")[-1],
+                   seatmod.launch_argv(animator, "do the work", "p", "o")[-1]):
+        assert f"is at `{root}` on this machine" in prompt and f"means `{root}/<path>`" in prompt
+    monkeypatch.setattr(seatmod, "CORPUS", world["root"] / "no-corpus")
+    note = seatmod.launch_argv(audit, "do the work")[-1]
+    assert "is not on this machine" in note and "`manifest-only`" in note and str(world["root"] / "no-corpus") in note
+
+
+def test_the_probe_opens_one_library_file_by_its_pointer(world, monkeypatch):
+    corpus = world["root"] / "probe-corpus"
+    (corpus / "guides").mkdir(parents=True)
+    (corpus / "guides" / "b-guide.md").write_text("---\ntitle: The second guide.\n---\n")
+    (corpus / "guides" / "a-guide.md").write_text("---\ntitle: Smears as designed poses, as a principle guide.\n---\n")
+    monkeypatch.setattr(seatmod, "CORPUS", corpus)
+    guide = seatmod.probe_guide()
+    assert guide.name == "a-guide.md" and "Line 4" in seatmod.seat_probe_prompt(guide)
+    assert "`../corpus/guides/a-guide.md`" in seatmod.seat_probe_prompt(guide)
+    head = ["Read, Bash", "none", "BLOCKED"]
+    assert seatmod.judge_library(guide, head + ["Smears as designed poses, as a principle guide."]) == []
+    assert seatmod.judge_library(guide, head + ["MISSING"]) and seatmod.judge_library(guide, head)
+    assert seatmod.answer_lines("\n".join(head + ["title", "extra"]))[3] == "title"
+    monkeypatch.setattr(seatmod, "CORPUS", world["root"] / "no-corpus")
+    assert seatmod.probe_guide() is None and seatmod.judge_library(None, head) == []
+    assert "exactly three lines" in seatmod.seat_probe_prompt(None) and "Line 4" not in seatmod.seat_probe_prompt(None)
+
+
+def test_a_seat_probes_in_its_audit_form_on_request(world):
+    code = ("import json, shutil, sys; sys.path.insert(0, %r); import seat; j = seat.probe_job(sys.argv[1], True); "
+            "print(json.dumps(j['ctx']['read_only'])); shutil.rmtree(j['base'])") % str(LAUNCHER)
+    r = subprocess.run([sys.executable, "-c", code, "finishing-sound-designer"], env=world["env"], capture_output=True, text=True)
+    assert r.returncode == 0 and json.loads(r.stdout) is True, r.stderr
 
 
 def test_every_drafting_task_names_the_three_files_a_version_holds(world, codex_home):

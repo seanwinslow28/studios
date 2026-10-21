@@ -14,7 +14,8 @@
     seat.py probe [--home ...]                                   → the Route entry's model check
     seat.py toolbelt                                             → each seat's allowlisted skills, copied to
                                                                    ~/.local/share/motioncraft/toolbelt/<seat>/
-    seat.py seat-probe [--seat S]... [--home ...] [--logs DIR]   → one probe pass per seat: only its toolbelt loads
+    seat.py seat-probe [--seat S]... [--read-only] [--home ...] [--logs DIR]
+                                                                 → one probe pass per seat: only its toolbelt loads
     seat.py check [--home ...]                                   → this machine's preflight; exit 1 on any gap
 
 The coordinator runs these; no seat does. Written on the Motioncraft build map's
@@ -39,7 +40,8 @@ shows each seat loads only its toolbelt. Finishing's Claude pass reaches ElevenL
 and Lyria only through launcher/sound.py (the map's "Finishing's sound doorway"
 ticket, 2026-10-19). Every drafting pass's prompt names the three files a version
 holds, and a version the pass leaves without its manifest, pointer or checksums is
-refused, exit 5 (SWCB #249).
+refused, exit 5 (SWCB #249). Every pass's prompt names the private library by its
+full path, and seat-probe opens one of its files by a lane's pointer (SWCB #250).
 """
 from __future__ import annotations
 
@@ -139,6 +141,8 @@ PASSES_ROOT = Path(os.path.expanduser(os.environ.get("MOTIONCRAFT_PASSES", "~/.c
 SCRATCH_ROOT = Path(os.path.expanduser(os.environ.get("MOTIONCRAFT_SCRATCH_ROOT", "~/.cache/motioncraft/scratch")))
 # The studio folders a Claude pass is given to read beside its engagement and media project.
 STUDIO_READS = ("bench", "lanes", "corpus", "templates")
+# The private library: gitignored, so on a machine without it every pass's grounding is manifest-only.
+CORPUS = MOTIONCRAFT / "corpus"
 
 # --- the plugin allowlist (bench/toolbelts.toml) ---------------------------------------
 
@@ -829,12 +833,28 @@ def claude_prompt(ctx: Dict, prompt: str) -> str:
                      "the spend, and makes nothing.")
     versions = [versions_note(ctx)] if drafts_versions(ctx) else []
     if not doors:
-        return "\n\n---\n\n".join([prompt] + versions + apps)
-    held = ("Those are the only commands that may run outside the sandbox. In this pass an ffmpeg or ffprobe argument "
+        return "\n\n---\n\n".join([prompt, library_note()] + versions + apps)
+    held =("Those are the only commands that may run outside the sandbox. In this pass an ffmpeg or ffprobe argument "
             "shaped name=value is held for an approval no one gives: put a filter in a file and pass it with "
             "`-/vf <file>` or `-/af <file>` (a loudness check: a file holding `ebur128=peak=true`, then "
             "`ffmpeg -i <mix> -/af <file> -f null -`), and read stream facts with `-of json -show_streams`.")
-    return "\n\n---\n\n".join([prompt] + versions + [" ".join(doors + [held])] + apps)
+    return "\n\n---\n\n".join([prompt, library_note()] + versions + [" ".join(doors + [held])] + apps)
+
+
+def library_note() -> str:
+    """Where the private library is on this machine, by its full path, in every pass's prompt (SWCB #250).
+
+    The seat, lane and preamble text in a task points into the corpus by links written from
+    the lane file's folder (`../corpus/...`), which mean nothing from where a pass runs. In
+    mc-eng-001 one audit guessed a wrong folder and gave up, four never tried, and one found it.
+    """
+    root = real(str(CORPUS))
+    if not Path(root).is_dir():
+        return (f"The private library (the corpus) is not on this machine: `{root}` does not exist. Your grounding "
+                "is `manifest-only`, and you cite no corpus file.")
+    return (f"The private library (the corpus) is at `{root}` on this machine, and you may read it. A pointer written "
+            f"`../corpus/<path>` in your task's seat, lane or preamble text means `{root}/<path>`: open it by that full "
+            "path, never relative to your working folder, and never look for the library anywhere else.")
 
 
 def drafts_versions(ctx: Dict) -> bool:
@@ -938,7 +958,7 @@ def codex_prompt(ctx: Dict, prompt: str) -> str:
         parts.append("Your toolbelt's skills. Read a skill's SKILL.md by its path when its moment comes; "
                      f"no other skill is yours.\n\n{lines}")
     return "\n\n---\n\n".join(parts + [apps_note(ctx)] * bool(ctx["toolbelt"].get("apps"))
-                              + ([versions_note(ctx)] if drafts_versions(ctx) else []) + [prompt])
+                              + ([versions_note(ctx)] if drafts_versions(ctx) else []) + [library_note(), prompt])
 
 
 def scrubbed_env(ctx: Dict, home: Path) -> Dict[str, str]:
@@ -1367,12 +1387,40 @@ def cmd_probe(a) -> None:
 # A file every pass is denied, read once to show the skill folders' wall holds live.
 OUTSIDE_SKILL = HOME / ".agents" / "skills" / "animation-vocabulary" / "SKILL.md"
 SEAT_PROBE_PROMPT = (
-    "This is a launch-form probe: change no file, and answer in exactly three lines. "
+    "This is a launch-form probe: change no file, and answer in exactly four lines. "
     "Line 1: the names of every tool you can call, comma-separated. "
     "Line 2: for each skill you were given as your toolbelt (named in your prompt, or a skill you can load), read its "
     "SKILL.md and print the value of its `name:` line, comma-separated; print `none` if you were given none. "
     f"Line 3: try once to print the first line of {OUTSIDE_SKILL} with a shell command, and print READ if it worked "
     "or BLOCKED if it did not.")
+
+
+def probe_guide() -> Optional[Path]:
+    """The library file a probe pass opens by its lane pointer: the first guide, or none on a machine without the corpus."""
+    return next(iter(sorted((CORPUS / "guides").glob("*.md"))), None)
+
+
+def guide_title(guide: Path) -> str:
+    return next((l.split(":", 1)[1].strip() for l in guide.read_text(encoding="utf-8").splitlines()
+                 if l.startswith("title:")), "")
+
+
+def seat_probe_prompt(guide: Optional[Path]) -> str:
+    """The probe's question; with the library on this machine, a fourth line opens one of its files (SWCB #250)."""
+    if guide is None:
+        return SEAT_PROBE_PROMPT.replace("exactly four lines", "exactly three lines")
+    return (f"{SEAT_PROBE_PROMPT} Line 4: a lane points at `../corpus/guides/{guide.name}`, a file in the private "
+            "library. Open it as this prompt's note on the library says, and print the value of its `title:` line, "
+            "or MISSING if you could not open it.")
+
+
+def judge_library(guide: Optional[Path], lines: List[str]) -> List[str]:
+    """The pass opened the library file by its pointer: line 4 carries the guide's title."""
+    if guide is None:
+        return []
+    got = lines[3] if len(lines) > 3 else ""
+    want = guide_title(guide).rstrip(".")
+    return [] if want and want.lower() in got.lower() else [f"it could not open the private library: line 4 reads {got or 'nothing'!r}"]
 
 
 def redact(text: str) -> str:
@@ -1405,15 +1453,17 @@ def never_names() -> List[str]:
     return [n.lower() for n in toolbelts().get("never", {}).get("names", [])]
 
 
-def probe_job(seat: str) -> Dict:
-    """A throwaway engagement and media project for one probe pass, and the context the launcher would write."""
+def probe_job(seat: str, read_only: bool = False) -> Dict:
+    """A throwaway engagement and media project for one probe pass, and the context the launcher would write.
+
+    A gate's pass is always read-only; a seat's is its drafting form, or with read_only its audit form."""
     base = Path(real(os.path.expanduser("~/.cache/motioncraft/probe"))) / f"{seat}-{datetime.now():%Y%m%d-%H%M%S}"
     # The engagement folder's name keys its wall files and Codex profile, so each probe's is its own.
     eng, project = base / f"probe-{base.name}", base / "media" / "probe-2026-10-19"
     for d in ("artifacts", "audits", "trace/logs"):
         (eng / d).mkdir(parents=True)
     project.mkdir(parents=True)
-    vendor, read_only = default_vendor(seat), seat in GATES
+    vendor, read_only = default_vendor(seat), read_only or seat in GATES
     scratch = real(str(SCRATCH_ROOT / f"probe-{base.name}" / "pass-00"))
     make_scratch(scratch)
     ctx = {"seat": seat, "engagement": str(eng), "pass": "00", "machine": machine(), "media": "probe",
@@ -1429,7 +1479,7 @@ def probe_job(seat: str) -> Dict:
 
 
 def answer_lines(text: str) -> List[str]:
-    return [l.strip() for l in (text or "").strip().splitlines() if l.strip()][:3]
+    return [l.strip() for l in (text or "").strip().splitlines() if l.strip()][:4]
 
 
 def judge_claude(init: Dict, argv: List[str], seat: str, builtins: Dict) -> List[str]:
@@ -1507,18 +1557,20 @@ def stream_events(text: str) -> List[Dict]:
     return out
 
 
-def probe_seat(seat: str, home: Path, logs: Optional[Path], builtins: Optional[Dict]) -> Dict:
+def probe_seat(seat: str, home: Path, logs: Optional[Path], builtins: Optional[Dict], read_only: bool = False) -> Dict:
     """One probe pass on the seat's own vendor and launch form: what loaded, judged against its allowlist."""
-    job = probe_job(seat)
+    job = probe_job(seat, read_only)
     ctx = job["ctx"]
     env = scrubbed_env(ctx, home)
     belt = [s["skill"] for s in ctx["toolbelt"]["skills"]]
-    res = {"seat": seat, "vendor": ctx["vendor"], "toolbelt": belt, "image": ctx["toolbelt"]["image"],
-           "sound": ctx["toolbelt"].get("sound", False)}
+    guide = probe_guide()
+    res = {"seat": seat, "vendor": ctx["vendor"], "read_only": ctx["read_only"], "toolbelt": belt,
+           "image": ctx["toolbelt"]["image"], "sound": ctx["toolbelt"].get("sound", False),
+           "library": f"../corpus/guides/{guide.name}" if guide else "not on this machine"}
     if ctx["vendor"] == "claude":
         settings = claude_settings(ctx)
         write_once(wall_file(ctx), json.dumps(settings, indent=2) + "\n")
-        argv = launch_argv(ctx, SEAT_PROBE_PROMPT)
+        argv = launch_argv(ctx, seat_probe_prompt(guide))
         r = run_probe(argv, ctx["scratch"], env, None)
         events = stream_events(r.stdout)
         init = next((e for e in events if e.get("type") == "system" and e.get("subtype") == "init"), {})
@@ -1535,7 +1587,7 @@ def probe_seat(seat: str, home: Path, logs: Optional[Path], builtins: Optional[D
         link = home / f"{codex_profile(ctx)}.config.toml"
         link.symlink_to(wall_file(ctx))
         try:
-            argv = launch_argv(ctx, SEAT_PROBE_PROMPT, codex_profile(ctx), str(job["base"] / "answer.md"))
+            argv = launch_argv(ctx, seat_probe_prompt(guide), codex_profile(ctx), str(job["base"] / "answer.md"))
             r = run_probe(argv, ctx["media_project"], env, None)
             rendered = subprocess.run(["codex", "debug", "prompt-input"], cwd=ctx["media_project"], env=env,
                                       stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=120).stdout
@@ -1564,6 +1616,7 @@ def probe_seat(seat: str, home: Path, logs: Optional[Path], builtins: Optional[D
     named = {n.strip().strip("`").lower() for n in lines[1].split(",")} if len(lines) > 1 else set()
     if belt and not set(belt) <= named:
         res["problems"].append(f"it could not read its own toolbelt: line 2 reads {lines[1] if len(lines) > 1 else 'nothing'!r}")
+    res["problems"] += judge_library(guide, lines)
     want_stamp = [CLAUDE_MODEL] if ctx["vendor"] == "claude" else [f"{CODEX_MODEL} {CODEX_EFFORT}"]
     if res["stamps"] != want_stamp:
         res["problems"].append(f"stamped {res['stamps']}, not {want_stamp}")
@@ -1584,7 +1637,7 @@ def cmd_seat_probe(a) -> None:
             die(f"unknown seat {s}")
     env = {k: os.environ[k] for k in KEEP_ENV if k in os.environ}
     builtins = claude_builtins(env) if any(default_vendor(s) == "claude" for s in seats) else None
-    results = [probe_seat(s, home, logs, builtins) for s in seats]
+    results = [probe_seat(s, home, logs, builtins, a.read_only) for s in seats]
     for r in results:
         print(redact(json.dumps(r, indent=1)))
     if logs is not None:
@@ -1698,6 +1751,7 @@ def main() -> None:
     t.set_defaults(fn=cmd_toolbelt)
     q = sub.add_parser("seat-probe", help="one probe pass per seat on its own launch form: only its toolbelt loads")
     q.add_argument("--seat", action="append", default=[], help="a seat or gate; repeat it; all four seats by default")
+    q.add_argument("--read-only", action="store_true", help="probe each seat in its audit form; a gate is always read-only")
     q.add_argument("--home", default=str(DEFAULT_HOME))
     q.add_argument("--logs", default="", help="a folder for each probe's raw log (employer folders redacted)")
     q.set_defaults(fn=cmd_seat_probe)
