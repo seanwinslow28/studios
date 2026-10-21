@@ -41,7 +41,7 @@ A version with a render and no native source for it is incomplete, with one exce
 
 ## 3. The manifest
 
-One per version folder, written by the seat that made it, in the same pass. A seat on Codex writes it into its version folder like any other file; it never writes into the ledger. The ledger cites the version (path and folder sha256), which covers the manifest.
+One per version folder, written by the seat that made it, in the same pass. Every drafting task names it as a required output, and the launcher refuses a pass that leaves a version without it, or without the pointer or the checksums ([the launcher README](../launcher/README.md#the-launch), SWCB #249). A seat on Codex writes it into its version folder like any other file; it never writes into the ledger. The ledger cites the version (path and folder sha256), which covers the manifest.
 
 ```markdown
 ---

@@ -37,7 +37,9 @@ AGENTS.md and its skills by path in its prompt; the Director's and Art's Claude
 passes reach the Codex image path only through launcher/image.py; and seat-probe
 shows each seat loads only its toolbelt. Finishing's Claude pass reaches ElevenLabs
 and Lyria only through launcher/sound.py (the map's "Finishing's sound doorway"
-ticket, 2026-10-19).
+ticket, 2026-10-19). Every drafting pass's prompt names the three files a version
+holds, and a version the pass leaves without its manifest, pointer or checksums is
+refused, exit 5 (SWCB #249).
 """
 from __future__ import annotations
 
@@ -81,6 +83,9 @@ CODEX_DEFAULT = ("animator", "story-gate", "appearance-gate")
 # Each drafting seat's stage folder in the media project (source contract § 1).
 STAGE_DIRS = {"visual-story-director": "story", "art-pose-designer": "appearance",
               "animator": "motion", "finishing-sound-designer": "finish"}
+# What every version folder holds by name (source contract § 2); the launcher refuses a new one missing any (SWCB #249).
+VERSION_FILES = ("pointer.txt", "manifest.md", "checksums.sha256")
+SOURCE_CONTRACT = MOTIONCRAFT / "templates" / "source-contract.md"
 
 # The pinned ids (bench README, "Baselines"). The config default never picks a pass's model.
 CLAUDE_MODEL = "claude-opus-5-5"
@@ -822,13 +827,49 @@ def claude_prompt(ctx: Dict, prompt: str) -> str:
                      "inside the job's spend caps, and a refusal at a cap is a checkpoint for Sean. "
                      f"`{SOUND_DOOR} --context {ctx['source']} --status` lists the approved cues, the takes used and "
                      "the spend, and makes nothing.")
+    versions = [versions_note(ctx)] if drafts_versions(ctx) else []
     if not doors:
-        return "\n\n---\n\n".join([prompt] + apps)
+        return "\n\n---\n\n".join([prompt] + versions + apps)
     held = ("Those are the only commands that may run outside the sandbox. In this pass an ffmpeg or ffprobe argument "
             "shaped name=value is held for an approval no one gives: put a filter in a file and pass it with "
             "`-/vf <file>` or `-/af <file>` (a loudness check: a file holding `ebur128=peak=true`, then "
             "`ffmpeg -i <mix> -/af <file> -f null -`), and read stream facts with `-of json -show_streams`.")
-    return "\n\n---\n\n".join([prompt, " ".join(doors + [held])] + apps)
+    return "\n\n---\n\n".join([prompt] + versions + [" ".join(doors + [held])] + apps)
+
+
+def drafts_versions(ctx: Dict) -> bool:
+    """A drafting pass saves versions in its stage; a gate, an audit and a verification pass save none."""
+    return not ctx["read_only"] and ctx["seat"] in STAGE_DIRS
+
+
+def versions_note(ctx: Dict) -> str:
+    """What every version the pass saves must hold, named in its task, since the launcher refuses one without it.
+
+    mc-eng-001's task forms asked every seat for the pointer and the checksums and never for
+    the manifest, and nobody noticed until Finishing's TC5 failed on it at the end (SWCB #249).
+    """
+    pointer, manifest, checksums = VERSION_FILES
+    return (f"Every version you save is a new folder in your stage, `{STAGE_DIRS[ctx['seat']]}/<artifact>-vNN-<YYYY-MM-DD>`, "
+            f"and holds three files by these names (the source contract, {SOURCE_CONTRACT}, § 2): `{pointer}`, one line "
+            f"written at creation; `{manifest}`, the version's parts list in the shape of the contract's § 3, which you "
+            f"write in this pass, before freezing; and `{checksums}`, written last, covering every other file. The "
+            f"launcher checks every version folder this pass made and refuses to file one that lacks any of the three.")
+
+
+def version_gaps(ctx: Dict) -> List[Dict]:
+    """Every version folder the pass made in its stage, as a `media:` path, with any of the three files it lacks."""
+    if not drafts_versions(ctx):
+        return []
+    stage = Path(ctx["media_project"]) / STAGE_DIRS[ctx["seat"]]
+    frozen = set(ctx["fence"]["frozen"])
+    found = []
+    for d in sorted(stage.iterdir()) if stage.is_dir() else []:
+        if str(d) in frozen or d.is_symlink() or not d.is_dir():
+            continue
+        have = {n.lower() for n in os.listdir(d) if (d / n).is_file()}  # the October versions' POINTER.txt counts
+        found.append({"version": f"{ctx['media']}/{stage.name}/{d.name}",
+                      "missing": [f for f in VERSION_FILES if f not in have]})
+    return found
 
 
 def apps_note(ctx: Dict) -> str:
@@ -896,7 +937,8 @@ def codex_prompt(ctx: Dict, prompt: str) -> str:
         lines = "\n".join(f"- `{s['skill']}`: {s['path']}" for s in skills)
         parts.append("Your toolbelt's skills. Read a skill's SKILL.md by its path when its moment comes; "
                      f"no other skill is yours.\n\n{lines}")
-    return "\n\n---\n\n".join(parts + [apps_note(ctx)] * bool(ctx["toolbelt"].get("apps")) + [prompt])
+    return "\n\n---\n\n".join(parts + [apps_note(ctx)] * bool(ctx["toolbelt"].get("apps"))
+                              + ([versions_note(ctx)] if drafts_versions(ctx) else []) + [prompt])
 
 
 def scrubbed_env(ctx: Dict, home: Path) -> Dict[str, str]:
@@ -1214,6 +1256,15 @@ def cmd_launch(a) -> None:
     elif run["exit_code"] != 0 and not code:
         record["outcome"] = f"the vendor exited {run['exit_code']}; see {rel(err)}"
         code = 1
+    # The source contract's § 2, checked here rather than at TC5: a version without its manifest is not filed (SWCB #249).
+    versions = version_gaps(ctx)
+    if versions:
+        record["versions"] = versions
+    short = [v for v in versions if v["missing"]]
+    if short:
+        refused = "version refused: " + "; ".join(f"{v['version']} lacks {', '.join(v['missing'])}" for v in short)
+        record["outcome"] = f"{record['outcome']}; {refused}" if record.get("outcome") else refused
+        code = code or 5
     if filed["survivors"] or filed["not_read"]:
         refused = ("filing refused: media or an employer path survives in " + ", ".join(
             sorted(filed["survivors"]) + filed["not_read"]) + "; nothing from this pass may be committed")

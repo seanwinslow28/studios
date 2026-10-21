@@ -652,15 +652,60 @@ def test_a_claude_dir_left_in_a_version_folder_the_pass_made_is_swept(world, fak
     stage = Path(ctx_data(ctx)["fence"]["write"][1])
     older = stage / "older-v01" / ".claude"  # there before the launch: not this pass's, so not touched
     older.mkdir(parents=True)
+    for f in seatmod.VERSION_FILES:  # made after the context, so the version check reads it as this pass's
+        (older.parent / f).write_text(f)
     made, kept = stage / "takes-v01" / ".claude", stage / "takes-v02" / ".claude"
     behave(fake, calls=1, make_dirs=[str(made / ".cc-writes")],
-           make_files={str(stage / "takes-v01" / "fx1-take1.mp3"): "take", str(kept / "notes.md"): "a seat's file"})
+           make_files={str(stage / "takes-v01" / "fx1-take1.mp3"): "take", str(kept / "notes.md"): "a seat's file",
+                       **whole(stage / "takes-v01"), **whole(stage / "takes-v02")})
     r = launch(world, ctx, "--run")
     rec = record(world, "sw1")
     assert r.returncode == 0, r.stderr
     assert rec["claude_dirs"] == {"removed": [str(made)], "left": [str(kept)]}
     assert not made.exists() and (stage / "takes-v01" / "fx1-take1.mp3").exists()
     assert (kept / "notes.md").exists() and older.is_dir()
+
+
+def whole(version: Path) -> dict:
+    """The three files every version folder holds (source contract § 2), as the fake's make_files."""
+    return {str(version / f): f for f in seatmod.VERSION_FILES}
+
+
+def test_a_version_without_its_manifest_is_refused(world, fake):
+    """mc-eng-001's tasks never asked for the manifest, and TC5 caught it only at the end (SWCB #249)."""
+    ctx = context(world, "visual-story-director", "vm1")
+    seat(world, "claude-settings", ctx)
+    stage = world["project"] / "story"  # animatic-v01 is there before the context, without the three: not this pass's
+    good, short = stage / "animatic-v02-2026-10-21", stage / "animatic-v03-2026-10-21"
+    files = {**whole(good), **whole(short), str(good / "renders" / "a.mp4"): "film"}
+    del files[str(short / "manifest.md")]
+    behave(fake, calls=1, make_files=files)
+    r = launch(world, ctx, "--run")
+    rec = record(world, "vm1")
+    assert r.returncode == 5, r.stdout + r.stderr
+    media = f"media:{PROJECT}/story"
+    assert rec["versions"] == [{"version": f"{media}/animatic-v02-2026-10-21", "missing": []},
+                               {"version": f"{media}/animatic-v03-2026-10-21", "missing": ["manifest.md"]}]
+    assert rec["outcome"] == f"version refused: {media}/animatic-v03-2026-10-21 lacks manifest.md"
+
+
+def test_a_pass_whose_versions_are_whole_is_filed(world, fake):
+    ctx = context(world, "visual-story-director", "vm2")
+    seat(world, "claude-settings", ctx)
+    v = world["project"] / "story" / "animatic-v04-2026-10-21"
+    behave(fake, calls=1, make_files={**whole(v), str(v / "POINTER.txt"): "mc-eng-900"})
+    r = launch(world, ctx, "--run")
+    rec = record(world, "vm2")
+    assert r.returncode == 0 and "outcome" not in rec, r.stdout
+    assert rec["versions"] == [{"version": f"media:{PROJECT}/story/animatic-v04-2026-10-21", "missing": []}]
+
+
+def test_a_read_only_pass_is_not_checked_for_versions(world, fake):
+    behave(fake, calls=1, answer="AUDIT")
+    ctx = context(world, "visual-story-director", "vm3", "--read-only")
+    seat(world, "claude-settings", ctx)
+    r = launch(world, ctx, "--output", "audits/audit-vm3.md", "--run")
+    assert r.returncode == 0 and "versions" not in record(world, "vm3"), r.stdout
 
 
 def test_claude_stopping_at_its_budget_is_blocked_budget(world, fake):
@@ -798,6 +843,19 @@ def test_a_claude_prompt_names_the_image_door_only_for_the_director_and_art(worl
     assert "sound.py" not in seatmod.launch_argv(director, "do the work")[-1]
     gate = seatmod.load(context(world, "motion-gate", "t10", "--anchor", "artifacts/scene-record.md"))
     assert seatmod.launch_argv(gate, "do the work")[-1] == "do the work", "a gate gets neither door"
+
+
+def test_every_drafting_task_names_the_three_files_a_version_holds(world, codex_home):
+    """The task form asks for the manifest beside the pointer and the checksums (SWCB #249)."""
+    for s, n in (("visual-story-director", "vn1"), ("art-pose-designer", "vn2"), ("finishing-sound-designer", "vn3")):
+        prompt = seatmod.launch_argv(seatmod.load(context(world, s, n)), "do the work")[-1]
+        assert prompt.startswith("do the work") and "refuses to file one that lacks any of the three" in prompt
+        assert all(f"`{f}`" in prompt for f in seatmod.VERSION_FILES) and str(seatmod.SOURCE_CONTRACT) in prompt
+    animator = seatmod.load(codex_pass(world, codex_home, "vn4"))
+    prompt = seatmod.launch_argv(animator, "do the work", "p", "o")[-1]
+    assert prompt.endswith("do the work") and "`motion/<artifact>-vNN-<YYYY-MM-DD>`" in prompt and "`manifest.md`" in prompt
+    audit = seatmod.load(context(world, "art-pose-designer", "vn5", "--read-only"))
+    assert "manifest.md" not in seatmod.launch_argv(audit, "do the work")[-1], "an audit saves no version"
 
 
 def test_a_codex_prompt_carries_agents_md_and_the_skills_by_path(world, codex_home):
