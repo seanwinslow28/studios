@@ -232,6 +232,36 @@ def test_fusion_never_reaches_a_timeline_through_the_broker(env_of):
         assert {"InsertTitleIntoTimeline", "SetLUT", "ApplyGradeFromDRX", "SetCDL"} <= real
 
 
+def test_no_transition_reaches_a_timeline_and_a_clip_fades_by_its_fader(env_of):
+    """AddTransition can name a Fusion or OFX transition, so it is refused whatever its category (SWCB #257);
+    a title card fades by the clip's own fader."""
+    c = ctx_of(env_of, "finishing-sound-designer", "a23")
+    prefix = os.path.basename(c["media_project"])
+    root, state = fake_resolve(prefix)
+    ran, fades = [], {}
+    item = Fake("TimelineItem", AddTransition=lambda o: ran.append(o) or Fake("TimelineItem"),
+                SetFades=lambda f: fades.update(f) or True)
+    timeline = Fake("Timeline", GetItemListInTrack=lambda kind, i: [item])
+    mine = Fake("Project", GetName=lambda: f"{prefix}-cut", GetCurrentTimeline=lambda: timeline)
+    state["open"] = mine
+    real = apps.resolve_api() if apps.RESOLVE_API.is_file() else frozenset()
+    # the installed API's own list where Resolve is installed; else a list that wrongly opens it, which the broker still refuses
+    api = (real or frozenset({"AddTransition", "SetFades"})) | {
+        "GetProjectManager", "GetCurrentProject", "GetCurrentTimeline", "GetItemListInTrack"}
+    b = apps.Broker(root, c, api, prefix)
+    pm = call(b, 0, "GetProjectManager")["ok"]["__h__"]
+    p = call(b, pm, "GetCurrentProject")["ok"]["__h__"]
+    tl = call(b, p, "GetCurrentTimeline")["ok"]["__h__"]
+    h = call(b, tl, "GetItemListInTrack", "video", 2)["ok"][0]["__h__"]
+    for category in ("fusion", "ofx", "simple", "audio", None):
+        opts = [["type", "Cross Dissolve"], ["position", "end"]] + ([["category", category]] if category else [])
+        assert "not open to a pass" in call(b, h, "AddTransition", {"__d__": opts})["refused"], category
+    assert ran == [], "no transition reached Resolve"
+    assert call(b, h, "SetFades", {"__d__": [["FadeIn", 12], ["FadeOut", 12]]}) == {"ok": True} and fades == {"FadeIn": 12, "FadeOut": 12}
+    if real:
+        assert "AddTransition" not in real and "SetFades" in real
+
+
 def test_a_grade_or_lut_the_pass_wrote_never_loads(env_of):
     """A .drx holds the grade as a blob the doorway cannot read, and a LUT may be a DCTL: only files saved before the pass."""
     c = ctx_of(env_of, "finishing-sound-designer", "a22")
@@ -610,7 +640,8 @@ p = r.GetProjectManager().GetCurrentProject()
 for name, go in (("FUSION", lambda: r.Fusion()), ("DELETE", lambda: r.GetProjectManager().DeleteProject("x")),
                  ("FUSION-TITLE", lambda: p.InsertFusionTitleIntoTimeline("Text+")),
                  ("FUSION-GENERATOR", lambda: p.InsertFusionGeneratorIntoTimeline("Contours")),
-                 ("FUSION-COMPOSITION", lambda: p.InsertFusionCompositionIntoTimeline())):
+                 ("FUSION-COMPOSITION", lambda: p.InsertFusionCompositionIntoTimeline()),
+                 ("TRANSITION", lambda: p.AddTransition({"type": "Cross Dissolve", "category": "fusion"}))):
     try:
         go(); print(name, "RAN")
     except d.Refused as e: print(name, "REFUSED")
@@ -638,10 +669,10 @@ def test_resolve_is_reached_only_through_the_broker_and_its_writes_are_recorded(
     log = Path(res["log"]).read_text()
     assert res["ok"], log[-2000:] + str(entry.get("error"))
     assert "RESOLVE 2" in log and "FUSION REFUSED" in log and "DELETE REFUSED" in log
-    for name in ("FUSION-TITLE", "FUSION-GENERATOR", "FUSION-COMPOSITION"):
+    for name in ("FUSION-TITLE", "FUSION-GENERATOR", "FUSION-COMPOSITION", "TRANSITION"):
         assert f"{name} REFUSED" in log, f"{name}: a Fusion item never goes on a timeline"
     assert "RESOLVE-PORT REFUSED" in log and "FUSCRIPT-PORT REFUSED" in log, "the script never reaches Resolve itself"
-    assert entry["broker"]["calls"] >= 3 and len(entry["broker"]["refused"]) == 5
+    assert entry["broker"]["calls"] >= 3 and len(entry["broker"]["refused"]) == 6
     assert entry["resolve"]["running"] is True
     assert set(entry["written"]) == {"fence", "frozen", "resolve_own", "launcher", "other_programs", "outside"}
     os.close(srv.fd)
