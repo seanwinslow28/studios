@@ -179,6 +179,8 @@ Duration is the approved animatic's, to the frame: the frame count in `ffprobe` 
 
 A manifest that is missing, or a file in a version that is not in its `checksums.sha256`, fails TC5.
 
+**A card's edges** (alpha and halo, under TC2) are judged on a 4:4:4 comparison render (ProRes 4444) from the same timeline, labelled not a delivery, against an `ffmpeg` composite of the same card over the same plate, with tolerances written before measuring. The 4:2:2 master's result is recorded beside it as the format's, never hidden, since 4:2:2 shares colour between neighbouring pixels and fails any tight edge tolerance whatever the compositor does. Sean's ruling on E8 (SWCB #256, 2026-10-21, ledger mc-e8.d02).
+
 ## 10. The font shelf
 
 Every font a film sets comes from one shelf in the studio's media folder, so a version never depends on what is installed on a machine. Sean's type ruling (SWCB #244, 2026-10-21) is why: Apple's system fonts are licensed for display on the Mac and SF Pro and New York are barred from artwork; Adobe's terms forbid embedding the files and end use when the subscription lapses; only open-licence fonts allow the file to be copied into a project, packed into a `.blend` and moved between machines, with video and commercial use allowed.
