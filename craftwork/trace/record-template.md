@@ -48,6 +48,8 @@ checks: []                             # appended afterwards, one block per audi
                                        #     verdict: STRATEGY FAIL — QUALITY VERDICT ONLY
 triggered_by: null                     # the pass id whose verdict caused this repair or re-gate
 shadow_of: null                        # trials only: the baseline pass this trial shadows, fired on identical inputs (same hashes)
+# skipped:                             # optional, the coordinator's own records only (open / readout / close): numbers
+#   - pass-22                          #   never launched, so they have no record; the notes say why (SWCB #246)
 ---
 
 ## Corpus read

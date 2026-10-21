@@ -61,6 +61,52 @@ def test_missing_record_is_caught_with_the_gap_named(eng_dir):
     assert any("pass-10" in f for f in c.findings)
 
 
+def _skip(eng_dir: Path, record: str, pid: str) -> None:
+    """Drop `pid`'s record and label row, as if it was never launched, and have `record` declare it skipped."""
+    for p in (eng_dir / "trace").glob(f"{pid}-*.md"):
+        p.unlink()
+    labels = eng_dir / "trace" / "labels.md"
+    labels.write_text("".join(l for l in labels.read_text().splitlines(True) if not l.startswith(f"| {pid} |")))
+    edit(eng_dir / "trace" / record, "shadow_of: null\n", f"shadow_of: null\nskipped:\n  - {pid}\n")
+
+
+def test_a_number_the_close_declares_skipped_is_a_note_not_a_gap(eng_dir):
+    """SWCB #246, Sean's ruling 2026-10-21: a number never launched has no record and none can be made up.
+    The coordinator's own record may declare it skipped; one nothing else points to is then a note."""
+    _skip(eng_dir, "pass-25-coordinator-close.md", "pass-21")
+    c = results(eng_dir)["Every pass has a record"]
+    assert c.ok and (c.n_ok, c.n_total) == (24, 24), c.findings
+    assert any("pass-21 declared skipped by pass-25" in n for n in c.notes)
+
+
+def test_a_declared_skip_never_hides_a_pass_that_ran(eng_dir):
+    _skip(eng_dir, "pass-25-coordinator-close.md", "pass-10")           # pass-03's checks name pass-10's audit
+    c = results(eng_dir)["Every pass has a record"]
+    assert not c.ok
+    assert any("pass-10 has no record" in f for f in c.findings)
+    assert any("pass-25 declares pass-10 skipped, but pass-03 references it" in f for f in c.findings)
+    edit(eng_dir / "trace" / "pass-25-coordinator-close.md", "  - pass-10\n", "  - pass-11\n")  # one that has a record
+    c = results(eng_dir)["Every pass has a record"]
+    assert any("pass-25 declares pass-11 skipped, but it has a record" in f for f in c.findings)
+
+
+def test_a_skip_that_is_not_a_list_is_a_finding_not_a_crash(eng_dir):
+    """From the independent review on SWCB #246."""
+    for value in ("true", "22"):
+        _skip(eng_dir, "pass-25-coordinator-close.md", "pass-21")
+        edit(eng_dir / "trace" / "pass-25-coordinator-close.md", "skipped:\n  - pass-21\n", f"skipped: {value}\n")
+        c = results(eng_dir)["Every pass has a record"]
+        assert any("but the numbering never reached it" in f for f in c.findings)
+        assert any("pass-21 has no record (referenced by the numbering)" in f for f in c.findings)
+        edit(eng_dir / "trace" / "pass-25-coordinator-close.md", f"skipped: {value}\n", "")
+
+
+def test_only_the_coordinator_declares_a_skip(eng_dir):
+    _skip(eng_dir, "pass-24-red-team-gate-gate.md", "pass-21")
+    c = results(eng_dir)["Every pass has a record"]
+    assert not c.ok and any("pass-21 has no record (referenced by the numbering)" in f for f in c.findings)
+
+
 def test_filename_must_match_the_record(eng_dir):
     p = eng_dir / "trace" / "pass-10-discovery-lead-audit.md"
     p.rename(eng_dir / "trace" / "pass-10-discovery-lead-draft.md")

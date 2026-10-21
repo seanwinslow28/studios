@@ -141,7 +141,16 @@ def _every_pass_has_a_record(eng: Engagement) -> Check:
                 referenced.setdefault(ref, set()).add(r.pass_id)
     for pid in eng.labels:
         referenced.setdefault(pid, set()).add("labels.md")
-    universe = sorted(set(expected) | have | set(referenced))
+    # a number never launched has no record and none can be made up: the coordinator's own record may
+    # declare it `skipped:`, which holds only for a number nothing but the numbering names (SWCB #246)
+    declared: dict[str, str] = {}
+    for r in eng.records:
+        if r.kind in eng.studio.coordinator_kinds:
+            raw = r.raw.get("skipped") or []
+            for pid in raw if isinstance(raw, list) else [raw]:
+                declared.setdefault(str(pid).strip(), r.pass_id)
+    skipped = {pid for pid in declared if pid in expected and pid not in have and pid not in referenced}
+    universe = sorted((set(expected) | have | set(referenced)) - skipped)
     c = Check(CHECK_NAMES[1], n_total=len(universe))
     for pid in universe:
         if pid in have:
@@ -149,6 +158,15 @@ def _every_pass_has_a_record(eng: Engagement) -> Check:
             continue
         by = ", ".join(sorted(referenced.get(pid, ()))) or "the numbering"
         c.findings.append(f"{pid} has no record (referenced by {by})")
+    for pid, by in sorted(declared.items()):
+        if pid in skipped:
+            c.notes.append(f"{pid} declared skipped by {by}: never launched, so it has no record")
+        elif pid in have:
+            c.findings.append(f"{by} declares {pid} skipped, but it has a record")
+        elif pid in referenced:
+            c.findings.append(f"{by} declares {pid} skipped, but {', '.join(sorted(referenced[pid]))} references it")
+        else:
+            c.findings.append(f"{by} declares {pid} skipped, but the numbering never reached it")
     for r in eng.records:
         for e in r.errors:
             if "filename" in e:

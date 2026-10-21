@@ -42,6 +42,19 @@ and line 8 says so. Its taxonomy file (`taxonomy.md`, beside this one) is empty 
 Motioncraft's own labels earn a seat mode; the shared process-waste family is
 the kit's.
 
+Three passes a full train files truthfully as `draft` are not the stage's one
+draft, and line 8 names each in a note instead of counting it (SWCB #246, from
+mc-eng-001, the first film): Finishing's assembled frame at stage 2, when the
+appearance gate's `proof:` names one of its outputs (by path or version folder,
+and by hash when the proof carries one); a draft by the stage's seat whose
+artifact header `answers:` a ticket, as the Animator's camera-ticket prototypes
+do at stage 3 (they still count as motion for the appearance-gate order); and a
+draft whose `triggered_by` names the same seat's draft at that stage stopped on
+`exit: "Blocked: Sean's call"`, which resumes it as one draft, as Finishing's
+does after Sean decides the cue list; nothing audits or gates that stage, and no
+later stage drafts, until the resumption finishes. A header is read only from a
+revision still on disk.
+
 The kit finds this file by walking up from an engagement folder, so
 `python3 craftwork/trace/check.py motioncraft/ledger/engagements/<eng-id>` needs
 no flag. Loading it registers the structure check.
@@ -62,6 +75,7 @@ except ModuleNotFoundError:
 
 from tracekit.checker import STRUCTURE_CHECKS, Check  # noqa: E402
 from tracekit.engagement import Engagement  # noqa: E402
+from tracekit.frontmatter import FrontmatterError, split_frontmatter  # noqa: E402
 from tracekit.studio import Studio  # noqa: E402
 
 __all__ = ["STUDIO", "MOTIONCRAFT", "MOTIONCRAFT_CHECK_IMPLICATIONS", "STAGE_SEATS", "FIXED_AUDITORS", "GATE_STAGES"]
@@ -93,6 +107,8 @@ SMALL_PIECE_TYPES = ("small-piece", "small piece")
 ONE_OFF_TYPES = ("one-off", "one off")
 # the stages a train in parts drafts once per part: Appearance and Motion; the animatic and the cut stay whole
 PART_STAGES = (2, 3)
+# the typed exit a draft stops on for Sean's decision, resumed by a later draft (artifact-header.md § Exits)
+SEANS_CALL = "Blocked: Sean's call"
 
 STUDIO = Studio(
     key="motioncraft",
@@ -219,11 +235,13 @@ def _stages(eng: Engagement) -> Check:
 def _drafted_and_audited(c: Check, eng: Engagement, stage: int, rs: list, label: str) -> Optional[int]:
     """Exactly one draft at `stage` by its seat and at least one audit by its fixed auditor, among `rs`.
 
-    Returns the draft's pass number when both hold, else None; each gap is a finding.
+    Drafts that are not the stage's own are set aside first (`_the_stage_drafts`). Returns the pass
+    number the draft finished on (its last resumption's, if Sean's call stopped it) when both hold,
+    else None; each gap is a finding.
     """
     names = eng.studio.stage_name
     ok = True
-    drafts = [r for r in rs if r.kind == "draft"]
+    drafts, finished = _the_stage_drafts(c, eng, stage, [r for r in rs if r.kind == "draft"], label)
     n = None
     if len(drafts) != 1:
         c.findings.append(f"stage {stage} {names(stage)}{label}: {len(drafts)} drafts, expected exactly one (repairs are `kind: repair`)")
@@ -232,7 +250,14 @@ def _drafted_and_audited(c: Check, eng: Engagement, stage: int, rs: list, label:
         c.findings.append(f"stage {stage}{label}: draft by {drafts[0].seat}; the drafting seat is {STAGE_SEATS[stage]}")
         ok = False
     else:
-        n = _pass_no(drafts[0].pass_id)
+        n = finished.get(drafts[0].pass_id, _pass_no(drafts[0].pass_id))
+        early = [r.pass_id for r in eng.records if _pass_no(drafts[0].pass_id) < _pass_no(r.pass_id) < n
+                 and _part(r) == _part(drafts[0]) and (r in rs and r.kind == "audit"
+                 or GATE_STAGES.get(r.seat) == stage or r.stage > stage and r.kind in eng.studio.forward_kinds)]
+        if early:
+            c.findings.append(f"stage {stage}{label}: {', '.join(early)} ran while {drafts[0].pass_id} was stopped on "
+                              f"Sean's call, before its resumption finished at pass-{n:02d}")
+            ok = False
     audits = [r for r in rs if r.kind == "audit"]
     if not audits:
         c.findings.append(f"stage {stage} {names(stage)}{label}: no audit pass (the fixed auditor is {FIXED_AUDITORS[stage]})")
@@ -242,6 +267,75 @@ def _drafted_and_audited(c: Check, eng: Engagement, stage: int, rs: list, label:
             c.findings.append(f"stage {stage}{label}: audit by {a.seat}; the fixed auditor is {FIXED_AUDITORS[stage]}")
             ok = False
     return n if ok else None
+
+
+def _the_stage_drafts(c: Check, eng: Engagement, stage: int, drafts: list, label: str) -> tuple[list, dict[str, int]]:
+    """The drafts at `stage` that are its draft, with three set aside, each named in a note (SWCB #246).
+
+    A gate's proof: a draft by another seat that a gate anchored at this stage names in its `proof:`
+    (the assembled frame). A ticket's answer: a draft by the stage's seat whose artifact header
+    `answers:` a ticket (the camera prototypes). A resumption: a draft whose `triggered_by` names an
+    earlier draft of the same seat here, stopped on Sean's call; the stopped draft stays the stage's
+    draft. Also returns, per stopped draft kept, the pass number its last resumption finished on.
+    """
+    gates = [g for g in eng.records if g.kind == "gate" and GATE_STAGES.get(g.seat) == stage]
+    drafts = sorted(drafts, key=lambda r: _pass_no(r.pass_id))
+    by_id = {r.pass_id: r for r in drafts}
+    kept, finished, resumes = [], {}, {}       # resumes: a resumption → the draft its chain began with
+    for r in drafts:
+        seat = eng.studio.seat_name(r.seat)
+        proof_of = None if r.seat == STAGE_SEATS[stage] else next(
+            (g for g in gates if _pass_no(r.pass_id) < _pass_no(g.pass_id) and _proves(_proof(eng, g), r)), None)
+        if proof_of is not None:
+            c.notes.append(f"{r.pass_id}: {seat}'s draft at stage {stage}{label} is the "
+                           f"{eng.studio.seat_name(proof_of.seat).lower()}'s proof ({proof_of.pass_id}), not the stage's draft")
+            continue
+        answers = str(_header(eng, r).get("answers") or "").strip()
+        if r.seat == STAGE_SEATS[stage] and re.search(r"#\d+", answers):
+            c.notes.append(f"{r.pass_id}: {seat}'s draft at stage {stage}{label} answers {answers}, not the stage's draft")
+            continue
+        stopped = by_id.get(r.triggered_by or "")
+        if (stopped is not None and stopped.seat == r.seat and _pass_no(stopped.pass_id) < _pass_no(r.pass_id)
+                and str(_header(eng, stopped).get("exit") or "").strip() == SEANS_CALL):
+            c.notes.append(f"{r.pass_id}: resumes {stopped.pass_id}, stopped on `{SEANS_CALL}`; one draft with it")
+            resumes[r.pass_id] = first = resumes.get(stopped.pass_id, stopped.pass_id)
+            finished[first] = _pass_no(r.pass_id)
+            continue
+        kept.append(r)
+    return kept, finished
+
+
+def _header(eng: Engagement, r) -> dict:
+    """The machine-readable header of the first artifact `r` wrote that carries one, from a revision still on disk."""
+    for o in r.artifact_outputs:
+        if not o.path.endswith(".md") or eng.output_state(o) not in ("current", "unhashed"):
+            continue
+        text = eng.read_text(o.path)
+        try:
+            fm = split_frontmatter(text)[0] if text else {}
+        except (FrontmatterError, ValueError):     # a header the parser cannot read vouches for nothing
+            continue
+        if fm:
+            return fm
+    return {}
+
+
+def _proof(eng: Engagement, gate) -> Optional[tuple[str, Optional[str]]]:
+    """A gate's `proof:` as (path, sha256 or None): `<path> · <sha256>` in the gate findings header; None for `none`."""
+    value = str(_header(eng, gate).get("proof") or "").strip()
+    if not value or value.lower() == "none":
+        return None
+    path, _, sha = value.partition("·")
+    return path.strip(), sha.strip() or None
+
+
+def _proves(proof: Optional[tuple[str, Optional[str]]], r) -> bool:
+    """`proof` names one of `r`'s outputs: the file or its version folder, and its hash when the proof gives one."""
+    if proof is None:
+        return False
+    path, sha = proof
+    return any((o.path == path or o.path.rsplit("/", 1)[0] == path) and sha in (None, o.sha256)
+               for o in r.artifact_outputs)
 
 
 def _small_piece(eng: Engagement, c: Check) -> Check:
@@ -278,7 +372,9 @@ def _small_piece(eng: Engagement, c: Check) -> Check:
     motion, finish = drafted.get(MOTION_STAGE), drafted.get(4)
     if motion is not None and gates and gates[0] < motion:
         c.findings.append(f"motion gate pass-{gates[0]:02d} runs before the motion draft it gates")
-    if finish is not None and not any(motion is not None and motion < g < finish for g in gates):
+    # Finishing starts with its first draft, even one Sean's call stopped and a later pass resumed
+    start = min((_pass_no(r.pass_id) for r in eng.records if r.stage == 4 and r.kind == "draft"), default=finish)
+    if finish is not None and not any(motion is not None and motion < g < start for g in gates):
         c.findings.append(f"stage 4 {names(4)}: drafted before the motion gate ran on the moving test")
     if closed and not gates:
         c.findings.append(f"closed with no motion gate pass (anchor: stage {MOTION_STAGE} {names(MOTION_STAGE)})")

@@ -451,15 +451,17 @@ MC_FILES = {
 }
 
 
-def _mc_engagement(tmp_path: Path, etype: str, passes: list[tuple], parts: list[str] | None = None) -> Path:
-    """A minimal Motioncraft engagement. A pass is (seat, kind, stage, inputs, outputs[, part])."""
+def _mc_engagement(tmp_path: Path, etype: str, passes: list[tuple], parts: list[str] | None = None,
+                   files: dict[str, str] | None = None, triggers: dict[int, int] | None = None) -> Path:
+    """A minimal Motioncraft engagement. A pass is (seat, kind, stage, inputs, outputs[, part]); `files` adds or
+    replaces artifacts, `triggers` maps a pass number to the pass its `triggered_by` names."""
     root = tmp_path / "toy-2026-10-18"
     (root / "trace").mkdir(parents=True)
     header = f"parts: [{', '.join(parts)}]\n" if parts else ""
     (root / "brief.md").write_text(
         f"---\nid: mc-eng-900\nname: Toy film\ntype: {etype}\n{header}opened: 2026-10-18\nclosed: null\n"
         f"pass_budget: 11\nsynthetic: true\n---\n\nA toy.\n")
-    for rel, text in MC_FILES.items():
+    for rel, text in {**MC_FILES, **(files or {})}.items():
         (root / rel).parent.mkdir(parents=True, exist_ok=True)
         (root / rel).write_text(text)
     rows = []
@@ -468,14 +470,17 @@ def _mc_engagement(tmp_path: Path, etype: str, passes: list[tuple], parts: list[
         if part:
             rec = root / "trace" / f"pass-{i:02d}-{seat}-{kind}.md"
             rec.write_text(rec.read_text().replace(f"\nstage: {stage}\n", f"\nstage: {stage}\npart: {part[0]}\n", 1))
+        if i in (triggers or {}):
+            rec = root / "trace" / f"pass-{i:02d}-{seat}-{kind}.md"
+            rec.write_text(rec.read_text().replace("triggered_by: null", f"triggered_by: pass-{triggers[i]:02d}", 1))
         rows.append(f"| pass-{i:02d} | pass | | fine | |")
     (root / "trace" / "labels.md").write_text(
         "| pass | verdict | first_failing_stage | critique | failure_code |\n|---|---|---|---|---|\n" + "\n".join(rows) + "\n")
     return root
 
 
-def _mc_line8(tmp_path: Path, etype: str, passes: list[tuple], parts: list[str] | None = None):
-    eng = load_engagement(_mc_engagement(tmp_path, etype, passes, parts), studio=load_profile(MC_PROFILE))
+def _mc_line8(tmp_path: Path, etype: str, passes: list[tuple], parts: list[str] | None = None, **kw):
+    eng = load_engagement(_mc_engagement(tmp_path, etype, passes, parts, **kw), studio=load_profile(MC_PROFILE))
     return eng, {c.name: c for c in run_checks(eng)}[eng.studio.structure_check_name]
 
 
@@ -588,3 +593,127 @@ def test_an_unsplit_train_flags_a_second_draft_and_a_split_one_flags_a_stray_par
     _, line8 = _mc_line8(tmp_path / "b", "full-train", stray, parts=["ground"])
     text = "\n".join(line8.findings)
     assert "names part sky" in text and "stage 2 Appearance part ground: 0 drafts" in text
+
+
+# --------------------------------------------------------------------------- #
+# Three passes a full train files truthfully as `draft` that are not the stage's one draft (SWCB #246)
+# --------------------------------------------------------------------------- #
+
+FRAME, APPEARANCE_GATE = "frames/assembled-frame-v01/checksums.sha256", "audits/appearance-gate.md"
+PROTOS, CUT_R2 = "artifacts/camera-prototypes.md", "artifacts/delivery-package-r2.md"
+FRAME_SUMS = "0123abcd  arrival.png\n"
+
+
+def _header(fields: str, title: str) -> str:
+    return f"---\n{fields}---\n\n# {title}\n\nIt holds.\n\n## Moves\n\norigin draft, no upstream — leaned on: the brief\n"
+
+
+def _first_film(proof: str | None = None, answers: str = 'answers: "SWCB #207"\n',
+                stopped: str = 'exit: "Blocked: Sean\'s call"\n') -> dict:
+    """mc-eng-001's shape in miniature: the assembled frame as the appearance gate's proof, the camera ticket's
+    prototypes before the moving test, and Finishing's draft stopped on Sean's call for the cue list, then resumed."""
+    import hashlib
+    sha = hashlib.sha256(FRAME_SUMS.encode()).hexdigest()
+    proof = proof if proof is not None else f'proof: "frames/assembled-frame-v01 · {sha}"\n'
+    passes = [
+        *MC_FULL[:5],
+        ("finishing-sound-designer", "draft", 2, [LOOK], [FRAME]),                          # 6: the assembled frame
+        ("appearance-gate", "gate", 2, [LOOK, FRAME], [APPEARANCE_GATE]),                  # 7
+        ("animator", "draft", 3, [LOOK], [PROTOS]),                                         # 8: the camera prototypes
+        *MC_SMALL[:3],                                                                      # 9-11: moving test, audit, gate
+        ("finishing-sound-designer", "draft", 4, [MOVE], [CUT]),                            # 12: stops for the cue list
+        ("finishing-sound-designer", "draft", 4, [CUT], [CUT_R2]),                          # 13: resumes on Sean's call
+        ("animator", "audit", 4, [CUT_R2], [AUDIT]),
+        *MC_CLOSE,
+    ]
+    files = {
+        FRAME: FRAME_SUMS,
+        APPEARANCE_GATE: f"---\n{proof}---\n\n# Appearance gate\n\nPASS — QUALITY VERDICT ONLY\n",
+        PROTOS: _header(f"{answers}exit: none\n", "Camera prototypes"),
+        CUT: _header(stopped, "Delivery package"),
+        CUT_R2: _header("exit: none\n", "Delivery package"),
+    }
+    return {"passes": passes, "files": files, "triggers": {13: 12}}
+
+
+def test_the_first_films_three_extra_drafts_are_read_for_what_they_are(tmp_path):
+    film = _first_film()
+    _, line8 = _mc_line8(tmp_path, "full-train", film["passes"], files=film["files"], triggers=film["triggers"])
+    assert line8.ok and line8.count == "4 of 4", line8.findings
+    notes = "\n".join(line8.notes)
+    assert "pass-06: Finishing's draft at stage 2 is the appearance gate's proof (pass-07), not the stage's draft" in notes
+    assert "pass-08: Animator's draft at stage 3 answers SWCB #207, not the stage's draft" in notes
+    assert "pass-13: resumes pass-12, stopped on `Blocked: Sean's call`; one draft with it" in notes
+
+
+def test_an_assembled_frame_no_gate_names_is_still_a_second_draft(tmp_path):
+    for i, proof in enumerate(("proof: none\n", f'proof: "frames/assembled-frame-v01 · {"0" * 64}"\n')):
+        film = _first_film(proof=proof)                                                     # no proof, or another hash
+        _, line8 = _mc_line8(tmp_path / str(i), "full-train", film["passes"], files=film["files"], triggers=film["triggers"])
+        assert line8.findings == ["stage 2 Appearance: 2 drafts, expected exactly one (repairs are `kind: repair`)"]
+
+
+def test_a_draft_answering_no_ticket_or_resuming_no_stop_is_still_a_second_draft(tmp_path):
+    film = _first_film(answers="")
+    _, line8 = _mc_line8(tmp_path / "a", "full-train", film["passes"], files=film["files"], triggers=film["triggers"])
+    assert line8.findings == ["stage 3 Motion: 2 drafts, expected exactly one (repairs are `kind: repair`)"]
+    film = _first_film(stopped="exit: none\n")                                              # the first part finished
+    _, line8 = _mc_line8(tmp_path / "b", "full-train", film["passes"], files=film["files"], triggers=film["triggers"])
+    assert line8.findings == ["stage 4 Finish: 2 drafts, expected exactly one (repairs are `kind: repair`)"]
+    film = _first_film()                                                                     # resumed, but not by its trigger
+    _, line8 = _mc_line8(tmp_path / "c", "full-train", film["passes"], files=film["files"])
+    assert line8.findings == ["stage 4 Finish: 2 drafts, expected exactly one (repairs are `kind: repair`)"]
+
+
+def test_camera_prototypes_still_wait_for_the_appearance_gate(tmp_path):
+    film = _first_film()
+    passes = film["passes"]
+    passes[6], passes[7] = passes[7], passes[6]                                             # prototypes before the gate
+    _, line8 = _mc_line8(tmp_path, "full-train", passes, files=film["files"], triggers=film["triggers"])
+    assert "stage 3 Motion: drafted before the appearance gate ran" in line8.findings
+
+
+def test_a_resumption_must_follow_the_draft_it_resumes(tmp_path):
+    """From the independent review on SWCB #246: a draft naming itself or a later pass resumes nothing."""
+    film = _first_film()
+    for i, triggers in enumerate(({12: 12}, {12: 13})):                                 # itself, then a later pass
+        _, line8 = _mc_line8(tmp_path / str(i), "full-train", film["passes"], files=film["files"], triggers=triggers)
+        assert line8.findings == ["stage 4 Finish: 2 drafts, expected exactly one (repairs are `kind: repair`)"]
+
+
+def test_a_small_piece_orders_a_resumed_draft_by_where_it_finished(tmp_path):
+    """From the independent review on SWCB #246: motion stopped on Sean's call and resumed after its gate and
+    after Finishing has not been gated; the stopped draft's number alone would let it through."""
+    stopped = _header('exit: "Blocked: Sean\'s call"\n', "Scene record")
+    passes = [MC_SMALL[0], MC_SMALL[1], MC_SMALL[2], MC_SMALL[3], MC_SMALL[4],
+              ("animator", "draft", 3, [MOVE], ["artifacts/scene-record-r2.md"]), *MC_CLOSE]
+    files = {MOVE: stopped, "artifacts/scene-record-r2.md": _header("exit: none\n", "Scene record")}
+    _, line8 = _mc_line8(tmp_path, "small-piece", passes, files=files, triggers={6: 1})
+    text = "\n".join(line8.findings)
+    assert ("stage 3: pass-02, pass-03, pass-04 ran while pass-01 was stopped on Sean's call, "  # audited, gated
+            "before its resumption finished at pass-06") in text                                    # and cut
+    assert "stage 4 Finish: drafted before the motion gate ran on the moving test" in text  # and the gate saw it too
+    # Finishing stopped before the motion gate is drafted before it, wherever its resumption lands
+    passes = [MC_SMALL[0], MC_SMALL[1], ("finishing-sound-designer", "draft", 4, [MOVE], [CUT]), MC_SMALL[2],
+              ("finishing-sound-designer", "draft", 4, [CUT], [CUT_R2]), ("animator", "audit", 4, [CUT_R2], [AUDIT]), *MC_CLOSE]
+    files = {CUT: _header('exit: "Blocked: Sean\'s call"\n', "Delivery package"), CUT_R2: _header("exit: none\n", "Delivery package")}
+    _, line8 = _mc_line8(tmp_path / "b", "small-piece", passes, files=files, triggers={5: 3})
+    assert "stage 4 Finish: drafted before the motion gate ran on the moving test" in line8.findings
+
+
+def test_nothing_builds_on_a_draft_while_it_is_stopped(tmp_path):
+    """From the second round of the independent review on SWCB #246: on a full train, the look stopped on Sean's
+    call, then audited, gated and moved before it resumed."""
+    look_r2 = "artifacts/appearance-packet-r2.md"
+    passes = [*MC_FULL[:5], ("appearance-gate", "gate", 2, [LOOK], [GATE]), MC_SMALL[0],
+              ("art-pose-designer", "draft", 2, [LOOK], [look_r2]), *MC_SMALL[1:], *MC_CLOSE]
+    files = {LOOK: _header('exit: "Blocked: Sean\'s call"\n', "Appearance packet"), look_r2: _header("exit: none\n", "Appearance packet")}
+    _, line8 = _mc_line8(tmp_path, "full-train", passes, files=files, triggers={8: 4})
+    assert ("stage 2: pass-05, pass-06, pass-07 ran while pass-04 was stopped on Sean's call, "
+            "before its resumption finished at pass-08") in line8.findings
+
+
+def test_a_header_the_parser_cannot_read_vouches_for_nothing(tmp_path):
+    film = _first_film(answers='answers: "SWCB #207"\nversion: ' + "9" * 5000 + "\n")
+    _, line8 = _mc_line8(tmp_path, "full-train", film["passes"], files=film["files"], triggers=film["triggers"])
+    assert line8.findings == ["stage 3 Motion: 2 drafts, expected exactly one (repairs are `kind: repair`)"]
