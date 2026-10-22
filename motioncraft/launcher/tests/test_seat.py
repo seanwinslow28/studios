@@ -77,6 +77,7 @@ apps = ["krita"]
 [seats.animator]
 skills = ["desk:2d-animation-principles", "agents:animation-principles"]
 apps = ["blender"]
+tools = ["kerning"]
 [seats.finishing-sound-designer]
 apps = ["resolve"]
 sound = true
@@ -789,12 +790,38 @@ def test_the_context_fixes_the_toolbelt(world):
     assert ctx_data(context(world, "visual-story-director", "t2"))["toolbelt"]["image"] is True
     assert ctx_data(context(world, "visual-story-director", "t3", "--read-only"))["toolbelt"]["image"] is False
     assert ctx_data(context(world, "story-gate", "t4", *CLAUDE_ANCHOR))["toolbelt"] == {
-        "dir": "", "skills": [], "manifest_sha256": "", "image": False, "sound": False, "apps": []}
+        "dir": "", "skills": [], "manifest_sha256": "", "image": False, "sound": False, "apps": [], "tools": []}
     assert data["toolbelt"]["apps"] == ["blender"], "the Animator's app, through the doorway"
     assert ctx_data(context(world, "visual-story-director", "t2b"))["toolbelt"]["apps"] == ["blender"], "the animatic's sequencer"
     assert ctx_data(context(world, "art-pose-designer", "t2c"))["toolbelt"]["apps"] == ["krita"], "the painted layers"
     assert ctx_data(context(world, "art-pose-designer", "t2d", "--read-only"))["toolbelt"]["apps"] == []
     assert ctx_data(context(world, "animator", "t5b", "--read-only"))["toolbelt"]["apps"] == [], "an audit runs no app"
+
+
+def test_the_animators_drafting_pass_gets_its_tools_by_path_and_hash(world):
+    tool = seatmod.TOOLS / "kerning.py"
+    data = ctx_data(context(world, "animator", "tk1"))
+    assert data["toolbelt"]["tools"] == [{"tool": "kerning", "path": str(tool), "sha256": seatmod.sha256(tool)}]
+    for vendor_prompt in (seatmod.claude_prompt, seatmod.codex_prompt):
+        prompt = vendor_prompt(data, "work")
+        assert f"- `kerning`: {tool}" in prompt and "built for this seat by Devcraft" in prompt
+    assert ctx_data(context(world, "animator", "tk1b", "--read-only"))["toolbelt"]["tools"] == [], "an audit runs no tool"
+    for other in ("visual-story-director", "art-pose-designer"):
+        path = context(world, other, f"tk1{other[0]}")
+        data = dict(ctx_data(path), source=path)
+        assert data["toolbelt"]["tools"] == [] and "built for this seat by Devcraft" not in seatmod.claude_prompt(data, "w")
+
+
+def test_a_named_tool_missing_or_misnamed_stops_the_context(world, tmp_path):
+    env = dict(world["env"], MOTIONCRAFT_TOOLS=str(tmp_path))
+    r = subprocess.run([sys.executable, str(SEAT), "context", "--seat", "animator", "--engagement", str(world["eng"]),
+                        "--pass", "tk2"], capture_output=True, text=True, env=env)
+    assert r.returncode != 0 and f"its tool kerning is not at {tmp_path / 'kerning.py'}" in r.stderr
+    bad = world["root"] / "bad-toolbelts.toml"
+    bad.write_text((world["root"] / "toolbelts.toml").read_text().replace('tools = ["kerning"]', 'tools = ["../kerning"]'))
+    r = subprocess.run([sys.executable, str(SEAT), "context", "--seat", "animator", "--engagement", str(world["eng"]),
+                        "--pass", "tk3"], capture_output=True, text=True, env=dict(world["env"], MOTIONCRAFT_TOOLBELTS=str(bad)))
+    assert r.returncode != 0 and "a tool is a module name" in r.stderr
 
 
 def test_a_changed_source_stops_the_context_until_the_copy_is_rebuilt(world):
@@ -917,6 +944,14 @@ def test_a_launch_stops_when_the_toolbelt_changed_since_the_context(world, codex
         assert "toolbelt copy changed" in launch(world, ctx, "--output", "artifacts/scene-record-u3.md").stderr
     finally:
         man.write_text(old)
+
+
+def test_a_launch_stops_when_a_tool_changed_since_the_context(world, codex_home, tmp_path):
+    shutil.copyfile(seatmod.TOOLS / "kerning.py", tmp_path / "kerning.py")
+    w = dict(world, env=dict(world["env"], MOTIONCRAFT_TOOLS=str(tmp_path)))
+    ctx = codex_pass(w, codex_home, "u3t")
+    (tmp_path / "kerning.py").write_text((tmp_path / "kerning.py").read_text() + "\n# changed\n")
+    assert "the tool kerning changed" in launch(w, ctx, "--output", "artifacts/scene-record-u3t.md").stderr
 
 
 def test_every_pass_carries_the_applications_paths(world, codex_home, fake):

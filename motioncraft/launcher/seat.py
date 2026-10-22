@@ -42,6 +42,9 @@ ticket, 2026-10-19). Every drafting pass's prompt names the three files a versio
 holds, and a version the pass leaves without its manifest, pointer or checksums is
 refused, exit 5 (SWCB #249). Every pass's prompt names the private library by its
 full path, and seat-probe opens one of its files by a lane's pointer (SWCB #250).
+A drafting pass's prompt names the pipeline tools its allowlist line lists
+(`tools`, Devcraft's modules in motioncraft/tools/), each fixed in the context by
+hash; a tool changed since stops the launch (SWCB #255).
 """
 from __future__ import annotations
 
@@ -170,6 +173,8 @@ CLAUDE_HELD_COMMANDS = ("ffmpeg", "ffprobe")
 # launcher's side of the sandbox under a lock written from the pass's context; none works inside a vendor's sandbox.
 APPS_DOOR = HERE / "apps.py"
 SEAT_APPS = ("blender", "resolve", "krita")
+# Pipeline tools Devcraft built for the seats, one module each; a seat runs one only once its allowlist line names it.
+TOOLS = Path(os.environ.get("MOTIONCRAFT_TOOLS", str(MOTIONCRAFT / "tools")))
 
 
 def die(msg: str) -> None:
@@ -222,7 +227,7 @@ def toolbelts() -> Dict:
 
 
 def seat_belt(seat: str) -> Dict:
-    """A seat's allowlist line: its skills as (source, name), whether it may call the image or sound path, and its apps."""
+    """A seat's allowlist line: its skills as (source, name), whether it may call the image or sound path, its apps and tools."""
     line = toolbelts().get("seats", {}).get(seat, {})
     skills = [tuple(s.split(":", 1)) for s in line.get("skills", [])]
     apps = list(line.get("apps", []))
@@ -231,7 +236,18 @@ def seat_belt(seat: str) -> Dict:
         die(f"the allowlist gives {seat} {', '.join(bad)}; the application doorway runs only {', '.join(SEAT_APPS)}")
     if line.get("sound") and seat != SOUND_SEAT:
         die(f"the allowlist gives {seat} the sound path; Finishing alone generates sound")
-    return {"skills": skills, "image": bool(line.get("image")), "sound": bool(line.get("sound")), "apps": apps}
+    tools = list(line.get("tools", []))
+    bad = [t for t in tools if not re.fullmatch(r"[a-z][a-z0-9_]*", t)]
+    if bad:
+        die(f"the allowlist gives {seat} tools named {', '.join(bad)}; a tool is a module name in motioncraft/tools/")
+    return {"skills": skills, "image": bool(line.get("image")), "sound": bool(line.get("sound")), "apps": apps,
+            "tools": tools}
+
+
+def tool_gaps(seat: str) -> List[str]:
+    """The tools a seat's allowlist line names that are not in motioncraft/tools/ on this machine."""
+    return [f"{seat}: its tool {t} is not at {TOOLS / (t + '.py')}" for t in seat_belt(seat)["tools"]
+            if not (TOOLS / f"{t}.py").is_file()]
 
 
 def source_dir(source: str) -> Optional[Path]:
@@ -306,17 +322,20 @@ def belt_gaps(seat: str) -> List[str]:
 
 def context_belt(seat: str, vendor: str, read_only: bool) -> Dict:
     """The toolbelt a pass runs with, fixed in its context: the copy's skills by path, and its manifest's hash."""
-    gaps = belt_gaps(seat)
+    gaps = belt_gaps(seat) + tool_gaps(seat)
     if gaps:
         die("; ".join(gaps))
     belt = seat_belt(seat)
     skills = [{"skill": n, "path": str(belt_dir(seat) / "skills" / n / "SKILL.md")} for _, n in belt["skills"]]
+    tools = [{"tool": t, "path": str(TOOLS / f"{t}.py"), "sha256": sha256(TOOLS / f"{t}.py")} for t in belt["tools"]]
     return {"dir": str(belt_dir(seat)) if skills else "", "skills": skills,
             "manifest_sha256": sha256(belt_dir(seat) / "manifest.json") if skills else "",
             "image": belt["image"] and vendor == "claude" and not read_only,
             "sound": belt["sound"] and vendor == "claude" and not read_only,
             # Blender, Resolve and Krita, through the application doorway: a drafting pass's, on either vendor
-            "apps": [] if read_only else belt["apps"]}
+            "apps": [] if read_only else belt["apps"],
+            # Devcraft's pipeline tools, fixed by hash: a drafting pass's, on either vendor
+            "tools": [] if read_only else tools}
 
 
 def app_env() -> Tuple[List[str], Dict[str, str]]:
@@ -814,7 +833,7 @@ def launch_argv(ctx: Dict, prompt: str, profile: str = "", output: str = "") -> 
 
 def claude_prompt(ctx: Dict, prompt: str) -> str:
     """A Claude pass's prompt: the coordinator's, its doorway (image for the Director and Art, sound for Finishing), the apps."""
-    apps = [apps_note(ctx)] * bool(ctx["toolbelt"].get("apps"))
+    apps = [apps_note(ctx)] * bool(ctx["toolbelt"].get("apps")) + [tools_note(ctx)] * bool(ctx["toolbelt"].get("tools"))
     doors = []
     if ctx["toolbelt"]["image"]:
         doors.append(f"The image path, for board roughs and style targets under the bench README's conditions: run "
@@ -941,6 +960,16 @@ def apps_note(ctx: Dict) -> str:
             "pass's time.")
 
 
+def tools_note(ctx: Dict) -> str:
+    """The pipeline tools a drafting pass's toolbelt names, by path: Devcraft built them, the seat runs them."""
+    lines = "\n".join(f"- `{t['tool']}`: {t['path']}" for t in ctx["toolbelt"]["tools"])
+    return ("Your toolbelt's tools, built for this seat by Devcraft. Each is standard-library Python: import it in a "
+            f"script you ask the application doorway to run (`sys.path.insert(0, \"{TOOLS}\")`, then `import <tool>`), "
+            "or run `python3 <path> --help` from your shell. What each does and what it refuses is in its module's "
+            f"docstring and in {TOOLS / 'README.md'}. A tool's output is raw material: check what it did as you would "
+            f"your own work.\n\n{lines}")
+
+
 def codex_prompt(ctx: Dict, prompt: str) -> str:
     """A Codex pass's prompt: the studios AGENTS.md and the toolbelt's skills by path, then the coordinator's.
 
@@ -958,6 +987,7 @@ def codex_prompt(ctx: Dict, prompt: str) -> str:
         parts.append("Your toolbelt's skills. Read a skill's SKILL.md by its path when its moment comes; "
                      f"no other skill is yours.\n\n{lines}")
     return "\n\n---\n\n".join(parts + [apps_note(ctx)] * bool(ctx["toolbelt"].get("apps"))
+                              + [tools_note(ctx)] * bool(ctx["toolbelt"].get("tools"))
                               + ([versions_note(ctx)] if drafts_versions(ctx) else []) + [library_note(), prompt])
 
 
@@ -1186,6 +1216,9 @@ def cmd_launch(a) -> None:
         man = Path(belt["dir"]) / "manifest.json"
         if not man.is_file() or sha256(man) != belt["manifest_sha256"]:
             die(f"{ctx['seat']}'s toolbelt copy changed since the context named it; a changed toolbelt is a new pass")
+    for tool in belt.get("tools", []):
+        if not Path(tool["path"]).is_file() or sha256(Path(tool["path"])) != tool["sha256"]:
+            die(f"the tool {tool['tool']} changed since the context named it; a changed tool is a new pass")
     for named in (ctx.get("escalation"), ctx.get("vendor_basis")):
         if named and named.get("path"):
             rec = eng / named["path"]
@@ -1674,7 +1707,7 @@ def cmd_check(a) -> None:
         if not (home / "auth.json").exists():
             gaps.append(f"the Codex seat home has no sign-in (CODEX_HOME={home} codex login)")
     for s in SEATS + GATES:
-        gaps += belt_gaps(s)
+        gaps += belt_gaps(s) + tool_gaps(s)
     path, apps = app_env()
     gaps += [f"the allowlist's application path {p} is not on this machine" for p in path + list(apps.values())
              if not os.path.exists(p)]

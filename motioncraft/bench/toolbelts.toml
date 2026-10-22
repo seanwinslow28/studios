@@ -36,6 +36,7 @@ apps = ["krita"]
 [seats.animator]
 skills = ["claude-desktop:2d-animation-principles", "agents:animation-principles"]
 apps = ["blender"]
+tools = ["kerning"]
 
 [seats.finishing-sound-designer]
 skills = ["agents:color-motion", "agents:beat-sync-editing"]
@@ -51,6 +52,12 @@ sound = true
 # (rule 5; the map's "Tool ownership" ticket, 2026-10-20, which also dropped the
 # Animator's `resolve` line: its renders cross to Finishing as files).
 # The paths below are what the doorway's locks run; a missing one is a gap in `seat.py check`.
+#
+# `tools`: pipeline software Devcraft built for the seat, one module each in `motioncraft/tools/`,
+# named here with Sean's yes (the bindings rule above). A drafting pass's context fixes each by
+# hash and its prompt names each by path; the pass runs it in a script it asks the doorway to
+# run, or from its shell. The Animator's `kerning` writes a font's own pair kerning into a Blender
+# text object (SWCB #255, Sean's yes 2026-10-21). A listed tool missing is a gap in `seat.py check`.
 [apps]
 blender = "/Applications/Blender.app/Contents/MacOS/Blender"
 krita = "/Applications/Krita.app/Contents/MacOS/kritarunner"
