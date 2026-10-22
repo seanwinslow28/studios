@@ -47,11 +47,15 @@ Resolve settings and presets, switch the database, delete, archive or restore
 projects, touch cloud projects, or quit. It allows work only in projects whose names
 start with the media project's name, refuses a path argument outside the media
 project, and lets a method that writes a file (an export, the render target) write
-only into the pass's fence. Resolve still writes its own database and caches, so for
-the length of each Resolve call the doorway also records every path written on the
-Mac (FSEvents) and sorts them into the fence, Resolve's own folders, frozen paths
-and everything else; the check record carries anything outside the fence, which
-another program on the Mac may also have written in that window.
+only into the pass's fence. A project, timeline, bin, grade or LUT file in a version
+folder or the fence loads only as Resolve itself exported it: the broker records the
+sha256 of each file Resolve exports in this machine's export register, and checks a
+load against it, in any later pass (SWCB #264). Resolve still writes its own database
+and caches, so for the length of each Resolve call the doorway also records every
+path written on the Mac (FSEvents) and sorts them into the fence, Resolve's own
+folders, frozen paths and everything else; the check record carries anything
+outside the fence, which another program on the Mac may also have written in that
+window.
 
 Krita runs with no screen: `kritarunner`, Qt's offscreen platform, the seat's script
 inside Krita's own Python by the launcher's wrapper module (`KRITA_WRAPPER`). Layers,
@@ -81,6 +85,7 @@ sandboxes" ticket (2026-10-19), Krita on "Krita's doorway" (2026-10-20).
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -90,6 +95,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from pathlib import Path
@@ -416,6 +422,13 @@ def krita_cache() -> str:
     return seat.real(os.path.expanduser(os.environ.get("MOTIONCRAFT_KRITA_CACHE", "~/.cache/motioncraft/apps/krita")))
 
 
+def resolve_cache() -> str:
+    """The broker's own folder on this machine, outside every fence: each call's folder (`calls/<id>/`, deleted when the
+    call ends) and the export register (`exports.jsonl`), which only the broker writes."""
+    seat = _seat()
+    return seat.real(os.path.expanduser(os.environ.get("MOTIONCRAFT_RESOLVE_CACHE", "~/.cache/motioncraft/apps/resolve")))
+
+
 def krita_version(kritarunner: str) -> str:
     """The installed Krita's version, from its bundle; a new version gets a template of its own."""
     try:
@@ -582,12 +595,20 @@ SetRenderSettings RenderWithQuickExport
 # Methods that name a project by their first argument: only the job's own projects.
 RESOLVE_NAMED_PROJECT = frozenset({"CreateProject", "LoadProject", "ExportProject"})
 # Methods that load a project, timeline or bin file, which can carry Fusion compositions and so code, or a grade or
-# LUT: only a file saved before this pass, or one Resolve itself exported in this call, never a file the pass wrote.
+# LUT. A file in a version folder of any stage, or in the pass's fence, loads only when its sha256 is in the export
+# register, that is, only as Resolve itself exported it through the doorway, in this pass or an earlier one; never a
+# file a pass wrote, frozen since or not (SWCB #264). Resolve reads the broker's own copy of the bytes it checked. A
+# file elsewhere in the media project (Sean's `inputs/`) loads as it is.
 # A grade file (`.drx`, by `ApplyGradeFromDRX` or a gallery's `ImportStills`) holds the node graph as one compressed
 # binary blob the doorway cannot read, naming each node's tools (LUTs and DCTLs by name, ResolveFX); a LUT may be a
 # DCTL, which is code. Found 2026-10-19 on Resolve 21.1.1; see the launcher README.
 RESOLVE_IMPORTS = frozenset({"ImportProject", "ImportTimelineFromFile", "ImportFolderFromFile", "ImportIntoTimeline",
                              "ApplyGradeFromDRX", "ImportStills", "SetLUT"})
+# Methods that write a file a later call may load, by the index of the path they write (`ExportStills` a folder). The
+# broker has Resolve write into the call's own folder, which no pass can reach, records each file's sha256 in the
+# export register, then copies the file out to where the script named. A pass that rewrites the file while Resolve
+# writes it changes only its own copy, never the register.
+RESOLVE_EXPORTS = {"ExportProject": 1, "Export": 0, "ExportLUT": 1, "ExportStills": 1, "ExportCurrentFrameAsStill": 0}
 # Calls on Resolve or the project manager that do not act on the open project, so may run whichever is open.
 RESOLVE_ANY_PROJECT = frozenset({"CreateProject", "LoadProject", "ImportProject", "ExportProject", "OpenPage",
                                  "GotoRootFolder", "GotoParentFolder", "OpenFolder", "CreateFolder"})
@@ -622,13 +643,19 @@ class Broker:
     checked by name before it reaches Resolve.
     """
 
-    def __init__(self, root, ctx: Dict, allowed: frozenset, prefix: str) -> None:
+    def __init__(self, root, ctx: Dict, allowed: frozenset, prefix: str, home: str, register: str) -> None:
         self.seat = _seat()
+        import freeze  # noqa: E402  the stages a version folder sits in
         self.ctx, self.allowed, self.prefix = ctx, allowed, prefix
         self.objs: Dict[int, object] = {0: root}
         self.meta: Dict[int, Dict] = {0: {"name": "Resolve", "project": None}}
         self.calls: List[Dict] = []
-        self.exported: set = set()  # files Resolve wrote for this call, which it may load again
+        self.home, self.register = Path(home), Path(register)  # the call's own folder; the machine's export register
+        project = self.seat.real(ctx["media_project"])
+        # where a pass may have written a file: this pass's fence, and every version folder of every stage, any pass's
+        self.pass_written = [self.seat.real(w) for w in ctx["fence"]["write"]] + \
+            [os.path.join(project, s) for s in freeze.STAGES]
+        self.note: Dict = {}  # what the call in hand exported or loaded, for its line in the call log
 
     def open(self, name: str) -> bool:
         """Listed open, and never a refused or Fusion name, whatever list the broker was given."""
@@ -693,6 +720,95 @@ class Broker:
             elif not (seat.under(p, ctx["media_project"]) or seat.under(p, ctx["scratch"])):
                 raise Refused(f"{name}: {s} is outside the media project; Resolve reads nothing else for a pass")
 
+    def fresh(self, kind: str) -> Path:
+        return Path(tempfile.mkdtemp(prefix=f"{kind}-", dir=self.home))
+
+    def exported_sums(self) -> set:
+        try:
+            lines = self.register.read_text(encoding="utf-8").splitlines()
+        except FileNotFoundError:
+            return set()
+        return {json.loads(l)["sha256"] for l in lines if l.strip()}
+
+    def loadable(self, name: str, args):
+        """The arguments, each file a pass may have written swapped for the broker's copy of it, once its sha256 is
+        found in the export register. Read without following a link, then copied, so the bytes checked are the bytes
+        Resolve loads, whatever the pass does to its own file meanwhile."""
+        sums = self.exported_sums()
+
+        def swap(v):
+            if isinstance(v, list):
+                return [swap(x) for x in v]
+            if isinstance(v, tuple):
+                return tuple(swap(x) for x in v)
+            if isinstance(v, dict):
+                return {k: swap(x) for k, x in v.items()}
+            if not isinstance(v, str) or "/" not in v:
+                return v
+            p = self.seat.real(v)
+            if not any(self.seat.under(p, r) for r in self.pass_written):
+                return v
+            try:
+                fd = os.open(p, os.O_RDONLY | os.O_NOFOLLOW)
+            except OSError:
+                raise Refused(f"{name}: {v} is not a file") from None
+            with os.fdopen(fd, "rb") as f:
+                if not stat.S_ISREG(os.fstat(f.fileno()).st_mode):
+                    raise Refused(f"{name}: {v} is not a file")
+                data = f.read()
+            digest = hashlib.sha256(data).hexdigest()
+            if digest not in sums:
+                raise Refused(f"{name}: {v} matches no export of Resolve's (its sha256 is not in the export register); a "
+                              "file in a version folder or your fence loads only as Resolve exported it, never as a pass "
+                              "wrote or changed it")
+            copy = self.fresh("load") / os.path.basename(p)
+            copy.write_bytes(data)
+            self.note.setdefault("loaded", []).append({"file": p, "sha256": digest})
+            return str(copy)
+        return swap(args)
+
+    def export(self, name: str, h: int, args: List):
+        """Run an export with Resolve writing into the call's own folder, then record and copy out each file it wrote."""
+        i = RESOLVE_EXPORTS[name]
+        target = args[i] if len(args) > i else None
+        if not (isinstance(target, str) and target.startswith("/")):
+            raise Refused(f"{name}: name what it writes whole, from /, in a new version folder in your stage")
+        out_dir, args = self.fresh("export"), list(args)
+        folder = name == "ExportStills"
+        args[i] = str(out_dir) if folder else str(out_dir / os.path.basename(target))
+        out = self.objs[h](*args)
+        if out:
+            dest = self.seat.real(target if folder else os.path.dirname(target))
+            self.note["exported"] = self.deliver(name, args, out_dir, dest)
+        return out
+
+    def deliver(self, name: str, args: List, out_dir: Path, dest: str) -> List[Dict]:
+        seat, ctx = self.seat, self.ctx
+        if not any(seat.under(dest, w) for w in ctx["fence"]["write"]) or any(seat.under(dest, f) for f in ctx["fence"]["frozen"]):
+            raise Refused(f"{name}: {dest} is outside this pass's fence now")
+        rows = []
+        for d, _dirs, files in os.walk(out_dir):
+            for f in sorted(files):
+                src = Path(d) / f
+                if src.is_symlink() or not src.is_file():
+                    continue
+                data = src.read_bytes()
+                to = Path(dest) / src.relative_to(out_dir)
+                to.parent.mkdir(parents=True, exist_ok=True)
+                fd = os.open(to, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o644)
+                with os.fdopen(fd, "wb") as fh:
+                    fh.write(data)
+                digest = hashlib.sha256(data).hexdigest()
+                row = {"sha256": digest, "size": len(data), "file": str(to), "method": name,
+                       **({"project": args[0]} if name == "ExportProject" else {}),
+                       "pass": seat.pass_id_of(ctx["source"]) if ctx.get("source") else "",
+                       "engagement": os.path.basename(ctx["engagement"]), "at": seat.now()}
+                self.register.parent.mkdir(parents=True, exist_ok=True)
+                with open(self.register, "a", encoding="utf-8") as reg:
+                    reg.write(json.dumps(row) + "\n")
+                rows.append({"file": str(to), "sha256": digest})
+        return rows
+
     def serve(self, op: Dict):
         kind, h = op.get("op"), op.get("h")
         if h not in self.objs:
@@ -731,19 +847,13 @@ class Broker:
                     raise Refused(f"{name} acts on the open project {open_now!r}, not this job's; load one named {self.prefix}…")
             self.check_paths(name, args)
             if name in RESOLVE_IMPORTS:
-                for s in self.strings(args):
-                    p = self.seat.real(s) if "/" in s else ""
-                    if p and any(self.seat.under(p, w) for w in self.ctx["fence"]["write"]) and p not in self.exported:
-                        raise Refused(f"{name}: {s} was written in this pass; Resolve loads only a file saved before "
-                                      "it, or one it exported in this call")
+                args = self.loadable(name, args)
             if name == "RenderWithQuickExport" and not any("/" in s for s in self.strings(args)):
                 raise Refused("RenderWithQuickExport: name its TargetDir, a new version folder in your stage")
             if name == "StartRendering" and meta.get("parent") is not None:
                 jobs = self.objs[meta["parent"]].GetRenderJobList() or []
                 self.check_paths("SetRenderSettings", [j.get("TargetDir", "") or "/(no target)" for j in jobs])
-            out = self.objs[h](*args)
-            if name in RESOLVE_WRITES:
-                self.exported |= {self.seat.real(s) for s in self.strings(args) if s.startswith("/")}
+            out = self.export(name, h, args) if name in RESOLVE_EXPORTS else self.objs[h](*args)
             project = meta["project"]
             if name in ("CreateProject", "LoadProject", "GetCurrentProject") and out is not None \
                     and not isinstance(out, (bool, int, float, str)):
@@ -757,6 +867,7 @@ class Broker:
 
     def answer(self, op: Dict) -> Dict:
         t0 = time.time()
+        self.note = {}
         try:
             out = {"ok": self.serve(op)}
         except Refused as e:
@@ -765,7 +876,7 @@ class Broker:
             out = {"error": f"{type(e).__name__}: {e}"}
         name = op.get("name") or self.meta.get(op.get("h"), {}).get("name")
         self.calls.append({"op": op.get("op"), "name": name, "args": op.get("args"), "ms": round((time.time() - t0) * 1000),
-                           **({k: out[k] for k in ("refused", "error") if k in out})})
+                           **self.note, **({k: out[k] for k in ("refused", "error") if k in out})})
         return out
 
 
@@ -858,7 +969,7 @@ def cmd_broker(a) -> None:
     Path(a.ready).write_text("running" if root else "no-resolve")
     if not root:
         return
-    broker = Broker(root, ctx, resolve_api(), a.prefix)
+    broker = Broker(root, ctx, resolve_api(), a.prefix, a.home, os.path.join(resolve_cache(), "exports.jsonl"))
     srv.settimeout(a.timeout)
     try:
         conn, _ = srv.accept()
@@ -1235,7 +1346,7 @@ class AppServer:
         env = {k: os.environ[k] for k in ("HOME", "USER", "LOGNAME", "LANG", "LC_ALL") if k in os.environ}
         env.update(PATH="/usr/bin:/bin:/usr/sbin:/sbin", TMPDIR=ctx["scratch"])
         timeout = max(1, min(c["timeout"], self.deadline - time.time()))
-        broker, sock, home = None, "", ""
+        broker, sock, home, rhome = None, "", "", ""
         if c["app"] == "blender":
             Path(blender_cache()).mkdir(parents=True, exist_ok=True)
             env["XDG_CACHE_HOME"] = blender_cache()
@@ -1250,7 +1361,10 @@ class AppServer:
                        MOTIONCRAFT_KRITA_FONTCONFIG=str(Path(paths["krita"]).parents[1] / "Frameworks" / "libfontconfig.1.dylib"))
             argv = [paths["krita"], "-s", KRITA_MODULE, "-f", "main"]
         else:
-            broker, sock = self.start_broker(rid, env, timeout)
+            # the broker's own folder for this call, where Resolve writes its exports and reads checked copies
+            rhome = os.path.join(resolve_cache(), "calls", rid)
+            os.makedirs(rhome, mode=0o700)
+            broker, sock = self.start_broker(rid, env, timeout, rhome)
             shim = self.results / f"{rid}.shim"
             shim.mkdir()
             (shim / "DaVinciResolveScript.py").write_text(SHIM, encoding="utf-8")
@@ -1281,8 +1395,9 @@ class AppServer:
         finally:
             if broker:
                 self.stop_broker(broker, sock)
-            if home:
-                shutil.rmtree(home, ignore_errors=True)  # the call's own home: nothing in it outlives the call
+            for d in (home, rhome):
+                if d:
+                    shutil.rmtree(d, ignore_errors=True)  # the call's own folder: nothing in it outlives the call
         entry.update(completed=seat.now(), wall_clock_s=round(time.time() - t0), exit_code=code)
         if c["app"] == "krita" and code == 0 and not krita_finished(log):
             entry["error"] = ("Krita ended without the script finishing (kritarunner exits 0 when a script fails to "
@@ -1300,7 +1415,8 @@ class AppServer:
             entry["broker"] = {"calls": len(rows), "log": str(calls), "refused": [r for r in rows if "refused" in r]}
             entry["resolve"] = resolve_state(self.resolve_env(env), paths["python"])
             seen = writes.stop()
-            entry["written"] = sort_writes(ctx, seen, [str(self.results), str(self.log), str(self.requests)])
+            entry["written"] = sort_writes(ctx, seen, [str(self.results), str(self.log), str(self.requests), rhome,
+                                                       os.path.join(resolve_cache(), "exports.jsonl")])
             entry["written"]["fence"] = sorted(set(entry["written"]["fence"]) | set(changed))
             targets = entry["resolve"].get("render_targets") or []
             entry["resolve"]["render_targets_outside"] = [t for t in targets if t and not any(
@@ -1374,9 +1490,8 @@ class AppServer:
         out.update({k: v for k, v in self.seat.app_env()[1].items() if k.startswith("RESOLVE_") or k == "PYTHONPATH"})
         return out
 
-    def start_broker(self, rid: str, env: Dict[str, str], timeout: float):
+    def start_broker(self, rid: str, env: Dict[str, str], timeout: float, home: str):
         """Start the broker outside the lock and wait until it holds Resolve; a short socket path (macOS caps it at 104)."""
-        import tempfile
         sockdir = tempfile.mkdtemp(prefix="mc-", dir="/private/tmp")
         sock = os.path.join(sockdir, "s")
         ready = self.results / f"{rid}.broker-ready"
@@ -1384,7 +1499,7 @@ class AppServer:
         proc = subprocess.Popen([app_paths()["python"], "-s", "-B", str(Path(__file__).resolve()), "broker",
                                  "--context", self.ctx["source"], "--socket", sock, "--ready", str(ready),
                                  "--calls", str(self.results / f"{rid}.calls.jsonl"), "--timeout", str(round(timeout)),
-                                 "--prefix", os.path.basename(self.ctx["media_project"])],
+                                 "--prefix", os.path.basename(self.ctx["media_project"]), "--home", home],
                                 env=self.resolve_env(env), stdin=subprocess.DEVNULL, stdout=blog, stderr=subprocess.STDOUT,
                                 start_new_session=True)
         blog.close()
@@ -1455,7 +1570,7 @@ def main() -> None:
     s.add_argument("app", choices=APPS)
     s.set_defaults(fn=cmd_lock)
     b = sub.add_parser("broker", help="the launcher's side of one Resolve call; never run by a seat or by hand")
-    for flag in ("--context", "--socket", "--ready", "--calls", "--prefix"):
+    for flag in ("--context", "--socket", "--ready", "--calls", "--prefix", "--home"):
         b.add_argument(flag, required=True)
     b.add_argument("--timeout", type=float, required=True)
     b.set_defaults(fn=cmd_broker)

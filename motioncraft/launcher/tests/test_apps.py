@@ -9,6 +9,7 @@ vendor: the pass asks from its shell, the launcher runs it, the record shows it.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import subprocess
@@ -36,6 +37,7 @@ def env_of(world):
     os.environ.update({k: v for k, v in world["env"].items() if k.startswith(("MOTIONCRAFT_", "TRACEKIT_"))})
     os.environ["MOTIONCRAFT_APPS_CACHE"] = str(world["root"] / "appcache")
     os.environ["MOTIONCRAFT_KRITA_CACHE"] = str(world["root"] / "kritacache")
+    os.environ["MOTIONCRAFT_RESOLVE_CACHE"] = str(world["root"] / "resolvecache")
     import seat as seatmod
     import importlib
     importlib.reload(seatmod)
@@ -142,14 +144,39 @@ def fake_resolve(prefix):
     mine = Fake("Project", GetName=lambda: f"{prefix}-cut", SaveProject=lambda: True,
                 GetRenderJobList=lambda: jobs, StartRendering=lambda *a: True)
     seans = Fake("Project", GetName=lambda: "Sean's own film", SaveProject=lambda: True)
-    state = {"open": seans}
+    state = {"open": seans, "exported_to": [], "imported": []}
+
+    def export(n, p, s=True):
+        """Resolve writes the project where it is told; a project whose name ends `-fails` it cannot export."""
+        state["exported_to"].append(p)
+        if n.endswith("-fails"):
+            return False
+        Path(p).write_bytes(b"PK\x03\x04 a project file of " + n.encode())
+        return True
+
+    def import_project(path, n=None):
+        state["imported"].append((path, Path(path).read_bytes()))
+        return True
     pm = Fake("ProjectManager", GetCurrentProject=lambda: state["open"],
-              CreateProject=lambda n: state.update(open=mine) or mine, ExportProject=lambda n, p, s=True: True,
-              SaveProject=lambda: True, DeleteProject=lambda n: True, ImportProject=lambda path, n=None: True)
+              CreateProject=lambda n: state.update(open=mine) or mine, ExportProject=export,
+              SaveProject=lambda: True, DeleteProject=lambda n: True, ImportProject=import_project)
     root = Fake("Resolve", GetProjectManager=lambda: pm, Fusion=lambda: Fake("Fusion"), KEYFRAME_MODE_ALL=0.0,
                 GetMediaStorage=lambda: Fake("MediaStorage", AddItemListToMediaPool=lambda paths: [Fake("Item")]))
     state["jobs"] = jobs
     return root, state
+
+
+def broker(world, c, root, api, prefix):
+    """The broker as `apps.py broker` builds it: a call folder of the launcher's own, and the machine's export register
+    (the test world's)."""
+    home = Path(apps.resolve_cache()) / "calls" / os.urandom(3).hex()
+    home.mkdir(parents=True)
+    return apps.Broker(root, c, api, prefix, str(home), os.path.join(apps.resolve_cache(), "exports.jsonl"))
+
+
+def register(world):
+    path = world["root"] / "resolvecache" / "exports.jsonl"
+    return [json.loads(l) for l in path.read_text().splitlines()] if path.exists() else []
 
 
 def call(b, h, name, *args):
@@ -166,7 +193,7 @@ def test_the_broker_holds_a_resolve_script_to_its_own_projects_and_the_fence(env
     root, state = fake_resolve(prefix)
     api = frozenset({"GetProjectManager", "GetCurrentProject", "CreateProject", "ExportProject", "SaveProject",
                      "GetName", "GetMediaStorage", "AddItemListToMediaPool", "ImportProject", "StartRendering"})
-    b = apps.Broker(root, c, api, prefix)
+    b = broker(env_of, c, root, api, prefix)
     pm = call(b, 0, "GetProjectManager")["ok"]["__h__"]
     assert "not open to a pass" in call(b, 0, "Fusion")["refused"], "Fusion's object graph is closed"
     assert "not open to a pass" in call(b, pm, "DeleteProject", "x")["refused"]
@@ -179,16 +206,22 @@ def test_the_broker_holds_a_resolve_script_to_its_own_projects_and_the_fence(env
     mine = call(b, pm, "CreateProject", f"{prefix}-cut")["ok"]["__h__"]
     assert call(b, mine, "SaveProject") == {"ok": True} and call(b, pm, "SaveProject") == {"ok": True}
     stage = c["fence"]["write"][1]
-    assert call(b, pm, "ExportProject", f"{prefix}-cut", f"{stage}/finish-v01-2026-10-19/sources/cut.drp") == {"ok": True}
+    Path(f"{stage}/finish-v01-2026-10-19/sources").mkdir(parents=True)
+    drp = f"{stage}/finish-v01-2026-10-19/sources/cut.drp"
+    assert call(b, pm, "ExportProject", f"{prefix}-cut", drp) == {"ok": True}
+    assert not state["exported_to"][-1].startswith(stage), "Resolve writes into the broker's own folder, never the fence"
+    assert Path(drp).read_bytes() == b"PK\x03\x04 a project file of " + f"{prefix}-cut".encode(), "then it is copied out"
     assert "outside this pass's fence" in call(b, pm, "ExportProject", f"{prefix}-cut", "/Users/x/cut.drp")["refused"]
     frozen = [f for f in c["fence"]["frozen"] if "/finish/" in f]
     if frozen:
         assert "outside this pass's fence" in call(b, pm, "ExportProject", f"{prefix}-cut", f"{frozen[0]}/x.drp")["refused"]
-    # a project file the pass wrote itself never loads; one Resolve exported in this call does
-    drp = f"{stage}/finish-v01-2026-10-19/sources/cut.drp"
+    # a project file the pass wrote itself never loads; one Resolve exported in this call does, as the broker's copy
     crafted = f"{stage}/finish-v01-2026-10-19/sources/crafted.drp"
-    assert "written in this pass" in call(b, pm, "ImportProject", crafted, f"{prefix}-x")["refused"]
+    Path(crafted).write_bytes(b"PK\x03\x04 a project file with a composition in it")
+    assert "no export of Resolve's" in call(b, pm, "ImportProject", crafted, f"{prefix}-x")["refused"]
     assert call(b, pm, "ImportProject", drp, f"{prefix}-reopened") == {"ok": True}
+    loaded, data = state["imported"][-1]
+    assert loaded != drp and not loaded.startswith(stage) and data == Path(drp).read_bytes()
     # rendering starts only when every job's target is inside the fence
     assert "outside this pass's fence" in call(b, mine, "StartRendering")["refused"]
     state["jobs"][0]["TargetDir"] = f"{stage}/finish-v01-2026-10-19/renders"
@@ -198,6 +231,66 @@ def test_the_broker_holds_a_resolve_script_to_its_own_projects_and_the_fence(env
     assert "give paths whole" in call(b, media, "AddItemListToMediaPool", ["inputs/a.wav"])["refused"]
     assert "never handed out" in b.answer({"op": "call", "h": 999, "args": []})["refused"]
     assert all("ms" in r for r in b.calls) and any(r.get("refused") for r in b.calls)
+
+
+def test_a_later_pass_reopens_a_frozen_versions_project_only_as_resolve_exported_it(env_of):
+    """SWCB #264: an earlier version's `.drp` loads in a later pass when its sha256 is in the export register, which
+    only the broker writes, from the bytes Resolve itself wrote. A project file a pass wrote, in any version folder of
+    any stage, never loads, nor a Resolve export changed after it was made, nor a file left where an export failed."""
+    project = env_of["project"]
+    api = frozenset({"GetProjectManager", "CreateProject", "ExportProject", "ImportProject", "GetName"})
+    # pass 01: Resolve exports the project into its new version, and the pass writes a project file of its own beside it
+    c1 = ctx_of(env_of, "finishing-sound-designer", "a24")
+    prefix = os.path.basename(c1["media_project"])
+    root, state = fake_resolve(prefix)
+    b1 = broker(env_of, c1, root, api, prefix)
+    pm = call(b1, 0, "GetProjectManager")["ok"]["__h__"]
+    call(b1, pm, "CreateProject", f"{prefix}-cut")
+    v01 = project / "finish" / "finish-v01-2026-10-22" / "sources"
+    v01.mkdir(parents=True)
+    drp, crafted, failed = v01 / "cut.drp", v01 / "crafted.drp", v01 / "failed.drp"
+    before = len(register(env_of))
+    assert call(b1, pm, "ExportProject", f"{prefix}-cut", str(drp)) == {"ok": True}
+    crafted.write_bytes(b"PK\x03\x04 a project file the pass wrote, with a composition in it")
+    failed.write_bytes(b"PK\x03\x04 written by the pass where Resolve's export then failed")
+    assert call(b1, pm, "ExportProject", f"{prefix}-cut-fails", str(failed)) == {"ok": False}
+    rows = register(env_of)[before:]
+    assert len(rows) == 1, "one line for the one export Resolve made, none for the one that failed"
+    assert rows[0]["sha256"] == sha(drp) and rows[0]["file"] == str(drp) and rows[0]["method"] == "ExportProject"
+    assert rows[0]["pass"] == Path(c1["source"]).name.split(".")[0] and rows[0]["project"] == f"{prefix}-cut"
+    exported = [r for r in b1.calls if r.get("exported")]
+    assert exported and exported[0]["exported"] == [{"file": str(drp), "sha256": rows[0]["sha256"]}], "the call log names it"
+
+    # pass 02: version 01 is frozen now, and this pass has its own new version
+    c2 = ctx_of(env_of, "finishing-sound-designer", "a25")
+    assert str(project / "finish" / "finish-v01-2026-10-22") in c2["fence"]["frozen"]
+    b2 = broker(env_of, c2, root, api, prefix)
+    pm = call(b2, 0, "GetProjectManager")["ok"]["__h__"]
+    assert call(b2, pm, "ImportProject", str(drp), f"{prefix}-reopened") == {"ok": True}
+    loaded, data = state["imported"][-1]
+    assert loaded != str(drp) and data == drp.read_bytes(), "Resolve read the broker's copy, checked by its sha256"
+    assert [r["loaded"] for r in b2.calls if r.get("loaded")] == [[{"file": str(drp), "sha256": rows[0]["sha256"]}]]
+    for refused in (crafted, failed):
+        assert "no export of Resolve's" in call(b2, pm, "ImportProject", str(refused), f"{prefix}-x")["refused"], refused
+    # a byte-for-byte copy loads wherever it sits (an approved copy, a version copied forward); a changed one never does
+    v02 = project / "finish" / "finish-v02-2026-10-22" / "sources"
+    v02.mkdir(parents=True)
+    (v02 / "cut.drp").write_bytes(drp.read_bytes())
+    assert call(b2, pm, "ImportProject", str(v02 / "cut.drp"), f"{prefix}-copy") == {"ok": True}
+    (v02 / "cut.drp").write_bytes(drp.read_bytes() + b"<comp/>")
+    assert "no export of Resolve's" in call(b2, pm, "ImportProject", str(v02 / "cut.drp"), f"{prefix}-x")["refused"]
+    # a project file another stage's pass wrote is no safer: refused too; one Sean put in inputs/ loads as it is
+    other = project / "motion" / "motion-v01-2026-10-19" / "scene.drp"
+    other.write_bytes(b"PK\x03\x04 a project file the Animator's pass wrote")
+    assert "no export of Resolve's" in call(b2, pm, "ImportProject", str(other), f"{prefix}-x")["refused"]
+    seans = project / "inputs" / "reference.drp"
+    seans.write_bytes(b"PK\x03\x04 Sean's own project")
+    assert call(b2, pm, "ImportProject", str(seans), f"{prefix}-ref") == {"ok": True}
+    assert state["imported"][-1][0] == str(seans)
+
+
+def sha(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
 FUSION_ON_A_TIMELINE = ("InsertFusionTitleIntoTimeline", "InsertFusionGeneratorIntoTimeline",
@@ -218,7 +311,7 @@ def test_fusion_never_reaches_a_timeline_through_the_broker(env_of):
     # the installed API's own list where Resolve is installed; else a list that wrongly opens them, which the broker still refuses
     api = (real or frozenset(FUSION_ON_A_TIMELINE + ("CreateFusionClip", "ValidateDCTL"))) | {
         "GetProjectManager", "GetCurrentProject", "GetCurrentTimeline", "GetName", "InsertTitleIntoTimeline"}
-    b = apps.Broker(root, c, api, prefix)
+    b = broker(env_of, c, root, api, prefix)
     pm = call(b, 0, "GetProjectManager")["ok"]["__h__"]
     p = call(b, pm, "GetCurrentProject")["ok"]["__h__"]
     tl = call(b, p, "GetCurrentTimeline")["ok"]["__h__"]
@@ -250,7 +343,7 @@ def test_no_transition_or_fader_reaches_a_timeline(env_of):
     # the installed API's own list where Resolve is installed; else a list that wrongly opens it, which the broker still refuses
     api = (real or frozenset({"AddTransition", "SetFades"})) | {
         "GetProjectManager", "GetCurrentProject", "GetCurrentTimeline", "GetItemListInTrack"}
-    b = apps.Broker(root, c, api, prefix)
+    b = broker(env_of, c, root, api, prefix)
     pm = call(b, 0, "GetProjectManager")["ok"]["__h__"]
     p = call(b, pm, "GetCurrentProject")["ok"]["__h__"]
     tl = call(b, p, "GetCurrentTimeline")["ok"]["__h__"]
@@ -266,30 +359,61 @@ def test_no_transition_or_fader_reaches_a_timeline(env_of):
 
 
 def test_a_grade_or_lut_the_pass_wrote_never_loads(env_of):
-    """A .drx holds the grade as a blob the doorway cannot read, and a LUT may be a DCTL: only files saved before the pass."""
+    """A .drx holds the grade as a blob the doorway cannot read, and a LUT may be a DCTL: a file in a version folder or
+    the scratch folder loads only as Resolve exported it, and a grade Sean saved in the project's inputs loads as it is."""
+    project = env_of["project"]
+    old = project / "finish" / "finish-v00-2026-10-18" / "sources"
+    old.mkdir(parents=True)
+    (old / "grade.drx").write_text("<grade>a blob a pass wrote by hand, in a version frozen before this pass</grade>")
     c = ctx_of(env_of, "finishing-sound-designer", "a22")
+    assert str(old.parent) in c["fence"]["frozen"]
     prefix = os.path.basename(c["media_project"])
     root, state = fake_resolve(prefix)
-    graph = Fake("Graph", ApplyGradeFromDRX=lambda path, mode, layers=False: True, SetLUT=lambda i, path: True)
-    album = Fake("GalleryStillAlbum", ImportStills=lambda paths: True)
+    applied, stills = [], []
+    graph = Fake("Graph", ApplyGradeFromDRX=lambda path, mode, layers=False: applied.append(path) or True,
+                 SetLUT=lambda i, path: True)
+
+    def export_stills(still_list, folder, file_prefix, fmt):
+        """Resolve writes each still and its grade into the folder it is given."""
+        for i, _ in enumerate(still_list, 1):
+            (Path(folder) / f"{file_prefix}_{i}.drx").write_text(f"<grade>Resolve's own, still {i}</grade>")
+            (Path(folder) / f"{file_prefix}_{i}.{fmt}").write_bytes(b"\x89PNG still")
+        return True
+    album = Fake("GalleryStillAlbum", ImportStills=lambda paths: stills.extend(paths) or True,
+                 GetStills=lambda: [Fake("GalleryStill")], ExportStills=export_stills)
     mine = Fake("Project", GetName=lambda: f"{prefix}-cut", GetNodeGraph=lambda: graph, GetCurrentStillAlbum=lambda: album)
     state["open"] = mine
     api = frozenset({"GetProjectManager", "GetCurrentProject", "GetNodeGraph", "GetCurrentStillAlbum",
-                     "ApplyGradeFromDRX", "SetLUT", "ImportStills"})
-    b = apps.Broker(root, c, api, prefix)
+                     "ApplyGradeFromDRX", "SetLUT", "ImportStills", "GetStills", "ExportStills"})
+    b = broker(env_of, c, root, api, prefix)
     pm = call(b, 0, "GetProjectManager")["ok"]["__h__"]
     p = call(b, pm, "GetCurrentProject")["ok"]["__h__"]
     g = call(b, p, "GetNodeGraph")["ok"]["__h__"]
     a = call(b, p, "GetCurrentStillAlbum")["ok"]["__h__"]
-    new = f"{c['fence']['write'][1]}/finish-v01-2026-10-19/sources"
-    scratch = c["scratch"]
-    assert "written in this pass" in call(b, g, "ApplyGradeFromDRX", f"{new}/grade.drx", 0)["refused"]
-    assert "written in this pass" in call(b, g, "ApplyGradeFromDRX", f"{scratch}/grade.drx", 0)["refused"]
-    assert "written in this pass" in call(b, a, "ImportStills", [f"{new}/grade.drx"])["refused"]
-    assert "written in this pass" in call(b, g, "SetLUT", 1, f"{scratch}/invert.dctl")["refused"]
-    saved = [f for f in c["fence"]["frozen"] if "/finish/" in f] or [str(env_of["project"])]
-    assert call(b, g, "ApplyGradeFromDRX", f"{saved[0]}/grade.drx", 0) == {"ok": True}, "a grade saved before the pass loads"
+    new = Path(c["fence"]["write"][1]) / "finish-v03-2026-10-22" / "sources"
+    new.mkdir(parents=True)
+    scratch = Path(c["scratch"])
+    for f in (new / "grade.drx", scratch / "grade.drx", scratch / "invert.dctl"):
+        f.write_text("written by the pass")
+    assert "no export of Resolve's" in call(b, g, "ApplyGradeFromDRX", str(new / "grade.drx"), 0)["refused"]
+    assert "no export of Resolve's" in call(b, g, "ApplyGradeFromDRX", str(scratch / "grade.drx"), 0)["refused"]
+    assert "no export of Resolve's" in call(b, a, "ImportStills", [str(new / "grade.drx")])["refused"]
+    assert "no export of Resolve's" in call(b, g, "SetLUT", 1, str(scratch / "invert.dctl"))["refused"]
+    assert "no export of Resolve's" in call(b, g, "ApplyGradeFromDRX", str(old / "grade.drx"), 0)["refused"], \
+        "frozen before this pass is not enough: a pass wrote it"
+    assert "not a file" in call(b, g, "ApplyGradeFromDRX", str(new / "missing.drx"), 0)["refused"]
+    seans = project / "inputs" / "look.drx"
+    seans.write_text("<grade>Sean's</grade>")
+    assert call(b, g, "ApplyGradeFromDRX", str(seans), 0) == {"ok": True} and applied[-1] == str(seans), \
+        "a grade Sean saved in the project's inputs loads as it is"
     assert call(b, g, "SetLUT", 1, "LMT Day for Night.xml") == {"ok": True}, "a LUT Resolve already lists, by name"
+    # stills Resolve exported into a folder load again, each by its sha256, and Resolve reads the broker's copies
+    still = call(b, a, "GetStills")["ok"][0]
+    assert call(b, a, "ExportStills", [still], str(new), "look", "png") == {"ok": True}
+    assert sorted(f.name for f in new.iterdir()) == ["grade.drx", "look_1.drx", "look_1.png"]
+    assert {r["file"] for r in register(env_of)} >= {str(new / "look_1.drx"), str(new / "look_1.png")}
+    assert call(b, a, "ImportStills", [str(new / "look_1.drx")]) == {"ok": True}
+    assert stills[-1] != str(new / "look_1.drx") and Path(stills[-1]).read_text() == "<grade>Resolve's own, still 1</grade>"
 
 
 def test_the_open_api_is_resolves_documented_one_less_the_refused(tmp_path):
