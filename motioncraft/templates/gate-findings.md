@@ -1,14 +1,15 @@
-# Gate findings template — the story, appearance and motion gates
+# Gate findings template — the story, appearance, motion and self-check gates
 
-The findings file a gate writes: stateless, receiving only the artifacts, the shared [red-team protocol](../../craftwork/templates/red-team-protocol.md) and the gate schedule, never the drafting conversation, on the vendor that did not last write its anchor. Three craft gates on a full train, each a red-team attack and then one decision from Sean: the **story gate** on the animatic, the **appearance gate** on the appearance packet with Finishing's assembled frame attached as proof, and the **motion gate** on the moving test and its one directed revision. A small piece takes only the motion gate. When each fires, and the attack list for each artifact, are the [gate schedule](gate-schedule.md)'s. Every gate also writes its ledger entry, naming its vendor and why; this file is the authoritative record of the verdict, and the entry is derived from it. On Productcraft's shape ([productcraft/templates/gate-findings.md](../../productcraft/templates/gate-findings.md)) as Devcraft adapted it ([devcraft/templates/gate-findings.md](../../devcraft/templates/gate-findings.md)).
+The findings file a gate writes: stateless, receiving only the artifacts, the shared [red-team protocol](../../craftwork/templates/red-team-protocol.md) and the gate schedule, never the drafting conversation, on the vendor that did not last write its anchor. Three craft gates on a full train, each a red-team attack and then one decision from Sean: the **story gate** on the animatic, the **appearance gate** on the appearance packet with Finishing's assembled frame attached as proof, and the **motion gate** on the moving test and its one directed revision. A small piece takes only the motion gate. A self-targeted check takes the **self-check gate** on its check report, typed AUDIT (SWCB #261). When each fires, and the attack list for each artifact, are the [gate schedule](gate-schedule.md)'s. Every gate also writes its ledger entry, naming its vendor and why; this file is the authoritative record of the verdict, and the entry is derived from it. On Productcraft's shape ([productcraft/templates/gate-findings.md](../../productcraft/templates/gate-findings.md)) as Devcraft adapted it ([devcraft/templates/gate-findings.md](../../devcraft/templates/gate-findings.md)).
 
 | Gate | Anchor | Anchor last written on | Runs on |
 |---|---|---|---|
 | story gate | `<eng>.story`, the animatic | Claude | Codex GPT-6.1 Sol High, read-only |
 | appearance gate | `<eng>.appearance`, with the assembled frame | Claude | Codex GPT-6.1 Sol High, read-only |
 | motion gate | `<eng>.motion`, and on its second pass the revision | Codex | a fresh-context Opus 5.5, read-only |
+| self-check gate | `<eng>.self-check`, the check report | usually Claude | the other vendor, read-only: Codex GPT-6.1 Sol High for a Claude-written report |
 
-A FAIL that moves an anchor's last writer to the other vendor moves the gate too. A gate runs read-only on either vendor; its findings file is its final message, filed byte for byte by the launcher. Header fields per [artifact-header.md](artifact-header.md); written to `audits/<gate>.md`, a re-run to `audits/<gate>-r2.md`. The directed revision's held checks are the motion gate's second record, [directed-revision.md](directed-revision.md).
+A FAIL that moves an anchor's last writer to the other vendor moves the gate too. A gate runs read-only on either vendor; its findings file is its final message, filed byte for byte by the launcher. Header fields per [artifact-header.md](artifact-header.md); written to `audits/<gate>.md`, a re-run to `audits/<gate>-r2.md`; the self-check gate's to `audits/self-check-gate.md`. The directed revision's held checks are the motion gate's second record, [directed-revision.md](directed-revision.md).
 
 Posture is inherited: *find the strongest case that this fails; being unable to find a material flaw is a finding, so state what you attacked and why it held*; propose the steel-man alternative.
 
@@ -16,13 +17,13 @@ Posture is inherited: *find the strongest case that this fails; being unable to 
 
 ```markdown
 ---
-id: mc-eng-001.motion-gate         # story-gate | appearance-gate | motion-gate; -<part> per part on a film in parts; -r2 on a re-run
+id: mc-eng-001.motion-gate         # story-gate | appearance-gate | motion-gate | self-check-gate; -<part> per part on a film in parts; -r2 on a re-run
 engagement: <project>-<YYYY-MM-DD>
 date: 2026-10-26
-seat: motion-gate                  # story-gate | appearance-gate | motion-gate
+seat: motion-gate                  # story-gate | appearance-gate | motion-gate | self-check
 kind: gate
-stage: 3                           # the anchor's stage: story gate 1, appearance gate 2, motion gate 3
-gate: MOTION                       # STORY | APPEARANCE | MOTION
+stage: 3                           # the anchor's stage: story gate 1, appearance gate 2, motion gate 3, self-check gate 0
+gate: MOTION                       # STORY | APPEARANCE | MOTION | AUDIT (the self-check gate)
 anchor: mc-eng-001.motion          # the anchor artifact and its revision or filed file
 anchor_revision: 1
 anchor_sha256: <sha256>            # the anchor as this gate read it
@@ -39,7 +40,7 @@ ledger_entry: mc-eng-001.d<n>
 
 ## Verdict line
 
-Typed, so a story verdict can never be quoted as a motion verdict: `STORY | APPEARANCE | MOTION` × `PASS | PASS WITH ACCEPTANCES | FAIL`, then ` — QUALITY VERDICT ONLY`, then scope and authority, then **Means** and **Does not mean / Next**, per the shared [status vocabulary](../../craftwork/templates/status-vocabulary.md). `NOT FIRED — TRIGGER NOT MET` is a state, not a verdict (a story or appearance gate on a small piece). A PASS is never an approval: the version goes to Sean with its id, its status and his prior note, and his decision is recorded in the approvals ledger. FAIL → the owning seat of each blocking finding redrafts one tier up, and the gate re-runs as `-r2`.
+Typed, so a story verdict can never be quoted as a motion verdict: `STORY | APPEARANCE | MOTION | AUDIT` × `PASS | PASS WITH ACCEPTANCES | FAIL`, then ` — QUALITY VERDICT ONLY`, then scope and authority, then **Means** and **Does not mean / Next**, per the shared [status vocabulary](../../craftwork/templates/status-vocabulary.md). `NOT FIRED — TRIGGER NOT MET` is a state, not a verdict (a story or appearance gate on a small piece). A PASS is never an approval: the version goes to Sean with its id, its status and his prior note, and his decision is recorded in the approvals ledger. FAIL → the owning seat of each blocking finding redrafts one tier up, and the gate re-runs as `-r2`.
 
 ## The limit of this review
 

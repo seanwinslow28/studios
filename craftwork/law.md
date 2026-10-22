@@ -58,7 +58,7 @@ When the studio, its coordinator, or its law is the target, Open must additional
 1. pre-register the questions and the classes of finding the studio cannot produce;
 2. record an exact context manifest for every pass;
 3. bind live claims to the standing provenance contract;
-4. use a fresh independent gate with a different model lineage when available, naming any fallback;
+4. use a fresh independent gate with a different model lineage when available, naming any fallback; its verdict is typed AUDIT in every team ([red-team protocol § The self-targeted check's gate](templates/red-team-protocol.md#the-self-targeted-checks-gate));
 5. reserve judgment and ratification to Sean while using at least one outcome signal the studio cannot self-issue.
 
 No self-targeted engagement may implement or ratify its own expansion; it may only draft it for Sean.

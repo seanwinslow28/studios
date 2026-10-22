@@ -47,7 +47,12 @@ A drafting pass's prompt names the pipeline tools its allowlist line lists
 hash; a tool changed since stops the launch (SWCB #255). When a pass ends, every
 whole version it made (its checksums re-taken and covering every file) is frozen
 read-only, files and folders, through launcher/freeze.py; one that is not whole is
-refused and left to its seat (SWCB #258).
+refused and left to its seat (SWCB #258). Every pass names its record at launch
+(`--output`), checked against its kind: a drafting pass's in artifacts/, an audit's
+or a gate's in audits/, a gate's by its own name. The prompt names the record and
+its template, and a pass that ends without it is refused, exit 6 (SWCB #261). The
+self-check gate, `self-check`, reviews a self-targeted check, its findings typed
+AUDIT (SWCB #261).
 """
 from __future__ import annotations
 
@@ -84,16 +89,23 @@ KEEP_ENV = ("HOME", "USER", "LOGNAME", "PATH", "LANG", "LC_ALL", "TMPDIR", "TERM
 # --- the bench, as data (motioncraft/bench/README.md) ----------------------------------
 
 SEATS = ("visual-story-director", "art-pose-designer", "animator", "finishing-sound-designer")
-GATES = ("story-gate", "appearance-gate", "motion-gate")
+# The self-check gate reviews a self-targeted check under the shared modifier; it is a protocol, not a seat (SWCB #261).
+GATES = ("story-gate", "appearance-gate", "motion-gate", "self-check")
 # The vendor a seat runs on unless a record moves it: the Animator writes on Codex, and the
-# story and appearance gates run there because Claude writes their anchors.
-CODEX_DEFAULT = ("animator", "story-gate", "appearance-gate")
+# story and appearance gates run there because Claude writes their anchors. The self-check
+# gate's vendor is its anchor's, like every gate's; Codex is its default, the check's writer Claude.
+CODEX_DEFAULT = ("animator", "story-gate", "appearance-gate", "self-check")
 # Each drafting seat's stage folder in the media project (source contract § 1).
 STAGE_DIRS = {"visual-story-director": "story", "art-pose-designer": "appearance",
               "animator": "motion", "finishing-sound-designer": "finish"}
 # What every version folder holds by name (source contract § 2); the launcher refuses a new one missing any (SWCB #249).
 VERSION_FILES = ("pointer.txt", "manifest.md", "checksums.sha256")
 SOURCE_CONTRACT = MOTIONCRAFT / "templates" / "source-contract.md"
+TEMPLATES = MOTIONCRAFT / "templates"
+# The template each drafting seat's record follows, beside the shared header (templates/README.md). The launcher
+# names a pass's record and its template in the prompt, and refuses a pass that ends without it (SWCB #261).
+SEAT_TEMPLATES = {"visual-story-director": "story-packet.md", "art-pose-designer": "appearance-packet.md",
+                  "animator": "scene-record.md", "finishing-sound-designer": "delivery-package.md"}
 
 # The pinned ids (bench README, "Baselines"). The config default never picks a pass's model.
 CLAUDE_MODEL = "claude-opus-5-5"
@@ -108,13 +120,17 @@ DEFAULT_CAPS = {
     "animator": {"minutes": 60, "tool_calls": 200},
     "story-gate": {"minutes": 20, "tool_calls": 80},
     "appearance-gate": {"minutes": 20, "tool_calls": 80},
+    "self-check": {"minutes": 20, "tool_calls": 80},
     **{s: dict(CLAUDE_CAPS) for s in ("visual-story-director", "art-pose-designer", "finishing-sound-designer", "motion-gate")},
 }
 # A pass that moves vendor takes the caps of the vendor and kind of pass it becomes.
 MOVED_CAPS = {"claude": CLAUDE_CAPS, "codex-redraft": DEFAULT_CAPS["animator"], "codex-read-only": DEFAULT_CAPS["story-gate"]}
 
 # Gate findings, the held checks among them, by the gate schedule's names (with a part and a round).
-GATE_FINDINGS = re.compile(r"audits/(story-gate|appearance-gate|motion-gate|revision-check)(-[a-z0-9-]+?)?(-r\d+)?\.md")
+GATE_FINDINGS = re.compile(r"audits/(story-gate|appearance-gate|motion-gate|revision-check|self-check-gate)(-[a-z0-9-]+?)?(-r\d+)?\.md")
+# Each gate's own findings names in that pattern: the motion gate's second record is the held checks.
+GATE_RECORDS = {"story-gate": ("story-gate",), "appearance-gate": ("appearance-gate",),
+                "motion-gate": ("motion-gate", "revision-check"), "self-check": ("self-check-gate",)}
 LEDGER_ENTRY = re.compile(r"d\d+-[^/]+\.md")
 VENDOR_RECORD_DIRS = ("artifacts",)
 ISSUE_LINK = re.compile(r"https://github\.com/[\w.-]+/[\w.-]+/issues/\d+")
@@ -828,14 +844,15 @@ def launch_argv(ctx: Dict, prompt: str, profile: str = "", output: str = "") -> 
             argv += ["--add-dir", d]
         if "budget_usd" in caps:
             argv += ["--max-budget-usd", number(caps["budget_usd"])]
-        return argv + [claude_prompt(ctx, prompt)]
+        return argv + [claude_prompt(ctx, prompt, output)]
     return ["codex", "exec", "--json", "--model", CODEX_MODEL, "-c", f'model_reasoning_effort="{ctx["effort"]}"',
             "-p", profile, "--strict-config", "-c", 'web_search="disabled"', "--skip-git-repo-check",
-            "-C", ctx["media_project"], "-o", output, codex_prompt(ctx, prompt)]
+            "-C", ctx["media_project"], "-o", output, codex_prompt(ctx, prompt, output)]
 
 
-def claude_prompt(ctx: Dict, prompt: str) -> str:
-    """A Claude pass's prompt: the coordinator's, its doorway (image for the Director and Art, sound for Finishing), the apps."""
+def claude_prompt(ctx: Dict, prompt: str, output: str = "") -> str:
+    """A Claude pass's prompt: the coordinator's, its record, its doorway (image for the Director and Art, sound for
+    Finishing), the apps."""
     apps = [apps_note(ctx)] * bool(ctx["toolbelt"].get("apps")) + [tools_note(ctx)] * bool(ctx["toolbelt"].get("tools"))
     doors = []
     if ctx["toolbelt"]["image"]:
@@ -854,13 +871,14 @@ def claude_prompt(ctx: Dict, prompt: str) -> str:
                      f"`{SOUND_DOOR} --context {ctx['source']} --status` lists the approved cues, the takes used and "
                      "the spend, and makes nothing.")
     versions = [versions_note(ctx)] if drafts_versions(ctx) else []
+    named = [prompt] + ([record_note(ctx, output)] if output else [])
     if not doors:
-        return "\n\n---\n\n".join([prompt, library_note()] + versions + apps)
+        return "\n\n---\n\n".join(named + [library_note()] + versions + apps)
     held =("Those are the only commands that may run outside the sandbox. In this pass an ffmpeg or ffprobe argument "
             "shaped name=value is held for an approval no one gives: put a filter in a file and pass it with "
             "`-/vf <file>` or `-/af <file>` (a loudness check: a file holding `ebur128=peak=true`, then "
             "`ffmpeg -i <mix> -/af <file> -f null -`), and read stream facts with `-of json -show_streams`.")
-    return "\n\n---\n\n".join([prompt, library_note()] + versions + [" ".join(doors + [held])] + apps)
+    return "\n\n---\n\n".join(named + [library_note()] + versions + [" ".join(doors + [held])] + apps)
 
 
 def library_note() -> str:
@@ -877,6 +895,31 @@ def library_note() -> str:
     return (f"The private library (the corpus) is at `{root}` on this machine, and you may read it. A pointer written "
             f"`../corpus/<path>` in your task's seat, lane or preamble text means `{root}/<path>`: open it by that full "
             "path, never relative to your working folder, and never look for the library anywhere else.")
+
+
+def record_note(ctx: Dict, output: str) -> str:
+    """The record this pass leaves and the template it follows, named by the launcher in every prompt (SWCB #261).
+
+    mc-eng-001's tasks were written by hand, and nothing checked them: none asked for the
+    version manifest the source contract requires, and every version lacked one until
+    stage 4 (d14). So a pass's required record is the launcher's to name, not the task's.
+    """
+    rel = os.path.relpath(output, ctx["engagement"])
+    if ctx["seat"] in GATES:
+        m = GATE_FINDINGS.fullmatch(rel)
+        names = ["gate-findings.md"] + ["directed-revision.md"] * bool(m and m.group(1) == "revision-check")
+    elif ctx["read_only"]:
+        names = ["check-record.md"]
+    else:
+        names = ["artifact-header.md"] + [SEAT_TEMPLATES[ctx["seat"]]] * (ctx["seat"] in SEAT_TEMPLATES)
+    shape = " and ".join(f"`{TEMPLATES / n}`" for n in names)
+    if files_final_message(ctx):
+        return (f"This pass's record is `{rel}` in the engagement folder, in the shape of {shape}, header first. Your "
+                "final message is that record: the launcher files it there byte for byte, so end the pass on the whole "
+                "record and nothing after it. A pass that ends without it is refused.")
+    return (f"This pass's record is `{output}`: write it yourself, as a new file, in the shape of {shape}, header first. "
+            "When the pass ends the launcher checks it is there; a pass that stops without it is refused and goes back "
+            "to you.")
 
 
 def drafts_versions(ctx: Dict) -> bool:
@@ -1004,7 +1047,7 @@ def tools_note(ctx: Dict) -> str:
             f"your own work.\n\n{lines}")
 
 
-def codex_prompt(ctx: Dict, prompt: str) -> str:
+def codex_prompt(ctx: Dict, prompt: str, output: str = "") -> str:
     """A Codex pass's prompt: the studios AGENTS.md and the toolbelt's skills by path, then the coordinator's.
 
     Codex runs from the media project, where no AGENTS.md is found, and its seat home
@@ -1022,7 +1065,8 @@ def codex_prompt(ctx: Dict, prompt: str) -> str:
                      f"no other skill is yours.\n\n{lines}")
     return "\n\n---\n\n".join(parts + [apps_note(ctx)] * bool(ctx["toolbelt"].get("apps"))
                               + [tools_note(ctx)] * bool(ctx["toolbelt"].get("tools"))
-                              + ([versions_note(ctx)] if drafts_versions(ctx) else []) + [library_note(), prompt])
+                              + ([versions_note(ctx)] if drafts_versions(ctx) else [])
+                              + ([record_note(ctx, output)] if output else []) + [library_note(), prompt])
 
 
 def scrubbed_env(ctx: Dict, home: Path) -> Dict[str, str]:
@@ -1041,18 +1085,27 @@ def scrubbed_env(ctx: Dict, home: Path) -> Dict[str, str]:
 
 
 def output_path(ctx: Dict, output: str) -> str:
-    """The record the launcher files the final message into: in artifacts/ or audits/, written once."""
+    """The pass's record, written once, named at every launch and checked against the pass's kind (SWCB #261).
+
+    A drafting pass's record sits in artifacts/; an audit's, a verification pass's and a
+    gate's in audits/, a gate's by its own name. The launcher files the final message of a
+    Codex pass and a read-only Claude pass there; a drafting Claude pass writes it itself.
+    """
     if not output:
-        if files_final_message(ctx):
-            die("the launcher files this pass's final message; name its record with --output (artifacts/… or audits/…)")
-        return ""
-    if not files_final_message(ctx):
-        die(f"{ctx['seat']} writes its own artifact; --output is for a Codex pass or a read-only Claude pass")
+        die("name this pass's record with --output (artifacts/… for a drafting pass, audits/… for an audit, a "
+            "verification pass or a gate): the prompt names it, and a pass that ends without it is refused")
     eng = ctx["engagement"]
     p = Path(real(output if os.path.isabs(output) else os.path.join(eng, output)))
     rel = os.path.relpath(p, eng)
-    if rel.startswith("..") or rel.split(os.sep)[0] not in ("artifacts", "audits") or rel.count(os.sep) < 1:
-        die(f"--output must sit in the engagement's artifacts/ or audits/, not {rel}")
+    folder = "audits" if ctx["read_only"] else "artifacts"
+    if rel.startswith("..") or rel.split(os.sep)[0] != folder or rel.count(os.sep) < 1 or p.suffix != ".md":
+        kind = "an audit's, a verification pass's or a gate's" if ctx["read_only"] else "a drafting pass's"
+        die(f"{kind} record is a .md file in the engagement's {folder}/, not {rel}")
+    if ctx["seat"] in GATES:
+        m = GATE_FINDINGS.fullmatch(rel)
+        if not m or m.group(1) not in GATE_RECORDS[ctx["seat"]]:
+            names = " or ".join(f"audits/{n}[-<part>][-rN].md" for n in GATE_RECORDS[ctx["seat"]])
+            die(f"{ctx['seat']}'s findings are {names}, not {rel}")
     if p.exists():
         die(f"{rel} exists; an output is written once")
     p.parent.mkdir(parents=True, exist_ok=True)
@@ -1305,7 +1358,7 @@ def cmd_launch(a) -> None:
         record["usage"], record["meter_source"] = res.get("usage"), ("claude -p result.usage" if res.get("usage") else "UNMEASURED")
         record["runtime_stamps"] = sorted(watch.stamps)
         helpers = watch.helpers
-        if output and res.get("subtype") == "success" and isinstance(res.get("result"), str):
+        if files_final_message(ctx) and res.get("subtype") == "success" and isinstance(res.get("result"), str):
             Path(output).write_text(res["result"] + "\n")
         swept = sweep_claude_dirs(swept_roots, before)
         if swept["removed"] or swept["left"]:
@@ -1343,6 +1396,12 @@ def cmd_launch(a) -> None:
     elif run["exit_code"] != 0 and not code:
         record["outcome"] = f"the vendor exited {run['exit_code']}; see {rel(err)}"
         code = 1
+    # The record the prompt named (SWCB #261): a pass that ends without it is refused, unless a helper agent's
+    # catch already moved it aside for the re-run.
+    if not helpers and not Path(output).exists():
+        missing = f"record missing: {rel(output)}"
+        record["outcome"] = f"{record['outcome']}; {missing}" if record.get("outcome") else missing
+        code = code or 6
     # The source contract's § 2 and § 4, checked here rather than at TC5: a version without its manifest is not filed
     # (SWCB #249), and a whole version is frozen read-only now, not only once approved (SWCB #258).
     versions = version_gaps(ctx)
@@ -1808,7 +1867,8 @@ def main() -> None:
     l = sub.add_parser("launch")  # noqa: E741
     l.add_argument("context")
     l.add_argument("--prompt-file", required=True)
-    l.add_argument("--output", default="", help="the record a Codex or read-only pass's final message is filed to")
+    l.add_argument("--output", default="", help="the pass's record: artifacts/… for a drafting pass, audits/… for an audit "
+                   "or a gate; a Codex or read-only pass's final message is filed to it, a drafting Claude pass writes it")
     l.add_argument("--home", default=str(DEFAULT_HOME))
     l.add_argument("--run", action="store_true")
     l.set_defaults(fn=cmd_launch)

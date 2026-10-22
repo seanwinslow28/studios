@@ -26,6 +26,12 @@ Findings remain **CRITICAL** (blocks the gate) · **MATERIAL** (fix, or Sean exp
 
 Every gate writes a ledger entry (per [ledger-entry.md](ledger-entry.md), seat: `red-team-gate`) with the typed verdict, its acceptances, and the vendor it ran on and why. The full findings file lands in the engagement's `artifacts/` or `audits/`. Reader-facing renderings of any verdict follow [status-vocabulary.md](status-vocabulary.md).
 
+## The self-targeted check's gate
+
+*(SWCB #261, ruled 2026-10-22: from Motioncraft's first self-check, whose review borrowed a craft gate's slot, after Devcraft fixed the same gap for itself on SWCB #170.)*
+
+The fresh gate the [self-targeted modifier](../law.md#self-targeted-modifier) requires (duty 4) is typed **AUDIT** in every team, whatever its other gates are typed, so a check's verdict can never be quoted as a build's, a design's or a film's. It anchors on the check report, runs on the vendor that did not last write it, may demand reproduction of every claim from the raw record, and rules only on the check's claims and limits. Judgment and ratification stay Sean's, and an AUDIT verdict never authorizes the studio to implement its own expansion. A team that files each gate under its own seat (Devcraft, Motioncraft) files this one as seat `self-check`, in its trace profile and its launcher; a team whose gates share the `red-team-gate` seat (Systemcraft, Productcraft) keeps that seat and the AUDIT type. A self-check never borrows another gate's seat or type. Each team's gate schedule names its record and its attack list.
+
 ## Fallback — a gate never silently skips
 
 If the planned vendor is unavailable, the gate does **not** skip and does not wave work through. It runs as a fresh-context adversarial pass on the other vendor, explicitly labeled `fallback: same-vendor` in the ledger entry, and a ticket is filed to re-run it on the planned vendor. (Fleet lesson: vault-critic ran 38 nights on a broken Codex symlink while reporting healthy. A gate that can fail silently is not a gate.)

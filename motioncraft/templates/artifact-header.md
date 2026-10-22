@@ -62,12 +62,14 @@ A seat that cannot finish still returns its artifact, with one typed reason in `
 | 4 | `<eng>.finish` | `artifacts/delivery-package.md` | [delivery-package.md](delivery-package.md) | finishing-sound-designer | animator | — (the six technical checks, then Sean's yes) |
 | — | `<eng>.audit-story`, `.audit-appearance`, `.audit-motion`, `.audit-finish` | `audits/audit-<slug>.md` | [check-record.md](check-record.md) | the fixed auditor | — | — |
 | — | `<eng>.story-gate`, `.appearance-gate`, `.motion-gate` | `audits/<slug>.md` | [gate-findings.md](gate-findings.md) | the gate | — | — |
+| 0 | `<eng>.self-check`, a self-targeted check's report | `artifacts/self-check.md` | the check's own (the shared modifier) | the coordinator | — | the self-check gate |
+| 0 | `<eng>.self-check-gate` | `audits/self-check-gate.md` | [gate-findings.md](gate-findings.md), typed AUDIT | self-check | — | — |
 | 3 | `<eng>.revision` | `artifacts/directed-revision.md` | [directed-revision.md](directed-revision.md), the form | the coordinator, from Sean's words | — | — |
 | 3 | `<eng>.revision-check` | `audits/revision-check.md` | [directed-revision.md](directed-revision.md), the held checks | motion-gate | — | — |
 
 A second round of any check or gate takes `-r2` on both the id and the file (`<eng>.story-gate-r2`, `audits/story-gate-r2.md`). A redraft the launcher files from a Codex final message takes a new file too, since an output is written once (`artifacts/scene-record-r2.md`); the gate or check that reads it names it with its anchor, so nothing is copied over `scene-record.md` (Devcraft's rule, SWCB #145). A Claude seat's redraft overwrites in place and bumps `revision:`.
 
-Seat slugs, as used in `seat:` and `auditor:`: `visual-story-director`, `art-pose-designer`, `animator`, `finishing-sound-designer`, plus `coordinator` and the gate seats `story-gate`, `appearance-gate`, `motion-gate` ([trace/studio.py](../trace/studio.py)). The gate seats hold no seat file.
+Seat slugs, as used in `seat:` and `auditor:`: `visual-story-director`, `art-pose-designer`, `animator`, `finishing-sound-designer`, plus `coordinator` and the gate seats `story-gate`, `appearance-gate`, `motion-gate`, `self-check` ([trace/studio.py](../trace/studio.py)). The gate seats hold no seat file.
 
 **Codex passes write by final message.** The Animator's drafts, repairs and audit, and the story and appearance gates, run on Codex and do not write into the engagement folder: their artifact is the pass's final message, saved by the launch form's `-o`, and the coordinator files it at the path above byte for byte, writes its `grounding:` line with `grounding.py`, and only then hashes it. The launch record keeps the hash of the message as it came back; the pass record's is the filed file's. So those templates read as one message: the frontmatter first, no preamble, no sign-off. The Animator still writes its version folder in the media folder, which is where the moving test and its evidence pack live.
 

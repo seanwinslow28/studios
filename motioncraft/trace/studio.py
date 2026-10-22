@@ -119,13 +119,16 @@ STUDIO = Studio(
     coordinator_kinds=("open", "close"),
     coordinator_stage=0,
     coordinator_label="open · close",
-    gate_seats=("story-gate", "appearance-gate", "motion-gate"),
+    # the self-check gate reviews a self-targeted check under the shared modifier, its verdict AUDIT (SWCB #261)
+    gate_seats=("story-gate", "appearance-gate", "motion-gate", "self-check"),
     seat_names={
         "visual-story-director": "Director", "art-pose-designer": "Art", "animator": "Animator",
         "finishing-sound-designer": "Finishing", "coordinator": "Coordinator",
         "story-gate": "Story gate", "appearance-gate": "Appearance gate", "motion-gate": "Motion gate",
+        "self-check": "Self-check",
     },
-    repo_prefixes=("motioncraft/", "craftwork/", ".claude/"),
+    # the other studios' files too: a check cites Devcraft's tools and law (mc-self-001 could not resolve one)
+    repo_prefixes=("motioncraft/", "devcraft/", "productcraft/", "systemcraft/", "craftwork/", ".claude/"),
     corpus_path_re=re.compile(r"(?<![\w/])((?:motioncraft/)?corpus/[\w\-./]+?\.md)"),
     id_re=None,                        # shot ids, beat ids and finding ids read in the kit's default shape
     taxonomy_path=HERE / "taxonomy.md",

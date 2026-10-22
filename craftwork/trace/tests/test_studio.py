@@ -433,6 +433,8 @@ def test_motioncraft_profile_matches_its_bench_and_families():
     assert len(set(families.values())) == 4 and "other" not in families.values()
     assert "coding" not in families.values()                               # the Animator never counts toward Devcraft's Builder
     assert {family_of(g) for g in mc.gate_seats} == {"gate"}
+    # a self-targeted check's review has a slot of its own, and may cite another studio's files (SWCB #261)
+    assert "self-check" in mc.gate_seats and "devcraft/" in mc.repo_prefixes
 
 
 # --------------------------------------------------------------------------- #

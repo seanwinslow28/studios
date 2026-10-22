@@ -543,7 +543,7 @@ def test_the_codex_launch_form(world, codex_home):
 def test_the_claude_launch_form(world):
     ctx = context(world, "art-pose-designer", "61")
     seat(world, "claude-settings", ctx)
-    argv = json.loads(launch(world, ctx).stderr)["argv"]
+    argv = json.loads(launch(world, ctx, "--output", "artifacts/appearance-packet-61.md").stderr)["argv"]
     assert argv[argv.index("--model") + 1] == "claude-opus-5-5" and argv[argv.index("--setting-sources") + 1] == ""
     assert "--strict-mcp-config" in argv and argv[argv.index("--max-budget-usd") + 1] == "15"
     assert argv[argv.index("--tools") + 1] == "Read,Write,Edit,Bash,Glob,Grep,Skill"
@@ -560,13 +560,25 @@ def test_a_read_only_claude_pass_has_no_working_folder_but_scratch(world):
 
 
 def test_output_rules(world, codex_home):
+    """Every pass names its record at launch, checked against its kind (SWCB #261)."""
     ctx = codex_pass(world, codex_home, "62")
-    assert "name its record" in launch(world, ctx).stderr
-    assert "artifacts/ or audits/" in launch(world, ctx, "--output", "brief-2.md").stderr
+    assert "name this pass's record" in launch(world, ctx).stderr
+    assert "a .md file in the engagement's artifacts/" in launch(world, ctx, "--output", "brief-2.md").stderr
+    assert "artifacts/" in launch(world, ctx, "--output", "audits/scene-record-62.md").stderr
     assert "written once" in launch(world, ctx, "--output", "artifacts/story-packet.md").stderr
     ctx = context(world, "art-pose-designer", "63")
     seat(world, "claude-settings", ctx)
-    assert "writes its own artifact" in launch(world, ctx, "--output", "artifacts/x.md").stderr
+    assert "name this pass's record" in launch(world, ctx).stderr, "a drafting Claude pass names its record too"
+    assert launch(world, ctx, "--output", "artifacts/x.md").returncode == 0
+    audit = context(world, "art-pose-designer", "63a", "--read-only")
+    seat(world, "claude-settings", audit)
+    assert "in the engagement's audits/" in launch(world, audit, "--output", "artifacts/audit-63a.md").stderr
+    gate = context(world, "motion-gate", "63b", *CODEX_ANCHOR)
+    seat(world, "claude-settings", gate)
+    assert "motion-gate's findings are" in launch(world, gate, "--output", "audits/story-gate-63b.md").stderr
+    assert "motion-gate's findings are" in launch(world, gate, "--output", "audits/audit-63b.md").stderr
+    for ok in ("audits/motion-gate-63b.md", "audits/revision-check-r2.md", "audits/motion-gate-sky-r2.md"):
+        assert launch(world, gate, "--output", ok).returncode == 0, ok
 
 
 def test_launch_kills_at_the_tool_call_cap(world, codex_home, fake):
@@ -619,13 +631,14 @@ def test_a_long_commands_progress_is_no_helper_but_a_helpers_message_is(world, f
     behave(fake, calls=1, progress=True)
     ctx = context(world, "finishing-sound-designer", "hp1")
     seat(world, "claude-settings", ctx)
-    r = launch(world, ctx, "--run")
+    behave(fake, calls=1, progress=True, make_files={str(world["eng"] / "artifacts" / "delivery-package-hp1.md"): "pkg"})
+    r = launch(world, ctx, "--output", "artifacts/delivery-package-hp1.md", "--run")
     assert r.returncode == 0, r.stderr
     assert "helper_agent" not in record(world, "hp1")
     behave(fake, calls=1, child=True)
     ctx = context(world, "finishing-sound-designer", "hp2")
     seat(world, "claude-settings", ctx)
-    r = launch(world, ctx, "--run")
+    r = launch(world, ctx, "--output", "artifacts/delivery-package-hp2.md", "--run")
     assert r.returncode == 3 and record(world, "hp2")["helper_agent"] == ["a helper agent's message (parent tool use t0)"]
 
 
@@ -663,9 +676,9 @@ def test_a_claude_dir_left_in_a_version_folder_the_pass_made_is_swept(world, fak
         (older.parent / f).write_text(f)
     made, kept = stage / "takes-v01" / ".claude", stage / "takes-v02" / ".claude"
     behave(fake, calls=1, make_dirs=[str(made / ".cc-writes")],
-           make_files={str(kept / "notes.md"): "a seat's file",
+           make_files={str(kept / "notes.md"): "a seat's file", **made_record(world, "sw1"),
                        **whole(stage / "takes-v01", **{"fx1-take1.mp3": "take"}), **whole(stage / "takes-v02")})
-    r = launch(world, ctx, "--run")
+    r = launch(world, ctx, "--output", "artifacts/delivery-package-sw1.md", "--run")
     rec = record(world, "sw1")
     assert rec["claude_dirs"] == {"removed": [str(made)], "left": [str(kept)]}
     assert not made.exists() and (stage / "takes-v01" / "fx1-take1.mp3").exists()
@@ -689,6 +702,11 @@ def whole(version: Path, **more: str) -> dict:
     return {**{str(version / rel): t for rel, t in files.items()}, str(version / "checksums.sha256"): sums}
 
 
+def made_record(w, n: str, name: str = "delivery-package") -> dict:
+    """The record a drafting Claude pass writes itself, as the fake's make_files (SWCB #261)."""
+    return {str(w["eng"] / "artifacts" / f"{name}-{n}.md"): "---\nmodel: claude-opus-5-5\n---\n\nrecord\n"}
+
+
 def locked(version: Path) -> bool:
     """No write bit on the folder or anything in it, read from the mode bits."""
     return all(not (os.lstat(p).st_mode & 0o222) for p in [version, *version.rglob("*")])
@@ -700,10 +718,10 @@ def test_a_version_without_its_manifest_is_refused(world, fake):
     seat(world, "claude-settings", ctx)
     stage = world["project"] / "story"  # animatic-v01 is there before the context, without the three: not this pass's
     good, short = stage / "animatic-v02-2026-10-21", stage / "animatic-v03-2026-10-21"
-    files = {**whole(good, **{"renders/a.mp4": "film"}), **whole(short)}
+    files = {**whole(good, **{"renders/a.mp4": "film"}), **whole(short), **made_record(world, "vm1", "story-packet")}
     del files[str(short / "manifest.md")]
     behave(fake, calls=1, make_files=files)
-    r = launch(world, ctx, "--run")
+    r = launch(world, ctx, "--output", "artifacts/story-packet-vm1.md", "--run")
     rec = record(world, "vm1")
     assert r.returncode == 5, r.stdout + r.stderr
     media = f"media:{PROJECT}/story"
@@ -723,8 +741,9 @@ def test_a_pass_whose_versions_are_whole_is_filed_and_frozen(world, fake):
     stage = world["project"] / "story"
     v = stage / "animatic-v04-2026-10-21"
     older = stage / "animatic-v01-2026-10-19"  # there before the context: frozen by the fence, never touched here
-    behave(fake, calls=1, make_files=whole(v, **{"POINTER.txt": "mc-eng-900", "renders/a.mp4": "film"}))
-    r = launch(world, ctx, "--run")
+    behave(fake, calls=1, make_files={**whole(v, **{"POINTER.txt": "mc-eng-900", "renders/a.mp4": "film"}),
+                                      **made_record(world, "vm2", "story-packet")})
+    r = launch(world, ctx, "--output", "artifacts/story-packet-vm2.md", "--run")
     rec = record(world, "vm2")
     assert r.returncode == 0 and "outcome" not in rec, r.stdout
     assert rec["versions"] == [{"version": f"media:{PROJECT}/story/animatic-v04-2026-10-21", "missing": [],
@@ -738,8 +757,8 @@ def test_a_version_whose_checksums_do_not_verify_is_refused_and_left_writable(wo
     v = world["project"] / "story" / "animatic-v05-2026-10-21"
     files = whole(v, **{"renders/a.mp4": "film"})
     files[str(v / "renders" / "a.mp4")] = "re-rendered after the checksums"
-    behave(fake, calls=1, make_files=files)
-    r = launch(world, ctx, "--run")
+    behave(fake, calls=1, make_files={**files, **made_record(world, "vm4", "story-packet")})
+    r = launch(world, ctx, "--output", "artifacts/story-packet-vm4.md", "--run")
     rec = record(world, "vm4")
     assert r.returncode == 5, r.stdout + r.stderr
     assert rec["outcome"] == (f"version refused: media:{PROJECT}/story/animatic-v05-2026-10-21 checksums.sha256 "
@@ -752,8 +771,9 @@ def test_a_version_holding_a_file_its_checksums_do_not_list_is_refused(world, fa
     ctx = context(world, "visual-story-director", "vm5")
     seat(world, "claude-settings", ctx)
     v = world["project"] / "story" / "animatic-v06-2026-10-21"
-    behave(fake, calls=1, make_files={**whole(v), str(v / "renders" / "stray.png"): "px"})
-    r = launch(world, ctx, "--run")
+    behave(fake, calls=1, make_files={**whole(v), str(v / "renders" / "stray.png"): "px",
+                                      **made_record(world, "vm5", "story-packet")})
+    r = launch(world, ctx, "--output", "artifacts/story-packet-vm5.md", "--run")
     rec = record(world, "vm5")
     assert r.returncode == 5, r.stdout + r.stderr
     assert rec["versions"][0]["refused"] == "holds files not in checksums.sha256 (renders/stray.png)"
@@ -768,12 +788,72 @@ def test_a_read_only_pass_is_not_checked_for_versions(world, fake):
     assert r.returncode == 0 and "versions" not in record(world, "vm3"), r.stdout
 
 
+def test_a_pass_that_ends_without_its_record_is_refused(world, fake):
+    """A required output never rests on the coordinator's hand-written task (SWCB #261, mc-self-001 SC11)."""
+    behave(fake, calls=1, answer="I wrote nothing")
+    ctx = context(world, "visual-story-director", "rm1")
+    seat(world, "claude-settings", ctx)
+    r = launch(world, ctx, "--output", "artifacts/story-packet-rm1.md", "--run")
+    rec = record(world, "rm1")
+    assert r.returncode == 6 and rec["outcome"] == "record missing: artifacts/story-packet-rm1.md", r.stdout
+    assert "outputs" not in rec
+    assert not (world["eng"] / "artifacts" / "story-packet-rm1.md").exists(), "a drafting pass's final message is not its record"
+
+
+def test_a_drafting_claude_pass_writes_its_own_record(world, fake):
+    behave(fake, calls=1, answer="FINAL MESSAGE", make_files=made_record(world, "rm2", "story-packet"))
+    ctx = context(world, "visual-story-director", "rm2")
+    seat(world, "claude-settings", ctx)
+    r = launch(world, ctx, "--output", "artifacts/story-packet-rm2.md", "--run")
+    rec, out = record(world, "rm2"), world["eng"] / "artifacts" / "story-packet-rm2.md"
+    assert r.returncode == 0 and "outcome" not in rec, r.stdout
+    assert out.read_text().endswith("record\n"), "the launcher never writes over the seat's record"
+    assert rec["outputs"] == [{"path": "artifacts/story-packet-rm2.md", "sha256": seatmod.sha256(out)}]
+
+
+def test_every_prompt_names_its_record_and_template(world, codex_home):
+    eng, tpl = world["eng"], seatmod.TEMPLATES
+    director = seatmod.load(context(world, "visual-story-director", "rn1"))
+    prompt = seatmod.launch_argv(director, "do the work", "", str(eng / "artifacts" / "story-packet-rn1.md"))[-1]
+    assert prompt.startswith("do the work") and f"`{eng / 'artifacts' / 'story-packet-rn1.md'}`: write it yourself" in prompt
+    assert f"`{tpl / 'artifact-header.md'}` and `{tpl / 'story-packet.md'}`" in prompt
+    animator = seatmod.load(codex_pass(world, codex_home, "rn2"))
+    prompt = seatmod.launch_argv(animator, "do the work", "p", str(eng / "artifacts" / "scene-record-rn2.md"))[-1]
+    assert prompt.endswith("do the work") and "`artifacts/scene-record-rn2.md` in the engagement folder" in prompt
+    assert f"`{tpl / 'scene-record.md'}`" in prompt and "Your final message is that record" in prompt
+    audit = seatmod.load(context(world, "art-pose-designer", "rn3", "--read-only"))
+    prompt = seatmod.launch_argv(audit, "do the work", "", str(eng / "audits" / "audit-motion-rn3.md"))[-1]
+    assert f"`{tpl / 'check-record.md'}`" in prompt and "artifact-header.md" not in prompt
+    gate = seatmod.load(context(world, "motion-gate", "rn4", *CODEX_ANCHOR))
+    prompt = seatmod.launch_argv(gate, "do the work", "", str(eng / "audits" / "revision-check-rn4.md"))[-1]
+    assert f"`{tpl / 'gate-findings.md'}` and `{tpl / 'directed-revision.md'}`" in prompt
+    assert "record" not in seatmod.launch_argv(gate, "do the work")[-1], "no record named, no note"
+
+
+def test_the_self_check_gate_is_a_gate_of_its_own(world, codex_home):
+    """A self-targeted check's review no longer borrows the story gate's slot (SWCB #261, mc-self-001 SC14)."""
+    (world["eng"] / "artifacts" / "self-check.md").write_text("---\nmodel: claude-opus-5-5\n---\n\ncheck\n")
+    data = ctx_data(context(world, "self-check", "sc1", "--anchor", "artifacts/self-check.md"))
+    assert data["vendor"] == "codex" and data["read_only"] and data["caps"] == {"minutes": 20, "tool_calls": 80}
+    assert data["toolbelt"]["skills"] == [], "a gate not on the allowlist loads no skill"
+    data = ctx_data(context(world, "self-check", "sc2", *CODEX_ANCHOR))
+    assert data["vendor"] == "claude" and data["caps"] == {"minutes": 30, "budget_usd": 15}
+    assert "--anchor" in context_fails(world, "self-check", "sc3")
+    ctx = codex_pass(world, codex_home, "sc4", "--anchor", "artifacts/self-check.md", seat_name="self-check")
+    assert "self-check's findings are audits/self-check-gate" in launch(world, ctx, "--output", "audits/story-gate-sc4.md").stderr
+    assert launch(world, ctx, "--output", "audits/self-check-gate-r2.md").returncode == 0
+    failed_gate(world, "self-check-gate.md", "AUDIT FAIL")
+    assert "is a gate" in context_fails(world, "self-check", "sc5", "--escalation", "audits/self-check-gate.md")
+
+
 def test_claude_stopping_at_its_budget_is_blocked_budget(world, fake):
     behave(fake, calls=1, subtype="error_max_budget_usd")
     ctx = context(world, "visual-story-director", "70")
     seat(world, "claude-settings", ctx)
-    r = launch(world, ctx, "--run")
-    assert r.returncode == 2 and record(world, "70")["stopped"] == "budget-usd"
+    r = launch(world, ctx, "--output", "artifacts/story-packet-70.md", "--run")
+    rec = record(world, "70")
+    assert r.returncode == 2 and rec["stopped"] == "budget-usd", "a budget stop keeps its own exit"
+    assert rec["outcome"] == "Blocked: budget (budget-usd cap reached); record missing: artifacts/story-packet-70.md"
 
 
 def test_a_pass_launches_on_the_machine_its_context_was_written_on(world, fake):
@@ -782,7 +862,7 @@ def test_a_pass_launches_on_the_machine_its_context_was_written_on(world, fake):
     data = ctx_data(ctx)
     data["machine"] = "elsewhere"
     Path(ctx).write_text(json.dumps(data))
-    r = launch(world, ctx, "--run")
+    r = launch(world, ctx, "--output", "artifacts/story-packet-71.md", "--run")
     assert r.returncode != 0 and "one machine per job" in r.stderr
 
 
@@ -910,7 +990,7 @@ def test_a_missing_skill_is_a_gap(world):
 def test_the_claude_launch_form_carries_the_seat_plugin_only(world):
     ctx = context(world, "art-pose-designer", "t6")
     seat(world, "claude-settings", ctx)
-    argv = json.loads(launch(world, ctx).stderr)["argv"]
+    argv = json.loads(launch(world, ctx, "--output", "artifacts/appearance-packet-t6.md").stderr)["argv"]
     assert argv[argv.index("--plugin-dir") + 1] == str(world["root"] / "toolbelt" / "art-pose-designer")
     assert argv.count("--plugin-dir") == 1
     ctx = context(world, "motion-gate", "t7", *CODEX_ANCHOR)

@@ -167,8 +167,9 @@ def test_a_claude_pass_is_filed_before_its_record(world, fake):
     seat(world, "claude-settings", ctx)
     emp = str(world["emp"])
     behave(fake, extra_lines=claude_read("tx", str(kept), png())
-           + [{"type": "assistant", "message": {"content": [{"type": "text", "text": f"saw {emp}/src"}]}}])
-    r = launch(world, ctx, "--run")
+           + [{"type": "assistant", "message": {"content": [{"type": "text", "text": f"saw {emp}/src"}]}}],
+           make_files={str(world["eng"] / "artifacts" / "appearance-packet-f1.md"): "record"})
+    r = launch(world, ctx, "--output", "artifacts/appearance-packet-f1.md", "--run")
     assert r.returncode == 0, r.stderr
     rec = record(world, "f1")
     assert rec["filing"]["media_stripped"] == 2 and rec["filing"]["survivors"] == {} and rec["filing"]["employer_paths_checked"]

@@ -1,8 +1,8 @@
 # Gate schedule and attack checklists
 
-Motioncraft's own half of the red-team gate: when its three craft gates fire, what each one reads and may demand, which vendor runs it, what Sean decides after it, and what it attacks per artifact. The protocol itself (posture, statelessness, typed verdicts, holds, the rule that a gate never silently skips) is shared law at [craftwork/templates/red-team-protocol.md](../../craftwork/templates/red-team-protocol.md); this file is kept as Systemcraft and Devcraft keep theirs ([systemcraft](../../systemcraft/templates/gate-schedule.md), [devcraft](../../devcraft/templates/gate-schedule.md)). Written on the Motioncraft build map's **Gate schedule: the story, appearance and motion gates** ticket (2026-10-17), from the review order Sean approved on SWCB #164, the quality bar (#159), the opening treatment (#177), the camera question (#174), the assessment brief's exercises, critique rules and seed-shape exercise (sections 1 to 4, ratified 2026-10-17), and the bench and templates on `main`.
+Motioncraft's own half of the red-team gate: when its three craft gates and its self-check gate fire, what each one reads and may demand, which vendor runs it, what Sean decides after it, and what it attacks per artifact. The protocol itself (posture, statelessness, typed verdicts, holds, the rule that a gate never silently skips) is shared law at [craftwork/templates/red-team-protocol.md](../../craftwork/templates/red-team-protocol.md); this file is kept as Systemcraft and Devcraft keep theirs ([systemcraft](../../systemcraft/templates/gate-schedule.md), [devcraft](../../devcraft/templates/gate-schedule.md)). Written on the Motioncraft build map's **Gate schedule: the story, appearance and motion gates** ticket (2026-10-17), from the review order Sean approved on SWCB #164, the quality bar (#159), the opening treatment (#177), the camera question (#174), the assessment brief's exercises, critique rules and seed-shape exercise (sections 1 to 4, ratified 2026-10-17), and the bench and templates on `main`.
 
-Gates are protocols, not seats. The trace kit files them as the gate seats `story-gate`, `appearance-gate` and `motion-gate` ([trace/studio.py](../trace/studio.py)) so their records have lanes. Each writes [gate-findings.md](gate-findings.md); the motion gate's second record is the held checks in [directed-revision.md](directed-revision.md).
+Gates are protocols, not seats. The trace kit files them as the gate seats `story-gate`, `appearance-gate`, `motion-gate` and `self-check` ([trace/studio.py](../trace/studio.py)) so their records have lanes. Each writes [gate-findings.md](gate-findings.md); the motion gate's second record is the held checks in [directed-revision.md](directed-revision.md).
 
 **A gate never approves artistry** (rule 3 of [`motioncraft/CLAUDE.md`](../CLAUDE.md)). It rules on what a measurement proves or a frame shows, in the glossary's words, and writes every taste call as a question. Sean's decision on the version follows every gate, in his own words, in the approvals ledger.
 
@@ -13,13 +13,13 @@ Gates are protocols, not seats. The trace kit files them as the gate seats `stor
 | **Full train** (`type: full-train`) | **Story gate** after Finishing's audit of the story packet, before Art designs anything · **Appearance gate** after the Director's audit of the appearance packet, with Finishing's assembled frame attached, before anything moves · **Motion gate** after Art's audit of the scene record, then its one directed revision and the held checks · then the **integrated film**, which is not a gate (below) |
 | **Small piece** | **Motion gate** only. The story and appearance gates are `NOT FIRED — TRIGGER NOT MET`, recorded with the reason. What qualifies as a small piece is the master skill's |
 | **One-off** (a single seat pass) | No gate |
-| **Self-targeted check** (the shared law's modifier) | Its own fresh gate under [the modifier](../../craftwork/law.md#self-targeted-modifier), on its own map ticket (**Self-targeted check on mc-eng-001, red-teamed on Codex**). It is none of the three below and never stands in for one |
+| **Self-targeted check** (the shared law's modifier) | The **self-check gate** ([below](#self-check-gate-audit)) after the check report, before Close. It attacks the check, never the film, is none of the three craft gates and never stands in for one. mc-self-001 borrowed the story gate's slot because this one did not exist yet (SWCB #261) |
 
 **Parts: split by approval state.** A film splits only where some of it is already approved and some is new (an approved background behind a changed character, say), never into halves of its running time ([Master skill design](https://github.com/seanwinslow28/SWCB/issues/192), item 2). Every appearance packet lists its **approved elements**, frozen and unchanged by checksum, and its **new elements**; the appearance gate judges only the new ones, against the approved. A film takes one artifact per part (its own version folders, gate record and Sean's yes) only when its parts reach Sean's yes at different times; the animatic and the finished cut always stay whole, so the story gate fires once. Each part's gate is then its own series: a pass takes the part as a suffix on its id and file (`<eng>.appearance-gate-<part>`, `audits/appearance-gate-<part>.md`, then `-r2` after it), and so do the revision form and the held checks (`<eng>.revision-<part>`, `audits/revision-check-<part>.md`). The record's `seat:` stays the gate seat. Every part passes the appearance gate, with Sean's yes on each, before any motion draft.
 
 **mc-eng-001 runs unsplit.** Sean restarted the seed from scratch (Master skill design, item 3): the October seed approval (approvals ledger, mc-ap-004) is a non-binding taste reference, and nothing in the film is approved, so there is one animatic, one appearance packet, one appearance gate and one motion stage holding both E4's seed-shape exercise and the world's moving test with E5's leaf unfold. The coordinator claims the camera ticket (**Camera through one painted world**, #174) when the train reaches the appearance gate, never before.
 
-Outcomes are typed **STORY** / **APPEARANCE** / **MOTION**, each `PASS | PASS WITH ACCEPTANCES | FAIL` and always `— QUALITY VERDICT ONLY`, per [gate-findings.md](gate-findings.md). No verdict here approves a version: that is Sean's, recorded in the approvals ledger.
+Outcomes are typed **STORY** / **APPEARANCE** / **MOTION**, and **AUDIT** for the self-check gate (the shared protocol's type for every team's self-check), each `PASS | PASS WITH ACCEPTANCES | FAIL` and always `— QUALITY VERDICT ONLY`, per [gate-findings.md](gate-findings.md). No verdict here approves a version: that is Sean's, recorded in the approvals ledger.
 
 ## The three craft gates
 
@@ -37,6 +37,22 @@ Outcomes are typed **STORY** / **APPEARANCE** / **MOTION**, each `PASS | PASS WI
 Every gate reads artifacts only, never the drafting conversation, and carries the [protocol](../../craftwork/templates/red-team-protocol.md), this file, [gate-findings.md](gate-findings.md) and [the glossary](../lanes/glossary.md), never the seat preamble or a lane manifest. The glossary is where a gate gets its words: every craft fail's **Glossary term** is a row's Term exactly, whatever artifact or lane the fault sits in, and the four naming rulings beside the rows are the ones its § Check records attack, "Bare words", enforces. The exact flags, the per-pass caps and how a read-only pass gets a scratch folder for the frames it extracts are the master skill design's and the launch-form ticket's (**Plugin allowlist and launch form for seat runs**). Until those close, no gate runs.
 
 **Evidence before findings.** Every gate opens on the findings file's **Evidence present** table: each field the anchor's template requires, and the assembled frame at the appearance gate, present and matching its sha256. A missing or mismatched field is a technical fail, CRITICAL, and the gate judges nothing that depends on it.
+
+## Self-check gate (AUDIT)
+
+The self-check gate reviews a self-targeted check, per [the shared modifier](../../craftwork/law.md#self-targeted-modifier) and [the protocol's self-check rule](../../craftwork/templates/red-team-protocol.md#the-self-targeted-checks-gate). It is a protocol with the trace and launcher name `self-check`, not a fifth seat, and it never substitutes for a story, appearance or motion gate. Built on SWCB #261, from mc-self-001, whose review had to borrow the story gate's slot; Devcraft's is the same shape (SWCB #170).
+
+| | Self-check gate |
+|---|---|
+| **Anchor** | the check report, `artifacts/self-check.md`, named with `--anchor`; its header's `model:` line names its last writer |
+| **Vendor** | the vendor that did not last write the check: Codex GPT-6.1 Sol High for a Claude-written report, a fresh-context Opus 5.5 for a Codex-written one; any fallback is named under the protocol |
+| **Launch** | the read-only gate form on that vendor, model pinned: 20 minutes and 80 tool calls on Codex, 30 minutes and $15 on Claude |
+| **Reads** | the check report; its pre-registered questions and the classes of finding it cannot produce; its exact context manifest per pass; the raw records, logs, decisions, approvals and media behind every claim, the media by path with checksums re-taken. Never the drafting conversation |
+| **May demand** | reproduction of every claim from the raw record, with the command, input and output that support it. Evidence missing or out of reach is a recorded limit, never a presumed pass |
+| **Attacks** | § Self-targeted check, below, and § Check records |
+| **Record** | `audits/self-check-gate.md`, a re-run `audits/self-check-gate-r2.md`; `seat: self-check`, `kind: gate`, `stage: 0`, `gate: AUDIT`; the verdict `AUDIT PASS \| PASS WITH ACCEPTANCES \| FAIL — QUALITY VERDICT ONLY` |
+
+An AUDIT verdict rules on the check's claims and limits. It is never a version for Sean to decide on and never approves the film or the law. Judgment and ratification stay Sean's, and the check never implements or ratifies its own expansion: its findings are drafts for him, one issue each. A FAIL goes to Sean with every finding; he rules a rewrite and a re-run, or a Close on the FAIL with the corrections as the record, as he ruled on mc-self-001.
 
 ## Sean's decision after a gate
 
@@ -151,6 +167,13 @@ The world's moving test:
 - **Changed in the render.** The change made in a render, not the editable source.
 - **A repair mixed in.** A fix to a reviewer's finding carried inside the directed revision's pass.
 - **A new pose smuggled in.** A change that needed a new pose, made here instead of going back to Art.
+
+### Self-targeted check
+
+- **Claims without raw support.** A claim the gate cannot reproduce from the raw record: a summary, a prior verdict or the studio's own account standing in for evidence, or a count of mentions passed as a count of runs.
+- **A check outside its registration.** Questions, finding classes or limits that differ from those fixed at Open, a class the check cannot produce treated as covered, or a manifest called exact that leaves out a file the check's own evidence read.
+- **Self-certification.** The check calls its own completion success, lacks an outcome signal the studio cannot self-issue, or takes judgment or ratification from Sean.
+- **Borrowed authority.** An AUDIT verdict presented as a gate verdict on a film or a version, or the check implementing or ratifying its own expansion.
 
 ### Check records
 

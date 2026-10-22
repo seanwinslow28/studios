@@ -19,7 +19,7 @@ Public machinery; filled artifacts are private, in the engagement folder of the 
 **The checks**
 
 - [check-record.md](check-record.md): the record of each of the four audits, with each seat's stake, the three finding kinds and the verify stance.
-- [gate-findings.md](gate-findings.md): the findings file of each gate, with Motioncraft's typed verdicts (`STORY | APPEARANCE | MOTION`), the evidence-present check and the questions for Sean.
+- [gate-findings.md](gate-findings.md): the findings file of each gate, with Motioncraft's typed verdicts (`STORY | APPEARANCE | MOTION`, and `AUDIT` for the self-check gate), the evidence-present check and the questions for Sean.
 - [directed-revision.md](directed-revision.md): the form for Sean's one change, and the motion gate's record of the three held checks.
 - [labels-row.md](labels-row.md): what each column of a pass's row in `trace/labels.md` means here, and why it is never Sean's verdict on the film.
 
@@ -29,7 +29,7 @@ Public machinery; filled artifacts are private, in the engagement folder of the 
 
 **The gates**
 
-- [gate-schedule.md](gate-schedule.md): when the story, appearance and motion gates fire (once per half on a train in halves), what each reads and may demand, its vendor, Sean's decision after it, FAIL and re-runs, and the attack list for every artifact.
+- [gate-schedule.md](gate-schedule.md): when the story, appearance, motion and self-check gates fire (once per half on a train in halves), what each reads and may demand, its vendor, Sean's decision after it, FAIL and re-runs, and the attack list for every artifact.
 
 **Handoffs**, under [the handoff contract](../../craftwork/handoff-contract.md), written on the map's **The two bindings and the interim words rule** ticket (2026-10-18). A binding sits in the sending team's `templates/`, and its mirror in the receiving team's.
 
