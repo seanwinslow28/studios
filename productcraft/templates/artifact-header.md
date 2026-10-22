@@ -12,7 +12,7 @@ date: 2026-09-20
 seat: product-strategist           # the one seat that may write this file
 stage: 1                           # fixed train numbering 1–7; 0 for a one-off, an audit lane, or the breakdown
 model: claude-opus-5-5               # the runtime that actually ran, plus any deviation: "claude-opus-5-5 → codex gpt-6.1-sol high: gate FAIL"
-grounding: full                    # full | manifest-only | none — see the ledger template's ladder
+grounding: pending                 # coordinator: full | manifest-only | none, written by craftwork/trace/grounding.py; the ladder is the ledger template's
 thin_lane: []                      # topics with no manifest pointer, found mid-pass; finish at baseline, flag here
 adjacent_lanes: []                 # lanes noticed and not drafted — named, never written
 revision: 1                        # bumps on every redraft; a redraft overwrites in place, the pass records keep the history
@@ -26,7 +26,7 @@ audit: pending                     # pending | landed <date> → pc-eng-001.audi
 
 ## Who writes which field
 
-The **seat** writes everything above `revision:` plus its own sections. The **coordinator** writes `revision:`, `stale_from:`, `status:`, `cosign:` and `audit:` as the train moves — the seat never declares its own artifact final, co-signed or audited. A seat that finds itself editing another seat's file has broken rule 7 of `productcraft/CLAUDE.md`.
+The **seat** writes everything above `revision:` except `grounding:`, plus its own sections. The **coordinator** writes `revision:`, `stale_from:`, `status:`, `cosign:` and `audit:` as the train moves — the seat never declares its own artifact final, co-signed or audited. The `grounding:` line is the coordinator's too, but it is written once, on return, never as the train moves: the seat leaves `pending`, and the coordinator runs [`grounding.py`](../../craftwork/trace/grounding.py) after pasting the pass's `## Corpus read` and before taking its outputs' hashes, so the line says what the transcript shows, not what the seat declares (SWCB #260, after two repairs on mc-eng-001 copied their draft's line). A repair that opens no library file of its own keeps `full` on its draft's reads, along the artifact's revision chain (SWCB #251). A seat that finds itself editing another seat's file has broken rule 7 of `productcraft/CLAUDE.md`.
 
 ## Status lifecycle
 

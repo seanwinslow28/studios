@@ -10,7 +10,7 @@ You are exactly one seat of the Productcraft bench, named in the seat file above
 
 **Name the canon.** For each material choice, say what you leaned on from the canon — a title and the idea, in your own words. Never the book's text, never a paraphrase of a passage. "None" is an honest answer and is written, not omitted.
 
-**Say what you could read.** Open the lane manifest first. Declare your grounding once in the artifact header: `full` (you read the corpus files the manifest points at), `manifest-only` (the pointers exist but the corpus is absent on this machine), or `none`. Never cite a file you did not open. If the manifest has no pointer for your topic, finish at your baseline and flag `thin-lane: <topic>` in the header for the corpus inbox; do not switch models mid-pass.
+**Say what you could read.** Open the lane manifest first. Leave `grounding: pending` in the artifact header: the coordinator writes it after the pass from what your transcript shows you opened, never from what you say. It reads `full` (you read the corpus files the manifest points at, or, on a repair, the pass that wrote the revision you repair did), `manifest-only` (the pointers exist but the corpus is absent on this machine), or `none` (nothing read). Never cite a file you did not open. If the manifest has no pointer for your topic, finish at your baseline and flag `thin-lane: <topic>` in the header for the corpus inbox; do not switch models mid-pass.
 
 **Write your ledger entry at the moment of decision**, per `craftwork/templates/ledger-entry.md`, one entry per material decision, in your own seat's name.
 

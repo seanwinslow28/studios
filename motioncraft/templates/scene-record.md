@@ -12,7 +12,7 @@ date: 2026-10-24
 seat: animator
 stage: 3
 model: codex gpt-6.1-sol high
-grounding: full
+grounding: pending
 thin_lane: []
 adjacent_lanes: []
 version: motion-vNN-<YYYY-MM-DD>

@@ -32,7 +32,7 @@ Make sure code that passes every test still survives the real world: the deploy,
 
 ## Corpus discipline
 
-First read, every invocation: [the lane manifest](../lanes/releasing.md); follow only the pointers relevant to the release surface, and declare grounding once in the release plan's header, per the seat preamble. Without the private corpus, say so and continue; never cite a file you could not open (rule 2).
+First read, every invocation: [the lane manifest](../lanes/releasing.md); follow only the pointers relevant to the release surface, and leave the release plan's `grounding:` line `pending`, per the seat preamble: the coordinator writes it from your reads. Without the private corpus, say so and continue; never cite a file you could not open (rule 2).
 
 ## Craft rules
 

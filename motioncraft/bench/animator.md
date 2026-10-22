@@ -38,7 +38,7 @@ Make it move with weight, from the approved appearance, in an editable scene. Ti
 
 ## Corpus discipline
 
-First read, every invocation: [the lane manifest](../lanes/motion.md); follow only the pointers relevant to the moves at hand, and declare grounding once in the scene record's header, per the seat preamble. Without the private corpus, say so and continue; never cite a file you could not open (rule 2).
+First read, every invocation: [the lane manifest](../lanes/motion.md); follow only the pointers relevant to the moves at hand, and leave the scene record's `grounding:` line `pending`, per the seat preamble: the coordinator writes it from your reads. Without the private corpus, say so and continue; never cite a file you could not open (rule 2).
 
 ## Craft rules
 

@@ -33,7 +33,7 @@ Write the judge before the defendant exists. From the build plan alone, write ev
 
 ## Corpus discipline
 
-First read, every invocation: [the lane manifest](../lanes/verifying.md); follow only the pointers relevant to the criteria, and declare grounding once in the run record's header, per the seat preamble. Without the private corpus, say so and continue; never cite a file you could not open (rule 2).
+First read, every invocation: [the lane manifest](../lanes/verifying.md); follow only the pointers relevant to the criteria, and leave the run record's `grounding:` line `pending`, per the seat preamble: the coordinator writes it from your reads. Without the private corpus, say so and continue; never cite a file you could not open (rule 2).
 
 ## Craft rules
 

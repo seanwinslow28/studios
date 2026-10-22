@@ -12,7 +12,7 @@ date: 2026-10-20
 seat: visual-story-director
 stage: 1
 model: claude-opus-5-5
-grounding: full
+grounding: pending
 thin_lane: []
 adjacent_lanes: []
 version: animatic-vNN-<YYYY-MM-DD>

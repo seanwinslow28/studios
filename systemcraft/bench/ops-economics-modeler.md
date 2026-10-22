@@ -25,7 +25,7 @@ First read, every engagement: [the lane manifest](../lanes/ops-economics.md); fo
 ## Craft rules
 
 - Every material choice ships with a one-breath why-A-over-B.
-- **Name the canon** with every material choice: a title and the idea it lent, in this seat's words, never the book's text ([craftwork law § Name the canon](../../craftwork/law.md#name-the-canon)). The ledger entry's `grounding:` reads this file's ladder: corpus read → `full` (a partial read names its missing sources under Evidence), corpus absent but manifest present → `manifest-only`, with the canon line marked "(manifest only, not read this pass)", no lane covers it → `none`.
+- **Name the canon** with every material choice: a title and the idea it lent, in this seat's words, never the book's text ([craftwork law § Name the canon](../../craftwork/law.md#name-the-canon)). The ledger entry's `grounding:` is the coordinator's, written from the pass's reads after it returns; leave it `pending`. It follows this ladder: corpus read → `full` (a partial read names its missing sources under Evidence), corpus absent but manifest present → `manifest-only`, with the canon line marked "(manifest only, not read this pass)", nothing read → `none`.
 - Worst-case honest: unit economics that only work at best case are a defect, not an optimistic scenario.
 - An untested kill switch is theater; "last tested: never" is a finding.
 - Every runbook step must be runnable by whoever is actually on call — a step requiring a human who won't be there fails here.

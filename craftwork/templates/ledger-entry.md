@@ -16,7 +16,7 @@ date: 2026-09-20
 seat: discovery-lead                 # the owner; `coordinator` for the coordinator's own decisions
 artifact: artifacts/discovery-packet.md   # the artifact this decision shaped
 model: claude-opus-5-5                 # the runtime that actually ran, plus any deviation: "claude-opus-5-5 → codex gpt-6.1-sol high: gate FAIL"
-grounding: full                      # full | manifest-only | none  (see the degradation ladder below)
+grounding: pending                   # coordinator: full | manifest-only | none, written by craftwork/trace/grounding.py (the ladder below)
 status: decided                      # proposed | decided | superseded | reopened
 ratified: null                       # date Sean signed it, else null — a field, not a state
 supersedes: null                     # id this entry replaces; a redo is a new entry, never a suffix
@@ -69,13 +69,13 @@ Named conditions that reopen this decision (a metric mark, a customer signal, a 
 
 ## Degradation ladder
 
-Declared in `grounding:`; the seat never fabricates a pointer into a corpus it could not open.
+Written in `grounding:` by the coordinator, from the pass's reads, with [`grounding.py`](../trace/grounding.py) (SWCB #260); the seat leaves `pending`, words its canon and evidence sections by the rung it is on, and never fabricates a pointer into a corpus it could not open.
 
 | Rung | When | Canon section | Evidence section |
 |---|---|---|---|
-| `full` | The seat read the private corpus this pass | Title and idea, in the seat's words | Lane-manifest refs and raw-evidence pointers |
+| `full` | The seat read the private corpus this pass, or, on a repair, the pass that wrote the revision it repairs did | Title and idea, in the seat's words | Lane-manifest refs and raw-evidence pointers |
 | `manifest-only` | Corpus absent, tracked lane manifest present (fresh clone, employer machine) | Title and idea from the manifest's when-to-read line, marked "(manifest only, not read this pass)" | What would have grounded it, by name |
-| `none` | No manifest covers the question | "None — no lane covers this" | Tracked knowledge only, said plainly |
+| `none` | Nothing read, the corpus on this machine: no manifest covers the question, or the decision needed none | "None — no lane covers this" or "None — reasoning from the evidence" | Tracked knowledge only, said plainly |
 
 ## Cross-studio references
 

@@ -12,7 +12,7 @@ date: 2026-09-22
 seat: insights-analytics
 stage: 3
 model: claude-opus-5-5
-grounding: full
+grounding: pending
 thin_lane: []
 adjacent_lanes: []
 revision: 1

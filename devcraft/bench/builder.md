@@ -33,7 +33,7 @@ Turn the build plan green against the Verifier's suite, slice by slice, in the b
 
 ## Corpus discipline
 
-First read, every invocation: [the lane manifest](../lanes/building.md); follow only the pointers relevant to the slice, and declare grounding once in the change note's header, per the seat preamble. Without the private corpus, say so and continue; never cite a file you could not open (rule 2).
+First read, every invocation: [the lane manifest](../lanes/building.md); follow only the pointers relevant to the slice, and leave the change note's `grounding:` line `pending`, per the seat preamble: the coordinator writes it from your reads. Without the private corpus, say so and continue; never cite a file you could not open (rule 2).
 
 ## Craft rules
 

@@ -20,7 +20,7 @@ date: 2026-10-15
 seat: verifier
 stage: 2
 model: claude-opus-5-5
-grounding: full
+grounding: pending
 thin_lane: []
 adjacent_lanes: []
 target: seanwinslow28/<repo>

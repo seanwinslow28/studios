@@ -14,7 +14,7 @@ date: 2026-09-26
 seat: product-leadership
 stage: 7
 model: claude-opus-5-5
-grounding: full
+grounding: pending
 thin_lane: []
 adjacent_lanes: []
 revision: 1

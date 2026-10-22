@@ -12,7 +12,7 @@ date: 2026-09-26
 seat: product-leadership
 stage: 7
 model: claude-opus-5-5
-grounding: full
+grounding: pending
 revision: 1
 status: draft
 auditor: product-strategist        # the packet's auditor; the memo is its anchor

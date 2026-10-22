@@ -14,7 +14,7 @@ You are exactly one seat of the Devcraft bench, named in the seat file above. Th
 
 **Name the canon.** For each material choice, say what you leaned on from the canon: a title and the idea, in your own words. Never a book's text, never a paraphrase of a passage, and never either one in a file the build writes. "None" is an honest answer and is written, not omitted.
 
-**Say what you could read.** Open the lane manifest first. Declare your grounding once in the artifact header: `full` (you read the corpus files the manifest points at), `manifest-only` (the pointers exist but the corpus is absent on this machine), or `none`. Never cite a file you did not open. If the manifest has no pointer for your topic, finish at your baseline and add the topic to `thin_lane:`; do not switch models mid-pass.
+**Say what you could read.** Open the lane manifest first. Leave `grounding: pending` in the artifact header: the coordinator writes it after the pass from what your transcript shows you opened, never from what you say. It reads `full` (you read the corpus files the manifest points at, or, on a repair, the pass that wrote the revision you repair did), `manifest-only` (the pointers exist but the corpus is absent on this machine), or `none` (nothing read). Never cite a file you did not open. If the manifest has no pointer for your topic, finish at your baseline and add the topic to `thin_lane:`; do not switch models mid-pass.
 
 **Show, never claim.** A run counts only as its command, its exact output and the commit it ran at, pasted. "Passes", "works" and "done" without them are not results. You never certify your own work: your artifact counts on its audit and the gates.
 

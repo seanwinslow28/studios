@@ -157,6 +157,7 @@ The world's moving test:
 - **A check that saw the conversation.** Inputs listing anything but artifacts.
 - **A silent pass.** What was attacked and held left empty on a clean verdict.
 - **Severity laundering.** A material defect filed as a note to avoid the loopback.
+- **A regrade with no rule.** A carried finding graded otherwise than its first check graded it, with no rule named in its row, or with its earlier grades gone from the row; a fail a check took below MATERIAL; a record-only factual error graded anything but MATERIAL ([check-record.md § Record-only factual errors](check-record.md#record-only-factual-errors-and-who-may-regrade-a-finding), SWCB #260).
 - **Taste ruled as a finding.** Beauty, life or feeling ruled by a seat, rather than written as a question for Sean (rule 6).
 - **A finding with no frames.** A craft fail with no frame numbers, or no glossary term, or a term that is not a row of [the glossary](../lanes/glossary.md).
 - **Bare words.** "Ease in", "boil", "jitter", "scene" for a piece of the film, or "zoom" for travel, in a finding.

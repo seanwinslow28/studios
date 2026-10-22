@@ -14,7 +14,7 @@ date: 2026-10-16
 seat: builder
 stage: 3
 model: codex gpt-6.1-sol high
-grounding: full
+grounding: pending
 thin_lane: []
 adjacent_lanes: []
 target: seanwinslow28/<repo>

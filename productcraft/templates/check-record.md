@@ -14,7 +14,7 @@ kind: cosign                       # cosign | audit
 stance: first-sight                # first-sight | verify — a verify pass is round two, see below
 stage: 2                           # the checked artifact's stage
 model: claude-opus-5-5
-grounding: full
+grounding: pending
 checked: pc-eng-001.discovery      # artifact id and revision checked
 checked_revision: 1
 anchor: Part 3 — Evidence          # co-sign: the section; audit: the packet part the stake anchors on

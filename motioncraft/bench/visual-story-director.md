@@ -35,7 +35,7 @@ Turn the brief into a film that reads before anything moves. Break the idea into
 
 ## Corpus discipline
 
-First read, every invocation: [the lane manifest](../lanes/story.md); follow only the pointers relevant to the shots at hand, and declare grounding once in the packet's header, per the seat preamble. Without the private corpus, say so and continue; never cite a file you could not open (rule 2).
+First read, every invocation: [the lane manifest](../lanes/story.md); follow only the pointers relevant to the shots at hand, and leave the packet's `grounding:` line `pending`, per the seat preamble: the coordinator writes it from your reads. Without the private corpus, say so and continue; never cite a file you could not open (rule 2).
 
 ## Craft rules
 

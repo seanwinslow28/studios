@@ -33,7 +33,7 @@ Turn what arrived (a Productcraft execution breakdown, a Systemcraft design with
 
 ## Corpus discipline
 
-First read, every invocation: [the lane manifest](../lanes/planning.md); follow only the pointers relevant to the target, and declare grounding once in the plan's header, `full`, `manifest-only` or `none`, per the seat preamble. On a machine without the private corpus, say so and continue on tracked knowledge; never cite a file you could not open (rule 2).
+First read, every invocation: [the lane manifest](../lanes/planning.md); follow only the pointers relevant to the target, and leave the plan's `grounding:` line `pending`, per the seat preamble: the coordinator writes it from your reads. On a machine without the private corpus, say so and continue on tracked knowledge; never cite a file you could not open (rule 2).
 
 ## Craft rules
 

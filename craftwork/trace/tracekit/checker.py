@@ -435,6 +435,10 @@ def _corpus(eng: Engagement) -> Check:
             grounded_earlier.append(f"{r.pass_id} ({', '.join(sorted(grounding_by))})")
         if grounding == "none" and [x for x in own if "corpus/" in x]:
             c.findings.append(f"{r.pass_id}: artifact declares grounding: none but the transcript shows corpus reads")
+        # the line is the coordinator's, written from the reads by grounding.py (SWCB #260)
+        if grounding == "pending":
+            c.findings.append(f"{r.pass_id}: artifact's grounding: is still pending; the coordinator writes it "
+                              f"with craftwork/trace/grounding.py before taking the outputs' hashes")
     if skipped_superseded:
         c.notes.append(f"{skipped_superseded} superseded artifact revision(s) not on disk: their citations are not re-checked")
     if inherited:

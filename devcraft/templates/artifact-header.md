@@ -12,7 +12,7 @@ date: 2026-10-14
 seat: build-planner                # the one seat that may write this file
 stage: 1                           # running order on a full build: 1 Plan, 2 Tests, 3 Code, 4 Release; 0 for a one-off
 model: claude-opus-5-5             # the runtime that actually ran, plus any deviation: "claude-opus-5-5 → codex gpt-6.1-sol high: plan gate FAIL"
-grounding: full                    # full | manifest-only | none, per the seat preamble
+grounding: pending                 # coordinator: full | manifest-only | none, written by craftwork/trace/grounding.py
 thin_lane: []                      # topics the lane manifest had no pointer for, found mid-pass
 adjacent_lanes: []                 # lanes noticed and not drafted: named, never written
 target: seanwinslow28/<repo>       # the repo the build changes
@@ -32,7 +32,7 @@ The header is the trace kit's YAML subset (scalars, flat lists, quoted strings),
 
 ## Who writes which field
 
-The **seat** writes everything above `revision:`, plus its own sections. The **coordinator** writes `revision:`, `stale_from:`, `status:` and `audit:` as the build moves, inside a recorded pass, never by hand between passes (an edit outside a pass fails the kit's hash line). A seat never declares its own artifact final or audited: rule 4 of [`devcraft/CLAUDE.md`](../CLAUDE.md), no seat certifies its own work.
+The **seat** writes everything above `revision:` except `grounding:`, plus its own sections. The **coordinator** writes `revision:`, `stale_from:`, `status:` and `audit:` as the build moves, inside a recorded pass, never by hand between passes (an edit outside a pass fails the kit's hash line). The `grounding:` line is the coordinator's too, but it is written once, on return, never as the build moves: the seat leaves `pending`, and the coordinator runs [`grounding.py`](../../craftwork/trace/grounding.py) after pasting the pass's `## Corpus read` and before taking its outputs' hashes, so the line says what the transcript shows, not what the seat declares (SWCB #260, after two repairs on mc-eng-001 copied their draft's line). A repair that opens no library file of its own keeps `full` on its draft's reads, along the artifact's revision chain (SWCB #251). A seat never declares its own artifact final or audited: rule 4 of [`devcraft/CLAUDE.md`](../CLAUDE.md), no seat certifies its own work.
 
 ## Status lifecycle
 
@@ -63,7 +63,7 @@ A seat that cannot finish still returns its artifact, with one typed reason in `
 
 A second round of any check or gate takes `-r2` on both the id and the file (`<eng>.plan-gate-r2`, `audits/plan-gate-r2.md`). A redraft the launcher files by `-o` takes a new file too, since an output is written once (`artifacts/build-plan-r3.md`); the gate that reads it names it with `--anchor`, and the diff check reads the plan the plan gate's anchor named, so nothing is copied over `build-plan.md` (SWCB #145). Seat slugs, as used in `seat:` and `auditor:`: `build-planner`, `builder`, `verifier`, `release-reliability`, plus `coordinator` and the gate seats `plan-gate`, `release-gate`, `security-pass`, `self-check` ([trace/studio.py](../trace/studio.py)).
 
-**Codex passes write by final message.** The Builder's drafts and audit and the two Codex gates cannot write into the engagement folder: their artifact is the pass's final message, saved by the launch form's `-o`, and the coordinator files it at the path above byte for byte before hashing it. So those templates read as one message: the frontmatter first, no preamble, no sign-off.
+**Codex passes write by final message.** The Builder's drafts and audit and the two Codex gates cannot write into the engagement folder: their artifact is the pass's final message, saved by the launch form's `-o`, and the coordinator files it at the path above byte for byte, writes its `grounding:` line with `grounding.py`, and only then hashes it. The launch record keeps the hash of the message as it came back; the pass record's is the filed file's. So those templates read as one message: the frontmatter first, no preamble, no sign-off.
 
 ## Item ids
 

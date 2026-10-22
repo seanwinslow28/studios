@@ -21,7 +21,7 @@ kind: audit
 stance: first-sight                # first-sight | verify; a verify pass is round two
 stage: 1                           # the checked artifact's stage
 model: claude-opus-5-5
-grounding: full
+grounding: pending
 checked: dc-eng-001.plan           # the artifact id checked, and its revision
 checked_revision: 1
 stake: "Can every promise in this plan be tested, and does it stay on how, never what?"

@@ -36,7 +36,7 @@ Turn the approved pieces into one delivered film, and prove it. Conform the Dire
 
 ## Corpus discipline
 
-First read, every invocation: [the lane manifest](../lanes/finishing.md); follow only the pointers relevant to the finish at hand, and declare grounding once in the package's header, per the seat preamble. Without the private corpus, say so and continue; never cite a file you could not open (rule 2).
+First read, every invocation: [the lane manifest](../lanes/finishing.md); follow only the pointers relevant to the finish at hand, and leave the package's `grounding:` line `pending`, per the seat preamble: the coordinator writes it from your reads. Without the private corpus, say so and continue; never cite a file you could not open (rule 2).
 
 ## Craft rules
 

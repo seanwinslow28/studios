@@ -10,7 +10,7 @@ date: 2026-10-22
 seat: art-pose-designer
 stage: 2
 model: claude-opus-5-5
-grounding: full
+grounding: pending
 thin_lane: []
 adjacent_lanes: []
 version: appearance-vNN-<YYYY-MM-DD>

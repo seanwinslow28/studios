@@ -12,7 +12,7 @@ date: 2026-10-20
 seat: visual-story-director        # the one seat that may write this file
 stage: 1                           # running order on a full train: 1 Story, 2 Appearance, 3 Motion, 4 Finish
 model: claude-opus-5-5             # the runtime that actually ran, plus any deviation: "claude-opus-5-5 → codex gpt-6.1-sol high: story gate FAIL"
-grounding: full                    # full | manifest-only | none, per the seat preamble
+grounding: pending                 # coordinator: full | manifest-only | none, written by craftwork/trace/grounding.py
 thin_lane: []                      # topics the lane manifest had no pointer for, found mid-pass
 adjacent_lanes: []                 # lanes noticed and not drafted: named, never written
 version: animatic-vNN-<YYYY-MM-DD> # the version folder this artifact describes; its name is the version id, never renamed or reused
@@ -33,7 +33,7 @@ The header is the trace kit's YAML subset (scalars, flat lists, quoted strings),
 
 ## Who writes which field
 
-The **seat** writes everything above `revision:`, plus its own sections. The **coordinator** writes `revision:`, `stale_from:`, `status:` and `audit:` as the train moves, inside a recorded pass, never by hand between passes (an edit outside a pass fails the kit's hash line). A seat never declares its own artifact final or audited, and nothing in a header approves artistry: rule 3 of [`motioncraft/CLAUDE.md`](../CLAUDE.md), Sean alone approves, in the approvals ledger.
+The **seat** writes everything above `revision:` except `grounding:`, plus its own sections. The **coordinator** writes `revision:`, `stale_from:`, `status:` and `audit:` as the train moves, inside a recorded pass, never by hand between passes (an edit outside a pass fails the kit's hash line). The `grounding:` line is the coordinator's too, but it is written once, on return, never as the train moves: the seat leaves `pending`, and the coordinator runs [`grounding.py`](../../craftwork/trace/grounding.py) after pasting the pass's `## Corpus read` and before taking its outputs' hashes, so the line says what the transcript shows, not what the seat declares (SWCB #260, after two repairs on mc-eng-001 copied their draft's line). A repair that opens no library file of its own keeps `full` on its draft's reads, along the artifact's revision chain (SWCB #251). A seat never declares its own artifact final or audited, and nothing in a header approves artistry: rule 3 of [`motioncraft/CLAUDE.md`](../CLAUDE.md), Sean alone approves, in the approvals ledger.
 
 ## Status lifecycle
 
@@ -69,7 +69,7 @@ A second round of any check or gate takes `-r2` on both the id and the file (`<e
 
 Seat slugs, as used in `seat:` and `auditor:`: `visual-story-director`, `art-pose-designer`, `animator`, `finishing-sound-designer`, plus `coordinator` and the gate seats `story-gate`, `appearance-gate`, `motion-gate` ([trace/studio.py](../trace/studio.py)). The gate seats hold no seat file.
 
-**Codex passes write by final message.** The Animator's drafts, repairs and audit, and the story and appearance gates, run on Codex and do not write into the engagement folder: their artifact is the pass's final message, saved by the launch form's `-o`, and the coordinator files it at the path above byte for byte before hashing it. So those templates read as one message: the frontmatter first, no preamble, no sign-off. The Animator still writes its version folder in the media folder, which is where the moving test and its evidence pack live.
+**Codex passes write by final message.** The Animator's drafts, repairs and audit, and the story and appearance gates, run on Codex and do not write into the engagement folder: their artifact is the pass's final message, saved by the launch form's `-o`, and the coordinator files it at the path above byte for byte, writes its `grounding:` line with `grounding.py`, and only then hashes it. The launch record keeps the hash of the message as it came back; the pass record's is the filed file's. So those templates read as one message: the frontmatter first, no preamble, no sign-off. The Animator still writes its version folder in the media folder, which is where the moving test and its evidence pack live.
 
 ## Item ids
 

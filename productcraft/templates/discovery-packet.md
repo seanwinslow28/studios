@@ -12,7 +12,7 @@ date: 2026-09-21
 seat: discovery-lead
 stage: 2
 model: claude-opus-5-5
-grounding: full
+grounding: pending
 thin_lane: []
 adjacent_lanes: []
 revision: 1

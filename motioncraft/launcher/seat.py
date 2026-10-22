@@ -147,7 +147,7 @@ PASSES_ROOT = Path(os.path.expanduser(os.environ.get("MOTIONCRAFT_PASSES", "~/.c
 SCRATCH_ROOT = Path(os.path.expanduser(os.environ.get("MOTIONCRAFT_SCRATCH_ROOT", "~/.cache/motioncraft/scratch")))
 # The studio folders a Claude pass is given to read beside its engagement and media project.
 STUDIO_READS = ("bench", "lanes", "corpus", "templates")
-# The private library: gitignored, so on a machine without it every pass's grounding is manifest-only.
+# The private library: gitignored, so on a machine without it grounding.py writes every pass's grounding manifest-only.
 CORPUS = MOTIONCRAFT / "corpus"
 
 # --- the plugin allowlist (bench/toolbelts.toml) ---------------------------------------
@@ -873,7 +873,7 @@ def library_note() -> str:
     root = real(str(CORPUS))
     if not Path(root).is_dir():
         return (f"The private library (the corpus) is not on this machine: `{root}` does not exist. Your grounding "
-                "is `manifest-only`, and you cite no corpus file.")
+                "will be written `manifest-only`, and you cite no corpus file.")
     return (f"The private library (the corpus) is at `{root}` on this machine, and you may read it. A pointer written "
             f"`../corpus/<path>` in your task's seat, lane or preamble text means `{root}/<path>`: open it by that full "
             "path, never relative to your working folder, and never look for the library anywhere else.")

@@ -12,7 +12,7 @@ date: 2026-10-06
 seat: delivery-execution
 stage: 0
 model: claude-sonnet-5-5
-grounding: full
+grounding: pending
 thin_lane: []
 adjacent_lanes: []
 revision: 1

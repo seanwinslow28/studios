@@ -153,7 +153,7 @@ One material decision in the ledger, owned by one seat, carrying a permanent id 
 _Avoid_: log line, note, record
 
 **Grounding**:
-How much of the private corpus a seat could actually read for an entry: the corpus itself, only the tracked shelf label, or nothing. Declared on the entry so a reader knows whether the canon line was read this pass or named from the shelf.
+How much of the private corpus a seat could actually read for an entry: the corpus itself, only the tracked shelf label, or nothing. Written on the entry by the coordinator from the pass's reads, never declared by the seat (SWCB #260), so a reader knows whether the canon line was read or named from the shelf.
 _Avoid_: confidence, coverage
 
 **Ratification**:
@@ -193,7 +193,7 @@ The master skill's own session: it types, routes, dispatches, gates and closes a
 _Avoid_: orchestrator, the skill, the agent
 
 **Seat preamble**:
-The one tracked file of standing behavior every invocation carries, prepended verbatim by the coordinator: explain why, name the canon, declare grounding, loop back never rewrite, close with moves, meter yourself. Lives in one place; seat files never restate it.
+The one tracked file of standing behavior every invocation carries, prepended verbatim by the coordinator: explain why, name the canon, say what you could read, loop back never rewrite, close with moves, meter yourself. Lives in one place; seat files never restate it.
 _Avoid_: system prompt, boilerplate, header
 
 **Return wait**:

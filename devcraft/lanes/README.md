@@ -7,7 +7,7 @@ reads on every invocation, and it is two documents in one file, on Productcraft'
 The upper half is **shelf labels** for the seat: a title, a pointer into the private corpus,
 and a one-line note saying when the pointer is worth following. Never the books themselves:
 the content lives in `../corpus/`, which is gitignored, so on a machine without it the
-pointers do not resolve and the seat declares `manifest-only` grounding instead of pretending
+pointers do not resolve and the pass's grounding is written `manifest-only` instead of pretending
 otherwise ([seat preamble](../templates/seat-preamble.md); rule 2 of
 [`../CLAUDE.md`](../CLAUDE.md)). The lower half, from `## Reading path` down, is Sean's: an
 ordered table of what to read and in what situation, plus a `### Next` shelf of titles the

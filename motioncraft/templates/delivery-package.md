@@ -12,7 +12,7 @@ date: 2026-10-28
 seat: finishing-sound-designer
 stage: 4
 model: claude-opus-5-5             # a mechanical conform or check run may name claude-sonnet-5-5 here, with why
-grounding: full
+grounding: pending
 thin_lane: []
 adjacent_lanes: []
 version: finish-vNN-<YYYY-MM-DD>

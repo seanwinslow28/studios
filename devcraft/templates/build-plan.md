@@ -12,7 +12,7 @@ date: 2026-10-14
 seat: build-planner
 stage: 1
 model: claude-opus-5-5
-grounding: full
+grounding: pending
 thin_lane: []
 adjacent_lanes: []
 target: seanwinslow28/<repo>

@@ -183,7 +183,7 @@ The round reads **pleasantly surprised** at 2 or more of 4 trials at match or be
 - **A gate runs on a different lineage than the artifact's author** (#267's anchor-vendor rule), and so does a verification pass (#296 clause 4). A trial's audit or gate too.
 - **No silent deviations.** A pass on any row other than the seat file's `model:` is a deviation with a one-line why against a named trigger, or a dated owner-approved substitution, or a declared trial — one of the three, in the Route entry.
 - **Every invocation records its runtime and its meter line** — the row's `runtime:` string, the launch form verbatim, and the meter as the runtime reported it or `UNMEASURED`. Never an estimate. Dollar figures never enter a record (#272); an API-billed row puts its measured cash on the engagement's Close cost line.
-- **The degradation ladder applies on any row.** A runtime that cannot read the private corpus or ledger says so (`grounding: manifest-only | none`) and never fabricates a citation. Every row above reads both today because they sit inside the repo; a row that could not would say so in its "Reads" column.
+- **The degradation ladder applies on any row.** A runtime that cannot read the private corpus or ledger says so, its `grounding:` written `manifest-only | none` from its reads (SWCB #260), and never fabricates a citation. Every row above reads both today because they sit inside the repo; a row that could not would say so in its "Reads" column.
 
 ## Meter-source vocabulary
 

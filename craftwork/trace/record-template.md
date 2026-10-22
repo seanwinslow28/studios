@@ -2,7 +2,7 @@
 
 The first piece of the trace kit (designed on [#272](https://github.com/seanwinslow28/code-brain/issues/272), decision 2; built on [#290](https://github.com/seanwinslow28/code-brain/issues/290)). One file per seat invocation at `ledger/engagements/<eng-id>/trace/pass-NN-<seat>-<kind>.md`, private, never edited after the pass completes. Frontmatter for machine fields, three short sections for human ones. The record **indexes** the transcript; it never replaces it. Ruled out: dollar figures; prose about what the seat "thought".
 
-**Who writes which field.** The **coordinator** writes the launch fields before firing the seat (`pass` through `inputs`, `withheld`, `raw_log`, `triggered_by`, `shadow_of`) and the completion fields after it returns (`completed`, `wall_clock_s`, `meter`, `meter_source`, `outputs` with their hashes, `## Corpus read` pasted from [reads.py](reads.py)'s output, never typed, `## Notes`). The **seat** writes its `## Moves` in the artifact, never here. The coordinator appends to `checks` as audits, co-signs and gates land. **Sean** writes labels in [labels-template.md](labels-template.md), never in a record.
+**Who writes which field.** The **coordinator** writes the launch fields before firing the seat (`pass` through `inputs`, `withheld`, `raw_log`, `triggered_by`, `shadow_of`) and the completion fields after it returns (`completed`, `wall_clock_s`, `meter`, `meter_source`, `## Corpus read` pasted from [reads.py](reads.py)'s output, never typed, then each output's `grounding:` line written by [grounding.py](grounding.py), then `outputs` with their hashes, `## Notes`). The **seat** writes its `## Moves` in the artifact, never here. The coordinator appends to `checks` as audits, co-signs and gates land. **Sean** writes labels in [labels-template.md](labels-template.md), never in a record.
 
 The frontmatter is a YAML subset the checker parses with the stdlib: scalars, lists, one level of nesting, `- key:` blocks. Nothing else. A record the checker cannot parse fails the first rung-0 line, loudly.
 
@@ -101,7 +101,7 @@ Artifacts are redrafted **in place** with `revision:` bumped (#274); the pass re
 
 ## Corpus reads along a revision chain
 
-A repair that fixes one paragraph hands back a file still carrying every citation its earlier revisions made. The checker does not charge the repairing pass with reading all of them: a citation is accounted for by this pass's `## Corpus read` **or** by that of any earlier pass which recorded the same artifact path as an output. A repair written as a new file (`artifacts/scene-record-r2.md` beside `artifacts/scene-record.md`) is on the same chain when the earlier revision is among its `inputs` (SWCB #251), and so is its `grounding: full`: a repair that opens no corpus file of its own keeps the header on its draft's reads, and the checker names it in a note. Reads travel along one artifact's own revision chain and never sideways to another artifact. So write `## Corpus read` as what this pass actually opened — never pad it to cover inherited lines.
+A repair that fixes one paragraph hands back a file still carrying every citation its earlier revisions made. The checker does not charge the repairing pass with reading all of them: a citation is accounted for by this pass's `## Corpus read` **or** by that of any earlier pass which recorded the same artifact path as an output. A repair written as a new file (`artifacts/scene-record-r2.md` beside `artifacts/scene-record.md`) is on the same chain when the earlier revision is among its `inputs` (SWCB #251), and so is its `grounding: full`: a repair that opens no corpus file of its own keeps the header on its draft's reads, which [grounding.py](grounding.py) writes for it, and the checker names it in a note. Reads travel along one artifact's own revision chain and never sideways to another artifact. So write `## Corpus read` as what this pass actually opened — never pad it to cover inherited lines.
 
 ## Corpus read, by script
 
@@ -112,6 +112,16 @@ python3 craftwork/trace/reads.py <eng>/trace/logs/pass-NN.jsonl
 ```
 
 It reads a Claude log (stream-json, an Agent-tool subagent JSONL, a session file), a Codex `--json` log with its `pass-NN.rollouts/` session files, or the plain-text stdout of `codex exec` run without `--json`. Any other log, such as a hand-written coordinator note or an empty file, exits 2 with the reason on stderr and prints nothing: the script never answers `none` for a log it could not parse. A read is what put a corpus file's text in front of the seat: a successful `Read`, a file a search quoted (a `Grep` in content mode, `rg` or `grep` output), a file handed to a reader (`cat`, `head`, `sed -n`, `awk` …). A listing (`ls`, `rg --files`, `grep -l`, `wc`) reads nothing. When zsh abandons a command line at an unquoted `=word` it cannot look up (`echo =====` fails with `==== not found`), the commands before that word ran and are judged, and the ones after it never ran; if the output shows an earlier error too, the call goes to stderr with that cause named. A call it cannot judge, such as a heredoc script, an unknown program or a command that failed partway, is printed on stderr and never guessed into the list. The coordinator checks each such call against the transcript and says what it found in `## Notes`; a read it confirms there is added to the list with that note beside it.
+
+## Grounding, by script
+
+No seat declares its own `grounding:` line (SWCB #260: two repairs on mc-eng-001 copied `full` from the draft they repaired, a line that rested on the draft's reads but was the seat's word, not the record's). The seat leaves `pending`. On return, once `## Corpus read` is pasted and the outputs' paths are listed, and before their hashes are taken, the coordinator runs:
+
+```bash
+python3 craftwork/trace/grounding.py <eng> pass-NN
+```
+
+It writes the value into every output whose frontmatter has the line, changing nothing else in the file: `full` when this pass's `## Corpus read` names a library file, or an earlier revision of the same artifact was written by a pass whose list did (the chain above, so the line and rung-0 line 5 never disagree); `manifest-only` when nothing on the chain read the library and the library is not on this machine; `none` when nothing did though it was here. It first checks the list against reads.py's output for the pass's own raw log, and refuses (exit 2) a list that differs, unless the extra read is a call reads.py could not judge and the coordinator confirmed, or the list sits under a dated correction. An output whose recorded hash still matches the file is refused (exit 3), never rewritten: write the line, then hash. `--check` writes nothing and exits 1 when a line reads otherwise. A `pending` line that survives the pass is a rung-0 line 5 finding.
 
 ## Correcting a corpus read
 

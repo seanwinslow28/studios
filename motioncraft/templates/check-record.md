@@ -23,7 +23,7 @@ kind: audit
 stance: first-sight                # first-sight | verify; a verify pass is round two
 stage: 3                           # the checked artifact's stage
 model: claude-opus-5-5
-grounding: full
+grounding: pending
 checked: mc-eng-001.motion         # the artifact id checked, and its revision or filed file
 checked_revision: 1
 checked_version: motion-vNN-<YYYY-MM-DD>   # the version folder the evidence lives in
@@ -62,7 +62,7 @@ The table for this audit's stake. Each row is evidence the auditor opened or ran
 
 ## Findings
 
-One row per finding. Every finding names its kind, and a craft fail names its glossary term, exactly as a row of [the glossary](../lanes/glossary.md) names it, and its frames. Severity follows the kind (brief 5, section 2): a **technical fail** is **CRITICAL**, since nothing else can be judged without it; a **craft fail** is **MATERIAL**, or **CRITICAL** when it is one of the fail conditions Sean has already named for the exercise or the shot; a **NOTE** is a craft observation that does not fail the stake. Both CRITICAL and MATERIAL loop back. A taste call has no severity and is not a row here.
+One row per finding. Every finding names its kind, and a craft fail names its glossary term, exactly as a row of [the glossary](../lanes/glossary.md) names it, and its frames. Severity follows the kind (brief 5, section 2): a **technical fail** is **CRITICAL**, since nothing else can be judged without it, except a record-only factual error, which is **MATERIAL** (below the template); a **craft fail** is **MATERIAL**, or **CRITICAL** when it is one of the fail conditions Sean has already named for the exercise or the shot; a **NOTE** is a craft observation that does not fail the stake. Both CRITICAL and MATERIAL loop back. A taste call has no severity and is not a row here.
 
 | Id | Kind | Finding | Artifact, section and frames | Glossary term | Severity | Evidence | What would pass |
 |---|---|---|---|---|---|---|---|
@@ -105,5 +105,13 @@ Round two is a verification pass, not a fresh audit. It runs on the vendor that 
 
 meter: <runtime> · <tokens> · <wall-clock>
 ```
+
+## Record-only factual errors, and who may regrade a finding
+
+Ruled by Sean on SWCB #260 (2026-10-22). On mc-eng-001 the appearance packet's Q11 said the softer lighting lasts "five frames" where K35–K37 hold six, and the one error carried three grades: CRITICAL in Art's audit r4 (M2), NOTE in the motion audit r2 (G1), and MATERIAL at the motion gate (F1), which made an exception no template wrote. Sean's acceptance of that slip stands; this rule is for what comes after it.
+
+**A record-only factual error** is a wrong count, frame number, name or other stated fact in an artifact's text (its prose, its questions for Sean, its notes) where the file, exposure or measurement it describes is right, and nothing a check judges rests on the wrong words. Its kind is **technical fail**, since a count or a comparison decides it. Its severity is **MATERIAL**: never CRITICAL, since everything else can still be judged, and never NOTE, since it is a known error in a record Sean reads. It is fixed by a record-only correction, a dated note that changes no file (as with K5, mc-eng-001.d04), or accepted by Sean with a recorded why. **Not record-only, and still CRITICAL:** a cited sha256 that does not match ([gate schedule](gate-schedule.md#whole-train), "A cited checksum that does not match"), a missing or mismatched evidence field, and any wrong fact a judged measurement rests on.
+
+**Regrading a carried finding.** A finding keeps the kind and severity its first check gave it. A later check that carries it (a verification pass, a downstream audit, a gate) may change either only by naming, in the finding's row, the rule that sets the new grade: this section, the severity rule in § Findings, or one of Sean's named fail conditions. The earlier grades stay in that row beside the new one, earliest first, each with the check and id that gave it: `CRITICAL (audit-appearance-r4 M2) → NOTE (audit-motion-r2 G1) → MATERIAL here: record-only factual error`. No check takes a technical or craft fail below MATERIAL. Lowering a fail to a NOTE, or waving it through, is Sean's alone, as an acceptance in his words, and his acceptance is written beside the grades, never over them. A regrade with no rule named, or a carried finding whose earlier grades are gone from its row, is severity laundering.
 
 **What attacks a check record:** the gates read every check record in scope, on the gate schedule's list for check records.
