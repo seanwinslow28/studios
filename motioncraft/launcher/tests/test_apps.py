@@ -57,11 +57,12 @@ def server(world, s, n, *extra):
     return apps.AppServer(c, time.time() + 600), c
 
 
-def ask(srv, app, script, *args, blend="", timeout=300):
+def ask(srv, app, script, *args, blend="", timeout=300, fonts=""):
     """What `apps.py ask` does, without its wait: a request in the pass's folder, run by the launcher's side."""
     rid = f"{app}-{time.strftime('%H%M%S')}-{os.urandom(3).hex()}"
     (srv.requests / f"{rid}.json").write_text(json.dumps(
-        {"id": rid, "app": app, "script": str(script), "args": list(args), "blend": blend, "timeout": timeout}))
+        {"id": rid, "app": app, "script": str(script), "args": list(args), "blend": blend, "timeout": timeout,
+         **({"fonts": str(fonts)} if fonts else {})}))
     srv.handle(f"{rid}.json")
     return json.loads((srv.results / f"{rid}.result.json").read_text()), srv.calls[-1]
 
@@ -344,6 +345,59 @@ def test_a_request_is_held_to_the_pass_fence(env_of):
     os.close(art.fd)
 
 
+def test_fonts_are_kritas_and_come_from_the_media_project(env_of):
+    assets = env_of["project"] / "appearance" / "appearance-v01-2026-10-20" / "assets" / "checks"
+    fonts = assets / "fonts"
+    fonts.mkdir(parents=True, exist_ok=True)
+    (fonts / "Face-Regular.otf").write_bytes(b"OTTO")
+    (fonts / "OFL.txt").write_text("licence")
+    empty = assets / "empty"
+    empty.mkdir(exist_ok=True)
+    (empty / "OFL.txt").write_text("licence")
+    outside = env_of["root"] / "fonts"
+    outside.mkdir(exist_ok=True)
+    (outside / "Face-Regular.otf").write_bytes(b"OTTO")
+    linked = assets / "linked"
+    linked.mkdir(exist_ok=True)
+    (linked / "Face-Regular.otf").symlink_to(outside / "Face-Regular.otf")
+    art, a = server(env_of, "art-pose-designer", "f1")
+    mine = Path(a["scratch"]) / "card.py"
+    mine.write_text("print(1)\n")
+    refused = lambda d: ask(art, "krita", mine, fonts=d)[0]["refused"]  # noqa: E731
+    assert "a folder in the media project" in refused(outside), "never a font from outside the media project"
+    assert "a folder in the media project" in refused(fonts / "Face-Regular.otf"), "a folder, not a file"
+    assert "no font files" in refused(empty)
+    assert "outside the media project" in refused(linked), "a link out of the media project is not the version's font"
+    assert apps.AppServer.check(art, {"app": "krita", "script": str(mine), "fonts": str(fonts)})["fonts"] == \
+        [str(Path(os.path.realpath(fonts)) / "Face-Regular.otf")], "the font files only, never the licence"
+    os.close(art.fd)
+    srv, c = server(env_of, "animator", "f2")
+    good = Path(c["scratch"]) / "ok.py"
+    good.write_text("print(1)\n")
+    assert "--fonts is Krita's" in ask(srv, "blender", good, fonts=fonts)[0]["refused"]
+    os.close(srv.fd)
+
+
+def test_the_wrapper_reads_the_families_each_text_names():
+    space: dict = {}
+    exec(apps.KRITA_WRAPPER, space)  # the wrapper imports krita only inside main, so its readers load anywhere
+    families = space["families"]
+    # the shapes as Krita 5.3.4's VectorLayer.toSvg writes them (probed 2026-10-22)
+    krita = ('<?xml version="1.0" standalone="no"?>\n<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 20010904//EN" '
+             '"http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd">\n<svg xmlns="http://www.w3.org/2000/svg" '
+             'xmlns:krita="http://krita.org/namespaces/svg/krita" width="400pt" height="120pt" viewBox="0 0 400 120">'
+             '<defs/><text id="shape0" krita:textVersion="3" x="10" y="70" style="font-family: STIX Two Text;'
+             'font-size: 48;">AV To</text><text id="shape1" krita:textVersion="3" x="10" y="110" '
+             'style="font-size: 20;">no family</text></svg>')
+    assert families(krita) == [["STIX Two Text"], None]
+    mixed = ('<svg xmlns="http://www.w3.org/2000/svg"><g font-family="\'Source Serif 4\', serif">'
+             '<text>A<tspan style="font-family:Helvetica">B</tspan></text></g></svg>')
+    assert families(mixed) == [["Source Serif 4", "serif"], ["Helvetica"]], "inherited, and each tspan its own"
+    assert families('<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>') == []
+    with pytest.raises(ValueError):
+        families("<svg><text>")
+
+
 def ask_render(srv, blend, out, frames=(1, 3), engine="cycles", timeout=300, **extra):
     """What `apps.py ask blender --render` does, without its wait."""
     rid = f"blender-{time.strftime('%H%M%S')}-{os.urandom(3).hex()}"
@@ -403,6 +457,8 @@ def test_the_prompt_tells_a_seat_with_an_app_to_ask(env_of):
     a = ctx_of(env_of, "art-pose-designer", "a9c")
     prompt = seatmod.claude_prompt(a, "work")
     assert prompt.count("apps.py ask krita") == 1 and "brush engine is not available" in prompt and "QPainter" in prompt
+    assert "--fonts <the version's assets/fonts folder>" in prompt and "FcConfigAppFontAddFile" not in prompt, \
+        "the launcher registers the fonts; the seat names the folder"
     assert prompt.index("Krita: none runs") > 0 and "ask blender" not in prompt and "ask krita" not in seatmod.codex_prompt(c, "work")
     assert "image.py" in prompt, "Art keeps the image path beside Krita"
     g = ctx_of(env_of, "story-gate", "a8", "--anchor", "artifacts/story-packet.md")
@@ -829,6 +885,101 @@ def test_a_krita_call_that_fails_says_so(env_of):
                 assert res["exit_code"] == 0 and "without the script finishing" in res["error"]
             else:
                 assert res["exit_code"] != 0, name
+    finally:
+        os.close(srv.fd)
+
+
+# A card as Art sets one: Krita's own SVG text on a vector layer, the pixels from the document, and the .kra. The
+# family comes in as an argument; `none` names no family at all.
+KRITA_CARD = r"""
+import os, sys, time
+from krita import Krita
+from PyQt5.QtGui import QImage
+from PyQt5.QtWidgets import QApplication
+out, family = sys.argv[1:3]
+k = Krita.instance()
+doc = k.createDocument(400, 120, "card", "RGBA", "U8", "", 72.0)
+root = doc.rootNode()
+for n in list(root.childNodes()):
+    root.removeChildNode(n)
+vl = doc.createVectorLayer("text"); root.addChildNode(vl, None)
+face = "" if family == "none" else f"font-family:'{family}';"
+print("SHAPES", len(vl.addShapesFromSvg('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="120">'
+      f'<text x="10" y="80" style="{face}font-size:64px;fill:#000">AV To Wa</text></svg>')))
+doc.refreshProjection(); doc.waitForDone()
+for _ in range(20):
+    QApplication.processEvents(); time.sleep(0.05)
+doc.waitForDone()
+os.makedirs(out, exist_ok=True)
+print("PNG", QImage(bytes(doc.pixelData(0, 0, 400, 120)), 400, 120, QImage.Format_ARGB32).copy().save(os.path.join(out, "card.png")))
+doc.setBatchmode(True)
+print("SAVED", doc.saveAs(os.path.join(out, "card.kra")))
+"""
+
+# A reopen as a later pass makes one: open the card's .kra and take its pixels again. With `swallow`, the script
+# catches whatever the open raises and carries on, as a careless script might.
+KRITA_CARD_REOPEN = r"""
+import os, sys, time
+from krita import Krita
+from PyQt5.QtGui import QImage
+from PyQt5.QtWidgets import QApplication
+kra, png, swallow = sys.argv[1:4]
+k = Krita.instance()
+try:
+    doc = k.openDocument(kra)
+except Exception as e:
+    print("CAUGHT", e)
+    if swallow != "swallow":
+        raise
+    doc = k.documents()[-1]
+doc.refreshProjection(); doc.waitForDone()
+for _ in range(20):
+    QApplication.processEvents(); time.sleep(0.05)
+doc.waitForDone()
+print("PNG", QImage(bytes(doc.pixelData(0, 0, 400, 120)), 400, 120, QImage.Format_ARGB32).copy().save(png))
+"""
+
+STIX = Path("/System/Library/Fonts/Supplemental/STIXTwoText.ttf")  # open licence; Krita's own Fontconfig never sees it
+
+
+@pytest.mark.skipif(not (HAVE_KRITA and STIX.is_file()), reason="needs Krita and STIX Two Text")
+def test_krita_registers_the_versions_fonts_and_an_unregistered_reopen_fails_loudly(env_of):
+    stage = env_of["project"] / "appearance"
+    fonts = stage / "appearance-v01-2026-10-20" / "assets" / "fonts"
+    fonts.mkdir(parents=True, exist_ok=True)
+    (fonts / STIX.name).write_bytes(STIX.read_bytes())
+    srv, c = server(env_of, "art-pose-designer", "f3")
+    scratch, out = Path(c["scratch"]), stage / "appearance-v07-2026-10-22"  # a version no other test makes
+    (scratch / "card.py").write_text(KRITA_CARD)
+    (scratch / "reopen.py").write_text(KRITA_CARD_REOPEN)
+    kra = out / "card.kra"
+    try:
+        res, entry = ask(srv, "krita", scratch / "card.py", str(out), "STIX Two Text", fonts=fonts)
+        log = Path(res["log"]).read_text()
+        assert res["ok"], log[-3000:]
+        assert "SHAPES 1" in log and "PNG True" in log and "SAVED True" in log
+        assert res["fonts"]["families"] == ["STIX Two Text"]
+        assert entry["fonts"]["from"] == os.path.realpath(fonts)
+        assert entry["fonts"]["files"] == [{"path": os.path.realpath(fonts / STIX.name),
+                                            "sha256": apps._seat().sha256(fonts / STIX.name)}], "the record names each font"
+        # a reopen with no fonts registered: Krita would set the text in a substitute, so the call fails, naming it
+        res2, _ = ask(srv, "krita", scratch / "reopen.py", str(kra), str(scratch / "bare.png"), "raise")
+        assert res2["ok"] is False and res2["exit_code"] != 0
+        assert "STIX Two Text" in res2["error"] and "--fonts" in res2["error"], res2["error"]
+        assert not (scratch / "bare.png").exists(), "the open itself refuses, before any pixel is taken"
+        # a script that catches the refusal and carries on still fails the call
+        res3, _ = ask(srv, "krita", scratch / "reopen.py", str(kra), str(scratch / "swallowed.png"), "swallow")
+        log3 = Path(res3["log"]).read_text()
+        assert "CAUGHT" in log3 and res3["ok"] is False and "STIX Two Text" in res3["error"], log3[-2000:]
+        # with the version's fonts registered, the reopen sets the same text: the same decoded pixels
+        res4, _ = ask(srv, "krita", scratch / "reopen.py", str(kra), str(scratch / "reopen.png"), "raise", fonts=fonts)
+        assert res4["ok"], Path(res4["log"]).read_text()[-3000:]
+        assert decoded(out / "card.png") == decoded(scratch / "reopen.png")
+        assert decoded(scratch / "swallowed.png") != decoded(out / "card.png"), "unregistered, Krita substituted"
+        # new text in a family the call did not register, and text that names none, are refused too
+        for family, said in (("Helvetica", "Helvetica"), ("none", "names no font")):
+            res5, _ = ask(srv, "krita", scratch / "card.py", str(scratch / family), family, fonts=fonts)
+            assert res5["ok"] is False and said in res5["error"], (family, res5["error"])
     finally:
         os.close(srv.fd)
 

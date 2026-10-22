@@ -1013,7 +1013,8 @@ def apps_note(ctx: Dict) -> str:
                      "runs your script with `DaVinciResolveScript` importable, connected to the Resolve already open on "
                      "this machine; render and export only into a version folder in your stage")
     if "krita" in apps:
-        usage.append(f"`python3 -B {APPS_DOOR} ask krita --script <a .py you wrote> [-- <the script's arguments>]` "
+        usage.append(f"`python3 -B {APPS_DOOR} ask krita --script <a .py you wrote> [--fonts <the version's assets/fonts "
+                     "folder>] [-- <the script's arguments>]` "
                      "runs your script inside Krita with no screen (`from krita import Krita, InfoObject`; your arguments "
                      "are `sys.argv[1:]`). Krita's brush engine is not available: `Node.paintLine`, the other `paint...` "
                      "calls and `paintAbility`, and anything that opens a window or view (`openWindow`, `addView`, "
@@ -1025,8 +1026,12 @@ def apps_note(ctx: Dict) -> str:
                      "into the PNG's alpha: export at opacity 255 and restore it, so the stated opacity is applied once "
                      "downstream); `Document.exportImage` stalls with no screen, so a flattened image is "
                      "`Document.pixelData` read into a `QImage` (`Format_ARGB32`, then `.copy()`) and saved with "
-                     "`QImage.save`; save only into a new version folder in your stage. A call succeeds only "
-                     "if your script runs to its end; exit non-zero (`sys.exit(1)`) when it fails")
+                     "`QImage.save`; save only into a new version folder in your stage. Text is Krita's own SVG text "
+                     "on a vector layer (`addShapesFromSvg`), in the version's own fonts only: give `--fonts` on every "
+                     "call that sets or reopens text, and the launcher registers those files with Krita before your "
+                     "script runs (Krita reads its font folders only at start-up, so copying a font in does nothing). "
+                     "Text that names a family the call did not register, or names none, fails the call. A call "
+                     "succeeds only if your script runs to its end; exit non-zero (`sys.exit(1)`) when it fails")
     names = " and ".join(", ".join(n.capitalize() for n in apps).rsplit(", ", 1))
     return (f"{names}: none runs inside this pass's sandbox, so never run one yourself. "
             "Ask the launcher, from your shell: " + "; ".join(usage) + ". Write the script in your scratch "

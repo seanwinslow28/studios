@@ -4,7 +4,7 @@
     apps.py ask blender --script F [--blend B] [--timeout S] [--wait S] [-- ARG...]    (from inside a pass)
     apps.py ask blender --render --blend B --out D [--frames S-E] [--engine E] [--timeout S] [--wait S]
     apps.py ask resolve --script F [--timeout S] [--wait S] [-- ARG...]
-    apps.py ask krita --script F [--timeout S] [--wait S] [-- ARG...]
+    apps.py ask krita --script F [--fonts D] [--timeout S] [--wait S] [-- ARG...]
     apps.py wait <id> [--wait S]
     apps.py lock <context> blender|resolve|krita                                      (the coordinator: print a lock)
 
@@ -65,6 +65,13 @@ its own (`CFFIXED_USER_HOME`): a fresh clone of a template the launcher built on
 no code of a seat's, deleted after the call, so no pass leaves anything for a later one
 and Sean's own Krita is never read or written. kritarunner exits 0 when a script fails
 to load, so a call succeeds only when the wrapper's closing line says the script ended.
+Krita reads its font folders only at start-up and sets text in a substitute, with no
+error, when the font it names is missing. So the launcher registers the version's fonts
+(`--fonts`, a folder in the media project) with Krita's own Fontconfig before the
+seat's script runs, and the record names each file by checksum. In every call, text
+added, a document opened, or a document still open at the end that names a family no
+`--fonts` registered, or names none, fails the call, even if the script catches the
+refusal (Sean's call on SWCB #263, 2026-10-22).
 
 Every call is logged to `trace/logs/pass-NN.apps.jsonl`, and its result, log, lock
 and script copy go to `trace/logs/pass-NN.apps/`, which the pass reads but cannot
@@ -124,8 +131,140 @@ print("MOTIONCRAFT_RENDER done", engine, start, end)
 # prints how it ended and exits with that code; a call with no script (the template build) starts Krita and stops.
 KRITA_MODULE = "motioncraft_krita"
 KRITA_DONE = "MOTIONCRAFT_KRITA done"
+KRITA_FONTS = "MOTIONCRAFT_KRITA fonts"
+KRITA_FONT_FAULT = "MOTIONCRAFT_KRITA font-fault"
+# The version's fonts (`--fonts`): font files only, a licence beside them left alone.
+FONT_SUFFIXES = (".otf", ".ttf", ".otc", ".ttc")
+MAX_FONTS, MAX_FONT_BYTES = 64, 64_000_000
+# Before the script, the wrapper hands each of the call's font files to the Fontconfig configuration Krita's text
+# library made and set current (`FcConfigAppFontAddFile`, the call that library makes itself; E8, SWCB #256), and
+# reads back the families they hold. Then it watches every way text reaches a document: `addShapesFromSvg` refuses
+# text naming a family not registered, `openDocument` refuses a document holding such text (a .kra stores the
+# family's name, not the font), and at the end every document still open is read once more. A refusal is printed
+# as a font-fault line and fails the call, so a script that catches it still fails.
 KRITA_WRAPPER = r'''"""Motioncraft's wrapper: runs one seat script inside Krita (motioncraft/launcher/apps.py)."""
 import json, os, runpy, sys, traceback
+
+TEXT_TAGS = ("text", "tspan", "textPath")
+faults = []
+
+
+def families(svg):
+    """The font families each text, tspan and textPath element in an SVG names, inherited from its parents as SVG
+    does; None for one that names none, which Krita sets in its default font. A ValueError if the SVG is unreadable."""
+    import xml.etree.ElementTree as ET
+    try:
+        root = ET.fromstring(svg.encode("utf-8") if isinstance(svg, str) else svg)
+    except ET.ParseError as e:
+        raise ValueError(f"the SVG could not be read: {e}")
+    out = []
+
+    def own(el):
+        named = el.get("font-family")
+        for part in (el.get("style") or "").split(";"):
+            key, _, value = part.partition(":")
+            if key.strip() == "font-family":
+                named = value
+        if named is None:
+            return None
+        return [f.strip().strip("'\"").strip() for f in named.split(",") if f.strip().strip("'\"").strip()]
+
+    def walk(el, inherited):
+        named = own(el)
+        named = inherited if named is None else named
+        if el.tag.rsplit("}", 1)[-1] in TEXT_TAGS:
+            out.append(named)
+        for child in el:
+            walk(child, named)
+
+    walk(root, None)
+    return out
+
+
+def unregistered(svg, registered):
+    """What in this SVG's text Krita would set in a font this call did not register."""
+    try:
+        found = families(svg)
+    except ValueError as e:
+        return [str(e)]
+    said = []
+    for named in found:
+        if not named:
+            said.append("a text names no font, so Krita would set it in its default font")
+        for f in named or []:
+            if f.casefold() not in registered:
+                said.append(f"a text names the font {f!r}, which this call did not register")
+    return sorted(set(said))
+
+
+def register(files, lib):
+    """Hand each font file to Krita's current Fontconfig configuration; the families now registered, folded."""
+    import ctypes
+
+    class FontSet(ctypes.Structure):
+        _fields_ = [("nfont", ctypes.c_int), ("sfont", ctypes.c_int), ("fonts", ctypes.POINTER(ctypes.c_void_p))]
+    fc = ctypes.CDLL(lib)
+    fc.FcConfigGetCurrent.restype = ctypes.c_void_p
+    fc.FcConfigAppFontAddFile.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+    fc.FcConfigGetFonts.restype = ctypes.POINTER(FontSet)
+    fc.FcConfigGetFonts.argtypes = [ctypes.c_void_p, ctypes.c_int]
+    fc.FcPatternGetString.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.POINTER(ctypes.c_char_p)]
+    cfg = fc.FcConfigGetCurrent()
+    for f in files:
+        if not fc.FcConfigAppFontAddFile(cfg, f.encode()):
+            raise RuntimeError(f"Krita's Fontconfig would not read the font {f}")
+    names = set()
+    fs = fc.FcConfigGetFonts(cfg, 1)  # FcSetApplication: the fonts added for this process alone
+    for i in range(fs.contents.nfont if fs else 0):
+        j, s = 0, ctypes.c_char_p()
+        while fc.FcPatternGetString(fs.contents.fonts[i], b"family", j, ctypes.byref(s)) == 0:
+            names.add(s.value.decode("utf-8", "replace"))
+            j += 1
+    return names
+
+
+def watch(registered):
+    """Refuse text, new or reopened, that names a family not registered; record each refusal as a fault."""
+    from krita import Krita, VectorLayer
+
+    def refuse(where, said):
+        msg = f"{where}: " + "; ".join(said) + " (register the version's fonts with --fonts)"
+        if msg not in faults:
+            faults.append(msg)
+        return RuntimeError(msg)
+
+    def check_doc(doc):
+        said, stack = [], [doc.rootNode()]
+        while stack:
+            n = stack.pop()
+            if hasattr(n, "toSvg"):
+                said += unregistered(n.toSvg(), registered)
+            stack += list(n.childNodes())
+        return sorted(set(said))
+
+    add, opened = VectorLayer.addShapesFromSvg, Krita.openDocument
+
+    def addShapesFromSvg(self, svg):
+        said = unregistered(svg, registered)
+        if said:
+            raise refuse("addShapesFromSvg", said)
+        return add(self, svg)
+
+    def openDocument(self, path):
+        doc = opened(self, path)
+        said = check_doc(doc) if doc is not None else []
+        if said:
+            raise refuse(f"openDocument {path}", said)
+        return doc
+
+    def sweep():
+        for doc in Krita.instance().documents():
+            said = check_doc(doc)
+            if said:
+                refuse(f"the open document {doc.fileName() or doc.name()}", said)
+
+    VectorLayer.addShapesFromSvg, Krita.openDocument = addShapesFromSvg, openDocument
+    return sweep
 
 
 def main(_args):
@@ -134,6 +273,14 @@ def main(_args):
     script = os.environ.get("MOTIONCRAFT_KRITA_SCRIPT", "")
     sys.argv = [script] + json.loads(os.environ.get("MOTIONCRAFT_KRITA_ARGS", "[]"))
     code = 0
+    try:
+        fonts = json.loads(os.environ.get("MOTIONCRAFT_KRITA_FONTS", "[]"))
+        registered = register(fonts, os.environ["MOTIONCRAFT_KRITA_FONTCONFIG"]) if fonts else set()
+        print("MOTIONCRAFT_KRITA fonts", json.dumps(sorted(registered)), flush=True)
+        sweep = watch({f.casefold() for f in registered})
+    except BaseException:
+        traceback.print_exc()
+        script, code, sweep = "", 1, (lambda: None)
     if script:
         try:
             runpy.run_path(script, run_name="__main__")
@@ -142,6 +289,14 @@ def main(_args):
         except BaseException:
             traceback.print_exc()
             code = 1
+    try:
+        sweep()
+    except BaseException:
+        traceback.print_exc()
+        code = code or 1
+    for f in faults:
+        print("MOTIONCRAFT_KRITA font-fault", f, flush=True)
+    code = code or (1 if faults else 0)
     print("MOTIONCRAFT_KRITA done", code, flush=True)
     sys.stderr.flush()
     os._exit(code)  # kritarunner itself exits 0 whatever happened
@@ -193,8 +348,11 @@ def cmd_ask(a) -> None:
     else:
         if not a.script:
             sys.exit("apps.py: ask needs --script, or --render for a render")
+        if a.fonts and a.app != "krita":
+            sys.exit("apps.py: --fonts is Krita's: the version's font folder, registered before the script runs")
         req = {"id": rid, "app": a.app, "script": os.path.abspath(a.script), "args": a.args or [],
-               "timeout": a.timeout, "blend": os.path.abspath(a.blend) if a.blend else ""}
+               "timeout": a.timeout, "blend": os.path.abspath(a.blend) if a.blend else "",
+               **({"fonts": os.path.abspath(a.fonts)} if a.fonts else {})}
     part = d / f".{rid}.part"
     part.write_text(json.dumps(req) + "\n", encoding="utf-8")
     os.rename(part, d / f"{rid}.json")  # whole, or not there: the launcher reads only finished requests
@@ -841,6 +999,25 @@ def krita_finished(log: Path) -> bool:
         return False
 
 
+def krita_font_lines(log: Path):
+    """The families the wrapper registered, and each refusal of text in a font it did not, from a Krita call's log."""
+    registered: Optional[List[str]] = None
+    faults: List[str] = []
+    try:
+        lines = Path(log).read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return [], faults
+    for l in lines:
+        if l.startswith(KRITA_FONT_FAULT + " "):
+            faults.append(l[len(KRITA_FONT_FAULT) + 1:])
+        elif l.startswith(KRITA_FONTS + " ") and registered is None:  # the wrapper's, printed before the script ran
+            try:
+                registered = json.loads(l[len(KRITA_FONTS) + 1:])
+            except ValueError:
+                registered = []
+    return registered or [], faults
+
+
 def tree(roots: List[str]) -> Dict[str, tuple]:
     """Every file under the fence's folders, by size and change time."""
     seen: Dict[str, tuple] = {}
@@ -951,10 +1128,40 @@ class AppServer:
             if app != "blender" or not blend.endswith(".blend") or not os.path.isfile(blend) \
                     or not seat.under(blend, ctx["media_project"]):
                 raise ValueError("--blend is a .blend file in the media project, for blender")
+        fonts: List[str] = []
+        if req.get("fonts"):
+            if app != "krita":
+                raise ValueError("--fonts is Krita's: the version's font folder, registered before the script runs")
+            fonts = self.check_fonts(str(req["fonts"]))
         timeout = req.get("timeout") or DEFAULT_TIMEOUT_S
         if not isinstance(timeout, int) or not 1 <= timeout <= MAX_TIMEOUT_S:
             raise ValueError(f"--timeout is whole seconds, 1 to {MAX_TIMEOUT_S}")
-        return {"app": app, "script": script, "body": body, "args": args, "blend": blend, "timeout": timeout}
+        return {"app": app, "script": script, "body": body, "args": args, "blend": blend, "timeout": timeout,
+                "fonts": fonts, "fonts_from": seat.real(str(req["fonts"])) if fonts else ""}
+
+    def check_fonts(self, folder: str) -> List[str]:
+        """`--fonts` held to the media project: the font files in that folder and below, each a plain file there."""
+        seat, project = self.seat, self.ctx["media_project"]
+        d = seat.real(folder)
+        if not os.path.isdir(d) or not seat.under(d, project):
+            raise ValueError("--fonts is a folder in the media project: the version's assets/fonts/")
+        found = []
+        for top, dirs, files in os.walk(d):
+            dirs.sort()
+            for f in sorted(files):
+                if not f.lower().endswith(FONT_SUFFIXES):
+                    continue
+                p = os.path.join(top, f)
+                if os.path.islink(p) or not seat.under(seat.real(p), project) or not os.path.isfile(p):
+                    raise ValueError(f"--fonts: {p} is a link or reaches outside the media project; copy the file in")
+                if os.path.getsize(p) > MAX_FONT_BYTES:
+                    raise ValueError(f"--fonts: {p} is over {MAX_FONT_BYTES} bytes")
+                found.append(seat.real(p))
+        if not found:
+            raise ValueError(f"--fonts names no font files ({', '.join(FONT_SUFFIXES)})")
+        if len(found) > MAX_FONTS:
+            raise ValueError(f"--fonts names over {MAX_FONTS} font files")
+        return found
 
     def check_render(self, req: Dict) -> Dict:
         """A render request held to the pass's fence: a scene, a folder, frames and an engine, and no code of the seat's."""
@@ -998,7 +1205,8 @@ class AppServer:
                        "asked": self.seat.now()}
         try:
             req = self.read_request(name)
-            entry["request"] = {k: req.get(k) for k in ("app", "script", "args", "blend", "render", "timeout") if k in req}
+            entry["request"] = {k: req.get(k) for k in ("app", "script", "args", "blend", "render", "fonts", "timeout")
+                                if k in req}
             c = self.check(req)
         except (ValueError, OSError) as e:
             entry["refused"] = str(e)
@@ -1017,6 +1225,8 @@ class AppServer:
                "also_written": {k: len(written.get(k, [])) for k in ("resolve_own", "other_programs", "launcher")}}
         if c["app"] == "resolve":
             res["resolve"] = entry.get("resolve")
+        if c["app"] == "krita":
+            res["fonts"] = entry.get("fonts")
         self.finish(entry, res)
 
     def run(self, rid: str, c: Dict, entry: Dict) -> None:
@@ -1034,8 +1244,10 @@ class AppServer:
                     *([c["blend"]] if c["blend"] else []), "--python-exit-code", "1", "--python", str(copy), "--", *c["args"]]
         elif c["app"] == "krita":
             home = self.krita_home(rid, env, entry)
+            entry["fonts"], fonts = self.krita_fonts(home, c)
             env.update(self.krita_env(rid, home, env), MOTIONCRAFT_KRITA_SCRIPT=str(copy),
-                       MOTIONCRAFT_KRITA_ARGS=json.dumps(c["args"]))
+                       MOTIONCRAFT_KRITA_ARGS=json.dumps(c["args"]), MOTIONCRAFT_KRITA_FONTS=json.dumps(fonts),
+                       MOTIONCRAFT_KRITA_FONTCONFIG=str(Path(paths["krita"]).parents[1] / "Frameworks" / "libfontconfig.1.dylib"))
             argv = [paths["krita"], "-s", KRITA_MODULE, "-f", "main"]
         else:
             broker, sock = self.start_broker(rid, env, timeout)
@@ -1075,6 +1287,11 @@ class AppServer:
         if c["app"] == "krita" and code == 0 and not krita_finished(log):
             entry["error"] = ("Krita ended without the script finishing (kritarunner exits 0 when a script fails to "
                               "load); see the log")
+        if c["app"] == "krita":
+            registered, faults = krita_font_lines(log)
+            entry["fonts"]["families"] = registered
+            if faults:
+                entry["error"] = "Krita would set text in a font this call did not register: " + " | ".join(faults)
         after = tree(ctx["fence"]["write"])
         changed = sorted(p for p, v in after.items() if before.get(p) != v and not seat.under(p, str(self.requests)))
         if writes is not None:
@@ -1101,6 +1318,18 @@ class AppServer:
         # HOME for Qt and fontconfig, CFFIXED_USER_HOME for macOS's own folder lookups (Library/...), which ignore HOME
         return {"HOME": home, "CFFIXED_USER_HOME": home, "PYTHONUSERBASE": str(base), "QT_QPA_PLATFORM": "offscreen",
                 "LANG": "en_US.UTF-8", "LC_ALL": "en_US.UTF-8"}
+
+    def krita_fonts(self, home: str, c: Dict):
+        """Copy the call's fonts into its own home, so what Krita registers is what the record names by checksum."""
+        own = Path(home) / "motioncraft-fonts"
+        own.mkdir()
+        files, copies = [], []
+        for i, f in enumerate(c.get("fonts") or []):
+            p = own / f"{i:02d}-{os.path.basename(f)}"
+            shutil.copyfile(f, p)
+            files.append({"path": f, "sha256": self.seat.sha256(p)})
+            copies.append(str(p))
+        return {"from": c.get("fonts_from", ""), "files": files}, copies
 
     def krita_home(self, rid: str, env: Dict[str, str], entry: Dict) -> str:
         """A fresh clone of this Krita version's template home, built first if this machine has none."""
@@ -1205,6 +1434,8 @@ def main() -> None:
     k.add_argument("app", choices=APPS)
     k.add_argument("--script", default="", help="a .py the pass wrote, in its scratch folder or a new version folder")
     k.add_argument("--blend", default="", help="blender: a .blend in the media project to open first")
+    k.add_argument("--fonts", default="",
+                   help="krita: the version's font folder in the media project, registered before the script runs")
     k.add_argument("--render", action="store_true",
                    help="blender: render --blend with the launcher's own script (Grease Pencil, Eevee, Workbench render only so)")
     k.add_argument("--out", default="", help="--render: the folder the frames go to")
