@@ -8,6 +8,7 @@ against one fake `claude` and `codex` put first on PATH.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
@@ -99,6 +100,11 @@ names = ["higgsfield", "adobe"]
     w = {"root": root, "eng": eng, "project": project, "emp": emp, "home": root / "home", "env": env}
     seat(w, "toolbelt")
     yield w
+    for here, dirs, files in os.walk(root):  # the launcher froze the versions the passes made: unlock before removing
+        for n in dirs + files:
+            p = Path(here) / n
+            if not p.is_symlink():
+                p.chmod(p.stat().st_mode | 0o700)
     shutil.rmtree(root)
 
 
@@ -657,19 +663,35 @@ def test_a_claude_dir_left_in_a_version_folder_the_pass_made_is_swept(world, fak
         (older.parent / f).write_text(f)
     made, kept = stage / "takes-v01" / ".claude", stage / "takes-v02" / ".claude"
     behave(fake, calls=1, make_dirs=[str(made / ".cc-writes")],
-           make_files={str(stage / "takes-v01" / "fx1-take1.mp3"): "take", str(kept / "notes.md"): "a seat's file",
-                       **whole(stage / "takes-v01"), **whole(stage / "takes-v02")})
+           make_files={str(kept / "notes.md"): "a seat's file",
+                       **whole(stage / "takes-v01", **{"fx1-take1.mp3": "take"}), **whole(stage / "takes-v02")})
     r = launch(world, ctx, "--run")
     rec = record(world, "sw1")
-    assert r.returncode == 0, r.stderr
     assert rec["claude_dirs"] == {"removed": [str(made)], "left": [str(kept)]}
     assert not made.exists() and (stage / "takes-v01" / "fx1-take1.mp3").exists()
     assert (kept / "notes.md").exists() and older.is_dir()
+    # takes-v01 is whole once its leftovers are gone, so it is locked; the seat's file left in takes-v02 is in no
+    # checksum list, so that version is refused and left as it is (SWCB #258)
+    assert r.returncode == 5, r.stdout + r.stderr
+    assert locked(stage / "takes-v01") and not locked(stage / "takes-v02")
+    by = {v["version"].rsplit("/", 1)[1]: v for v in rec["versions"]}
+    assert by["takes-v01"]["locked"] is True
+    assert by["takes-v02"]["refused"] == "holds files not in checksums.sha256 (.claude/notes.md)"
 
 
-def whole(version: Path) -> dict:
-    """The three files every version folder holds (source contract § 2), as the fake's make_files."""
-    return {str(version / f): f for f in seatmod.VERSION_FILES}
+def whole(version: Path, **more: str) -> dict:
+    """The three files every version folder holds (source contract § 2), and `more` (relative path -> text),
+    as the fake's make_files, with `checksums.sha256` really covering every other file."""
+    files = {"pointer.txt": "mc-eng-900", "manifest.md": "---\nversion: x\n---\n", **more}
+    if "POINTER.txt" in more:  # the October spelling; one file on a case-insensitive disk
+        del files["pointer.txt"]
+    sums = "".join(f"{hashlib.sha256(t.encode()).hexdigest()}  {rel}\n" for rel, t in sorted(files.items()))
+    return {**{str(version / rel): t for rel, t in files.items()}, str(version / "checksums.sha256"): sums}
+
+
+def locked(version: Path) -> bool:
+    """No write bit on the folder or anything in it, read from the mode bits."""
+    return all(not (os.lstat(p).st_mode & 0o222) for p in [version, *version.rglob("*")])
 
 
 def test_a_version_without_its_manifest_is_refused(world, fake):
@@ -678,27 +700,64 @@ def test_a_version_without_its_manifest_is_refused(world, fake):
     seat(world, "claude-settings", ctx)
     stage = world["project"] / "story"  # animatic-v01 is there before the context, without the three: not this pass's
     good, short = stage / "animatic-v02-2026-10-21", stage / "animatic-v03-2026-10-21"
-    files = {**whole(good), **whole(short), str(good / "renders" / "a.mp4"): "film"}
+    files = {**whole(good, **{"renders/a.mp4": "film"}), **whole(short)}
     del files[str(short / "manifest.md")]
     behave(fake, calls=1, make_files=files)
     r = launch(world, ctx, "--run")
     rec = record(world, "vm1")
     assert r.returncode == 5, r.stdout + r.stderr
     media = f"media:{PROJECT}/story"
-    assert rec["versions"] == [{"version": f"{media}/animatic-v02-2026-10-21", "missing": []},
-                               {"version": f"{media}/animatic-v03-2026-10-21", "missing": ["manifest.md"]}]
+    assert rec["versions"] == [
+        {"version": f"{media}/animatic-v02-2026-10-21", "missing": [],
+         "checksums": {"listed": 3, "failed": [], "missing": [], "unlisted": []}, "locked": True},
+        {"version": f"{media}/animatic-v03-2026-10-21", "missing": ["manifest.md"], "locked": False,
+         "refused": "lacks manifest.md"}]
     assert rec["outcome"] == f"version refused: {media}/animatic-v03-2026-10-21 lacks manifest.md"
+    assert locked(good) and not locked(short), "the whole version is frozen; the refused one is left to its seat"
 
 
-def test_a_pass_whose_versions_are_whole_is_filed(world, fake):
+def test_a_pass_whose_versions_are_whole_is_filed_and_frozen(world, fake):
+    """The source contract's § 4, done by the launcher: checksums last, then every file and folder read-only (SWCB #258)."""
     ctx = context(world, "visual-story-director", "vm2")
     seat(world, "claude-settings", ctx)
-    v = world["project"] / "story" / "animatic-v04-2026-10-21"
-    behave(fake, calls=1, make_files={**whole(v), str(v / "POINTER.txt"): "mc-eng-900"})
+    stage = world["project"] / "story"
+    v = stage / "animatic-v04-2026-10-21"
+    older = stage / "animatic-v01-2026-10-19"  # there before the context: frozen by the fence, never touched here
+    behave(fake, calls=1, make_files=whole(v, **{"POINTER.txt": "mc-eng-900", "renders/a.mp4": "film"}))
     r = launch(world, ctx, "--run")
     rec = record(world, "vm2")
     assert r.returncode == 0 and "outcome" not in rec, r.stdout
-    assert rec["versions"] == [{"version": f"media:{PROJECT}/story/animatic-v04-2026-10-21", "missing": []}]
+    assert rec["versions"] == [{"version": f"media:{PROJECT}/story/animatic-v04-2026-10-21", "missing": [],
+                                "checksums": {"listed": 3, "failed": [], "missing": [], "unlisted": []}, "locked": True}]
+    assert locked(v) and os.lstat(older).st_mode & 0o222
+
+
+def test_a_version_whose_checksums_do_not_verify_is_refused_and_left_writable(world, fake):
+    ctx = context(world, "visual-story-director", "vm4")
+    seat(world, "claude-settings", ctx)
+    v = world["project"] / "story" / "animatic-v05-2026-10-21"
+    files = whole(v, **{"renders/a.mp4": "film"})
+    files[str(v / "renders" / "a.mp4")] = "re-rendered after the checksums"
+    behave(fake, calls=1, make_files=files)
+    r = launch(world, ctx, "--run")
+    rec = record(world, "vm4")
+    assert r.returncode == 5, r.stdout + r.stderr
+    assert rec["outcome"] == (f"version refused: media:{PROJECT}/story/animatic-v05-2026-10-21 checksums.sha256 "
+                              "does not verify (renders/a.mp4 differs)")
+    assert rec["versions"][0]["checksums"]["failed"] == ["renders/a.mp4"] and rec["versions"][0]["locked"] is False
+    assert not locked(v)
+
+
+def test_a_version_holding_a_file_its_checksums_do_not_list_is_refused(world, fake):
+    ctx = context(world, "visual-story-director", "vm5")
+    seat(world, "claude-settings", ctx)
+    v = world["project"] / "story" / "animatic-v06-2026-10-21"
+    behave(fake, calls=1, make_files={**whole(v), str(v / "renders" / "stray.png"): "px"})
+    r = launch(world, ctx, "--run")
+    rec = record(world, "vm5")
+    assert r.returncode == 5, r.stdout + r.stderr
+    assert rec["versions"][0]["refused"] == "holds files not in checksums.sha256 (renders/stray.png)"
+    assert not locked(v)
 
 
 def test_a_read_only_pass_is_not_checked_for_versions(world, fake):
@@ -916,7 +975,8 @@ def test_every_drafting_task_names_the_three_files_a_version_holds(world, codex_
     """The task form asks for the manifest beside the pointer and the checksums (SWCB #249)."""
     for s, n in (("visual-story-director", "vn1"), ("art-pose-designer", "vn2"), ("finishing-sound-designer", "vn3")):
         prompt = seatmod.launch_argv(seatmod.load(context(world, s, n)), "do the work")[-1]
-        assert prompt.startswith("do the work") and "refuses to file one that lacks any of the three" in prompt
+        assert prompt.startswith("do the work") and "one that lacks any of the three" in prompt
+        assert "one that is whole is frozen read-only" in prompt  # SWCB #258: the seat is told its version will be locked
         assert all(f"`{f}`" in prompt for f in seatmod.VERSION_FILES) and str(seatmod.SOURCE_CONTRACT) in prompt
     animator = seatmod.load(codex_pass(world, codex_home, "vn4"))
     prompt = seatmod.launch_argv(animator, "do the work", "p", "o")[-1]

@@ -44,7 +44,10 @@ refused, exit 5 (SWCB #249). Every pass's prompt names the private library by it
 full path, and seat-probe opens one of its files by a lane's pointer (SWCB #250).
 A drafting pass's prompt names the pipeline tools its allowlist line lists
 (`tools`, Devcraft's modules in motioncraft/tools/), each fixed in the context by
-hash; a tool changed since stops the launch (SWCB #255).
+hash; a tool changed since stops the launch (SWCB #255). When a pass ends, every
+whole version it made (its checksums re-taken and covering every file) is frozen
+read-only, files and folders, through launcher/freeze.py; one that is not whole is
+refused and left to its seat (SWCB #258).
 """
 from __future__ import annotations
 
@@ -891,8 +894,10 @@ def versions_note(ctx: Dict) -> str:
     return (f"Every version you save is a new folder in your stage, `{STAGE_DIRS[ctx['seat']]}/<artifact>-vNN-<YYYY-MM-DD>`, "
             f"and holds three files by these names (the source contract, {SOURCE_CONTRACT}, § 2): `{pointer}`, one line "
             f"written at creation; `{manifest}`, the version's parts list in the shape of the contract's § 3, which you "
-            f"write in this pass, before freezing; and `{checksums}`, written last, covering every other file. The "
-            f"launcher checks every version folder this pass made and refuses to file one that lacks any of the three.")
+            f"write in this pass, before freezing; and `{checksums}`, written last, covering every other file. When "
+            f"this pass ends the launcher reads every version folder it made: one that lacks any of the three, whose "
+            f"`{checksums}` does not verify or leaves a file out, or that holds a link, is refused and goes back to "
+            f"you; one that is whole is frozen read-only, every file and folder, so finish each version before you stop.")
 
 
 def version_gaps(ctx: Dict) -> List[Dict]:
@@ -909,6 +914,35 @@ def version_gaps(ctx: Dict) -> List[Dict]:
         found.append({"version": f"{ctx['media']}/{stage.name}/{d.name}",
                       "missing": [f for f in VERSION_FILES if f not in have]})
     return found
+
+
+def freeze_versions(ctx: Dict, versions: List[Dict]) -> None:
+    """The source contract's § 4, done by the launcher (SWCB #258): each whole version the pass made, its checksums
+    re-taken and covering every other file, is made read-only, files and folders; one that is not whole is refused
+    (`refused` says why) and left as it is, to its seat. Each entry gets `checksums` and `locked`."""
+    if not versions:  # a gate, an audit and a verification pass save none
+        return
+    import freeze  # noqa: E402  launcher/freeze.py, beside this file
+    stage = Path(ctx["media_project"]) / STAGE_DIRS[ctx["seat"]]
+    for v in versions:
+        if v["missing"]:
+            v.update(locked=False, refused=f"lacks {', '.join(v['missing'])}")
+            continue
+        folder = stage / v["version"].rsplit("/", 1)[1]
+        st = freeze.state(folder)
+        v["checksums"] = st["checksums"]
+        if st["links"]:
+            v["links"] = st["links"]
+        why = freeze.gaps(st)
+        if why:
+            v.update(locked=False, refused="; ".join(why))
+            continue
+        res = freeze.lock(folder)
+        if res["errors"] or res["writable_dirs"] or res["writable_files"]:
+            left = f"{res['writable_dirs']} dirs, {res['writable_files']} files still writable"
+            v.update(locked=False, refused="could not lock (" + "; ".join([left] + res["errors"]) + ")")
+        else:
+            v["locked"] = True
 
 
 def apps_note(ctx: Dict) -> str:
@@ -1309,13 +1343,15 @@ def cmd_launch(a) -> None:
     elif run["exit_code"] != 0 and not code:
         record["outcome"] = f"the vendor exited {run['exit_code']}; see {rel(err)}"
         code = 1
-    # The source contract's § 2, checked here rather than at TC5: a version without its manifest is not filed (SWCB #249).
+    # The source contract's § 2 and § 4, checked here rather than at TC5: a version without its manifest is not filed
+    # (SWCB #249), and a whole version is frozen read-only now, not only once approved (SWCB #258).
     versions = version_gaps(ctx)
+    freeze_versions(ctx, versions)
     if versions:
         record["versions"] = versions
-    short = [v for v in versions if v["missing"]]
+    short = [v for v in versions if v.get("refused")]
     if short:
-        refused = "version refused: " + "; ".join(f"{v['version']} lacks {', '.join(v['missing'])}" for v in short)
+        refused = "version refused: " + "; ".join(f"{v['version']} {v['refused']}" for v in short)
         record["outcome"] = f"{record['outcome']}; {refused}" if record.get("outcome") else refused
         code = code or 5
     if filed["survivors"] or filed["not_read"]:
