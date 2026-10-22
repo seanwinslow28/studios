@@ -775,7 +775,8 @@ print("SAVED", [x.name for x in se.strips])
 def stream_md5(movie: Path, stream: str) -> list:
     """Decoded frames of one stream, `v` as RGB pixels or `a` as samples: TC5 compares these, never file checksums."""
     r = subprocess.run(["ffmpeg", "-v", "error", "-i", str(movie), "-map", f"0:{stream}",
-                        *(["-pix_fmt", "rgb24"] if stream == "v" else []), "-f", "framemd5", "-"],
+                        *(["-sws_flags", "full_chroma_int+accurate_rnd", "-pix_fmt", "rgb24"] if stream == "v" else []),
+                        "-f", "framemd5", "-"],
                        capture_output=True, text=True, check=True)
     return [l.split(",")[-1].strip() for l in r.stdout.splitlines() if not l.startswith("#")]
 

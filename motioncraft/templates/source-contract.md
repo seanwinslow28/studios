@@ -134,8 +134,8 @@ October's record is mixed, which is why the rule is strict: a clean one-sample p
 Count of differing frames, from decoded RGB (each render's per-frame checksums, compared):
 
 ~~~
-ffmpeg -v error -i <render A> -pix_fmt rgb24 -f framemd5 a.md5
-ffmpeg -v error -i <render B> -pix_fmt rgb24 -f framemd5 b.md5
+ffmpeg -v error -i <render A> -sws_flags full_chroma_int+accurate_rnd -pix_fmt rgb24 -f framemd5 a.md5
+ffmpeg -v error -i <render B> -sws_flags full_chroma_int+accurate_rnd -pix_fmt rgb24 -f framemd5 b.md5
 paste -d' ' <(grep -v '^#' a.md5 | awk -F', *' '{print $2, $6}') <(grep -v '^#' b.md5 | awk -F', *' '{print $6}') \
   | awk '$2!=$3{n++; print "differs:", $1} END{print n+0, "frames differ"}'
 ~~~
@@ -149,7 +149,7 @@ ffmpeg -v error -i <render A> -i <render B> -filter_complex \
 grep YMAX diff.txt | cut -d= -f2 | sort -n | tail -1
 ~~~
 
-Both commands were checked on 2026-10-18 against a test clip with three frames changed by exactly 7 levels on one channel: they reported three frames and 7. Two renders with different frame counts are a fail before any comparison. The renders compared are the lossless renders or frame sequences from `renders/`, never the compressed web copy, whose encoder can differ from run to run.
+Both commands were checked on 2026-10-18 against a test clip with three frames changed by exactly 7 levels on one channel: they reported three frames and 7. The checksums decode by § 9's colour read (SWCB #265), checked again with it on 2026-10-22 against a ProRes 422 HQ clip changed the same way: three frames and 7. Two renders with different frame counts are a fail before any comparison. The renders compared are the lossless renders or frame sequences from `renders/`, never the compressed web copy, whose encoder can differ from run to run.
 
 ## 8. Delivery targets
 
@@ -182,6 +182,14 @@ A manifest that is missing, or a file in a version that is not in its `checksums
 **A card's edges** (alpha and halo, under TC2) are judged on a 4:4:4 comparison render (ProRes 4444) from the same timeline, labelled not a delivery, against an `ffmpeg` composite of the same card over the same plate, with tolerances written before measuring. The 4:2:2 master's result is recorded beside it as the format's, never hidden, since 4:2:2 shares colour between neighbouring pixels and fails any tight edge tolerance whatever the compositor does. Sean's ruling on E8 (SWCB #256, 2026-10-21, ledger mc-e8.d02).
 
 **A card's fade** is in the card's own frames, never in the project. Resolve 21.1.1's fader (`SetFades`) is lost on save and reload, so a faded card failed TC5 on every fade frame (mc-e8.d01). Finishing bakes the fade with `ffmpeg` from a filter file saved in the version's `sources/` (SWCB #262). How its frames count is Sean's ruling (2026-10-22, SWCB #262): **a fade of N frames is N frames of partial card**, the fade-in's frame k (k = 1…N) at opacity k/(N+1) and the fade-out its mirror, so a card is fade-in, hold and fade-out frames long and the hold at full is exactly the animatic's. TC3 reads it in the master: the frames that differ from the picture under the card are exactly the card's frames, and the card's opacity, read at a point inside it as `(rendered − under) / (card − under)`, is k/(N+1) on the fade frames and 1 on the hold.
+
+**A colour read from a render** comes out at its source values: Sean's ruling (2026-10-22, SWCB #265). The master keeps them. Under the project's default colour settings (DaVinci YRGB, Rec.709 (Scene) timeline and output) Resolve 21.1.1 wrote a flat sRGB plate and card into the ProRes 422 HQ master at exactly their Rec.709 video-range codes, and Apple's own decoder reads those codes back (ledger mc-setup-021). What read them 2–3 levels low was `ffmpeg`'s default route from the master's 10-bit 4:2:2 to 8-bit RGB. So every check that reads a colour from a render, TC3's card and title colours included, decodes with:
+
+~~~
+ffmpeg -v error -i <render> -sws_flags full_chroma_int+accurate_rnd -pix_fmt rgb24 …
+~~~
+
+Through a ProRes 422 HQ round trip, 8,040 random flat colours read back exact with this decode and up to 4 levels low without it. A flat area of a card or plate that reads other than its source values is a finding. Resolve's colour settings stay at their defaults.
 
 ## 10. The font shelf
 
