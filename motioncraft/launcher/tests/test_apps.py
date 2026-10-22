@@ -232,9 +232,10 @@ def test_fusion_never_reaches_a_timeline_through_the_broker(env_of):
         assert {"InsertTitleIntoTimeline", "SetLUT", "ApplyGradeFromDRX", "SetCDL"} <= real
 
 
-def test_no_transition_reaches_a_timeline_and_a_clip_fades_by_its_fader(env_of):
+def test_no_transition_or_fader_reaches_a_timeline(env_of):
     """AddTransition can name a Fusion or OFX transition, so it is refused whatever its category (SWCB #257);
-    a title card fades by the clip's own fader."""
+    SetFades is refused too, since Resolve loses a clip's fade on save and reload, so a card's fade is baked into
+    its frames by ffmpeg (mc-e8.d01, SWCB #262)."""
     c = ctx_of(env_of, "finishing-sound-designer", "a23")
     prefix = os.path.basename(c["media_project"])
     root, state = fake_resolve(prefix)
@@ -257,9 +258,10 @@ def test_no_transition_reaches_a_timeline_and_a_clip_fades_by_its_fader(env_of):
         opts = [["type", "Cross Dissolve"], ["position", "end"]] + ([["category", category]] if category else [])
         assert "not open to a pass" in call(b, h, "AddTransition", {"__d__": opts})["refused"], category
     assert ran == [], "no transition reached Resolve"
-    assert call(b, h, "SetFades", {"__d__": [["FadeIn", 12], ["FadeOut", 12]]}) == {"ok": True} and fades == {"FadeIn": 12, "FadeOut": 12}
+    assert "not open to a pass" in call(b, h, "SetFades", {"__d__": [["FadeIn", 12], ["FadeOut", 12]]})["refused"]
+    assert fades == {}, "no fade reached Resolve"
     if real:
-        assert "AddTransition" not in real and "SetFades" in real
+        assert "AddTransition" not in real and "SetFades" not in real
 
 
 def test_a_grade_or_lut_the_pass_wrote_never_loads(env_of):

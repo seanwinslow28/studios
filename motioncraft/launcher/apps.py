@@ -401,9 +401,10 @@ RESOLVE_API = Path("/Library/Application Support/Blackmagic Design/DaVinci Resol
 # whose name holds "Fusion" is refused (`FUSION`), so the three that put a Fusion title, generator or composition on a
 # timeline, `CreateFusionClip`, and any Fusion method a later Resolve adds stay shut. DCTL is code: never validated
 # or encrypted for a pass. `AddTransition` is refused whole (SWCB #257, Sean's call 2026-10-21): its `category` may be
-# 'fusion' or 'ofx', which reach Fusion or outside plug-in code; a card or clip fades by its own fader, `SetFades`.
+# 'fusion' or 'ofx', which reach Fusion or outside plug-in code. `SetFades` is refused too (SWCB #262): Resolve 21.1.1
+# loses a clip's fade on save and reload (mc-e8.d01), so a card's fade is baked into its frames by ffmpeg instead.
 RESOLVE_DENY = frozenset("""
-AddTransition Fusion GetFusionCompByIndex GetFusionCompByName AddFusionComp ImportFusionComp LoadFusionCompByName EncryptDCTL
+AddTransition SetFades Fusion GetFusionCompByIndex GetFusionCompByName AddFusionComp ImportFusionComp LoadFusionCompByName EncryptDCTL
 InsertFusionTitleIntoTimeline InsertFusionGeneratorIntoTimeline InsertFusionCompositionIntoTimeline ValidateDCTL
 DeleteBurnInPreset DeleteKeyboardPreset DeleteLayoutPreset DeleteUserPreferencesPreset DeleteRenderPreset
 DeleteProjectSettingsPreset ImportBurnInPreset ImportKeyboardPreset ImportLayoutPreset ImportUserPreferencesPreset

@@ -1,7 +1,7 @@
 ---
 lane: finishing
 seat: finishing-sound-designer
-updated: 2026-10-21
+updated: 2026-10-22
 ---
 # Lane manifest — Finishing and Sound Designer
 
@@ -50,7 +50,7 @@ Last on the path, in the order the book-to-seat brief set: the beginner's guide,
 - **Resolve finishing and delivery** — [`resolve-finishing-and-delivery.md`](../corpus/guides/resolve-finishing-and-delivery.md) — owned: before the conform, before the grade, before the mix and before every delivery; the six technical checks, the loudness record with the targets set by hand, the save-reopen-render comparison, and the scripting calls that are known to fail while the application is busy.
 - **Blackmagic's beginner's guide, then the manual's five parts** — no guide beyond the one above; all rights reserved, read on the page — the application chapters, as the brief ordered them.
 - **The Resolve scripting documents shipped with the installed application** — cited in the Resolve guide — render settings, project colour management, the audio-normalise call whose default is not the target.
-- **Title and credit cards** — no guide yet — read when the film sets text, before placing the first card. Art's cards arrive as PNGs with transparency; this seat places, times and fades them as clips and never sets words in Resolve (Sean's type ruling, SWCB #244). Two entries from the corpus, then the hold:
+- **Title and credit cards** — no guide yet — read when the film sets text, before placing the first card. Art's cards arrive as PNGs with transparency; this seat bakes each card's fade into its own frames with `ffmpeg` (never Resolve's fader, which a save loses: mc-e8.d01, SWCB #262), places and times it as an exact-length image sequence, and never sets words in Resolve (Sean's type ruling, SWCB #244). Two entries from the corpus, then the hold:
   - **Titles a little under full white, less saturated than the picture** — Van Hurkman, *Color Correction Handbook*, ch. 10, [`chapters/ch10-quality-control-and-broadcast-safe.md`](../corpus/books/color-correction-handbook/chapters/ch10-quality-control-and-broadcast-safe.md) — read when checking a card in the graded frame; its figure is about 90–93% white.
   - **Safe areas** — Goldberg, *Character Animation Crash Course!*, ch. 4, pp. 133–134, [`chapters/ch04-technique-exposure-sheet-layout-staging.md`](../corpus/books/character-animation-crash-course/chapters/ch04-technique-exposure-sheet-layout-staging.md) (the Animator's lane's book) — flagged as **old TV practice**: a 12-field chart for a television picture that edges cut off. For this film's 1920×1080 delivery, title safe is the glossary's row, from EBU R 95: 5% in from each edge.
   - How long a card holds is the Director's, from the animatic; no corpus source gives an on-screen hold time for text (a thin topic on [the story lane](story.md)).
