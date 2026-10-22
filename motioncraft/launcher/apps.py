@@ -746,8 +746,9 @@ class Broker:
             if not isinstance(v, str) or "/" not in v:
                 return v
             p = self.seat.real(v)
-            if not any(self.seat.under(p, r) for r in self.pass_written):
-                return v
+            # as named or as resolved: a link the pass put in its own folder is the pass's, wherever it points now
+            if not any(self.seat.under(q, r) for q in (os.path.abspath(v), p) for r in self.pass_written):
+                return p  # resolved, in a folder no pass writes, so nothing can be repointed before Resolve reads it
             try:
                 fd = os.open(p, os.O_RDONLY | os.O_NOFOLLOW)
             except OSError:

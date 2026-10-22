@@ -287,6 +287,13 @@ def test_a_later_pass_reopens_a_frozen_versions_project_only_as_resolve_exported
     seans.write_bytes(b"PK\x03\x04 Sean's own project")
     assert call(b2, pm, "ImportProject", str(seans), f"{prefix}-ref") == {"ok": True}
     assert state["imported"][-1][0] == str(seans)
+    # a link the pass put in its own folder, pointing at Sean's file, is checked as the pass's: Resolve is never handed a
+    # path the pass could repoint between the check and the load
+    (v02 / "seans.drp").symlink_to(seans)
+    assert "no export of Resolve's" in call(b2, pm, "ImportProject", str(v02 / "seans.drp"), f"{prefix}-x")["refused"]
+    (v02 / "inputs").symlink_to(project / "inputs")
+    assert "no export of Resolve's" in call(b2, pm, "ImportProject", str(v02 / "inputs" / "reference.drp"),
+                                            f"{prefix}-x")["refused"], "nor through a linked folder"
 
 
 def sha(path):
