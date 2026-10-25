@@ -122,14 +122,21 @@ IMAGES = {"test": "sold-proof", "ceiling_credits": 300, "entries": [
     {"id": "IM2", "model": "nano_banana_2", "prompt": "the same porch at dawn"},
 ]}
 SETUP = """---
-id: mc-setup-023
+id: {id}
 date: 2026-10-25
 step: "Higgsfield's data-use and training settings, and Sean's intended-use approval (SWCB #271)"
+tool: {tool}
+engagements: {engagements}
 intended_use_approved: {approved}
 ---
 
 The record.
 """
+
+
+def setup_text(approved="2026-10-25", id="mc-setup-023", tool="higgsfield", engagements="[mc-eng-900]"):
+    """The test world's own intended-use record: its engagement is the world's brief, mc-eng-900."""
+    return SETUP.format(id=id, tool=tool, engagements=engagements, approved=approved)
 
 
 @pytest.fixture(scope="module")
@@ -153,7 +160,7 @@ def hw(world):
     brief.write_text(old_brief.replace("media:", "higgsfield_credits_cap: 2500\nmedia:", 1))
     setup = root / "ledger" / "setup" / "2026-10-25-higgsfield" / "record.md"
     setup.parent.mkdir(parents=True)
-    setup.write_text(SETUP.format(approved="2026-10-25"))
+    setup.write_text(setup_text())
     world.update(state=state, fake=fake, setup=setup, brief=brief)
     approve(world, "020", "higgsfield-images-v01-2026-10-25", IMAGES)
     yield world
@@ -441,7 +448,7 @@ def test_settle_files_the_unfiled_job_as_the_same_take_with_nothing_spent_or_cou
     assert (vdir2 / "house.png").read_bytes() == PNG
     side = json.loads((vdir2 / "house.higgsfield.json").read_text())
     assert side["job"] == jid and side["made"] and side["take"] == 1 and side["credits"] == 4
-    assert side["label"].startswith("generated: Higgsfield") and side["settled_by"] and "error" not in side
+    assert side["label"].startswith("generated: Higgsfield") and side["label"].endswith("under mc-setup-023") and side["settled_by"] and "error" not in side
     assert len(sent(fresh)) == creates, "settle reads and downloads; it never asks the generator again"
     s = run(fresh, "status", "--context", ctx)
     assert "IM1 nano_banana_2: 1 of 3 takes used" in s.stdout and "sold-proof 4 of 300 credits" in s.stdout
@@ -468,15 +475,85 @@ def test_settle_refuses_a_job_with_no_finished_result_and_writes_nothing(fresh):
 def test_no_call_before_seans_intended_use_approval(fresh):
     ctx, vdir = pass_of(fresh, "art-pose-designer", "appearance")
     try:
-        fresh["setup"].write_text(SETUP.format(approved="pending"))
+        fresh["setup"].write_text(setup_text(approved="pending"))
         r = take(fresh, ctx, "IM1", vdir / "x.png")
         assert r.returncode == 1 and "no intended-use approval from Sean yet" in r.stderr
         fresh["setup"].unlink()
         r = take(fresh, ctx, "IM1", vdir / "x.png")
-        assert r.returncode == 1 and "no setup record mc-setup-023" in r.stderr
+        assert r.returncode == 1 and "no Higgsfield setup record covers mc-eng-900" in r.stderr
     finally:
-        fresh["setup"].write_text(SETUP.format(approved="2026-10-25"))
+        fresh["setup"].write_text(setup_text())
     assert sent(fresh) == []
+
+
+def test_a_call_for_an_engagement_no_record_covers_is_refused(fresh):
+    """Never-do 6 is per engagement: another film's approval, or another tool's, never covers this one."""
+    ctx, vdir = pass_of(fresh, "art-pose-designer", "appearance")
+    other = fresh["setup"].parent.parent / "2026-10-26-higgsfield-second" / "record.md"
+    try:
+        # mc-eng-002's record, approved, names only mc-eng-002
+        fresh["setup"].write_text(setup_text(engagements="[mc-eng-002]"))
+        r = take(fresh, ctx, "IM1", vdir / "x.png")
+        assert r.returncode == 1 and "no Higgsfield setup record covers mc-eng-900" in r.stderr, r.stderr
+        assert "refused" in job(fresh)[-1]
+        # a record of another tool's intended use names this job, and still does not cover Higgsfield
+        fresh["setup"].write_text(setup_text(tool="elevenlabs"))
+        r = take(fresh, ctx, "IM1", vdir / "x.png")
+        assert r.returncode == 1 and "no Higgsfield setup record covers mc-eng-900" in r.stderr
+        # a record with no engagements line covers nothing, as mc-setup-023 did before it had one
+        fresh["setup"].write_text(setup_text().replace("engagements: [mc-eng-900]\n", ""))
+        r = take(fresh, ctx, "IM1", vdir / "x.png")
+        assert r.returncode == 1 and "no Higgsfield setup record covers mc-eng-900" in r.stderr
+        # a name that only starts like this job's id is not this job
+        fresh["setup"].write_text(setup_text(engagements="[mc-eng-9000, mc-eng-90]"))
+        r = take(fresh, ctx, "IM1", vdir / "x.png")
+        assert r.returncode == 1 and "no Higgsfield setup record covers mc-eng-900" in r.stderr
+        # two records for one job is a question for Sean, never a pick
+        fresh["setup"].write_text(setup_text())
+        other.parent.mkdir()
+        other.write_text(setup_text(id="mc-setup-099", engagements="[mc-eng-002, mc-eng-900]"))
+        r = take(fresh, ctx, "IM1", vdir / "x.png")
+        assert r.returncode == 1 and "mc-setup-023 and mc-setup-099 both cover mc-eng-900" in r.stderr, r.stderr
+    finally:
+        fresh["setup"].write_text(setup_text())
+        if other.exists():
+            other.unlink()
+            other.parent.rmdir()
+    assert sent(fresh) == []
+    # the job's own record, listed among others, covers it
+    fresh["setup"].write_text(setup_text(engagements="[mc-eng-002, mc-eng-900]"))
+    try:
+        r = take(fresh, ctx, "IM1", vdir / "x.png")
+        assert r.returncode == 0, r.stderr
+        assert json.loads((vdir / "x.higgsfield.json").read_text())["setup"] == "mc-setup-023"
+    finally:
+        fresh["setup"].write_text(setup_text())
+
+
+def test_mc_eng_002_still_passes_on_mc_setup_023_and_mc_eng_003_does_not(tmp_path):
+    """The ledger's own shape: mc-setup-023 names mc-eng-002, and mc-eng-003 waits on a record of its own."""
+    import higgsfield
+    setup = tmp_path / "ledger" / "setup"
+    (setup / "2026-10-25-higgsfield-intended-use").mkdir(parents=True)
+    (setup / "2026-10-25-higgsfield-intended-use" / "record.md").write_text(
+        setup_text(engagements="[mc-eng-002]  # the train it covers"))
+    (setup / "2026-10-25-font-poppins").mkdir()
+    (setup / "2026-10-25-font-poppins" / "record.md").write_text("---\nid: mc-setup-024\nengagements: [mc-eng-003]\n---\n")
+    engs = tmp_path / "ledger" / "engagements"
+    for folder, eid in (("agent-portal-launch-2026-10-24", "mc-eng-002"), ("portal-launch-film-2026-10-25", "mc-eng-003")):
+        (engs / folder).mkdir(parents=True)
+        (engs / folder / "brief.md").write_text(f"---\nid: {eid}\ntype: full-train\nhiggsfield_credits_cap: 1000\n---\n")
+    got = higgsfield.setup_record({"engagement": str(engs / "agent-portal-launch-2026-10-24")})
+    assert got["id"] == "mc-setup-023" and got["approved"] == "2026-10-25" and got["engagement"] == "mc-eng-002"
+    with pytest.raises(higgsfield.Refused, match="no Higgsfield setup record covers mc-eng-003"):
+        higgsfield.setup_record({"engagement": str(engs / "portal-launch-film-2026-10-25")})
+    # mc-eng-003's draft, pending Sean, still refuses
+    (setup / "2026-10-25-higgsfield-portal-launch-film").mkdir()
+    (setup / "2026-10-25-higgsfield-portal-launch-film" / "record.md").write_text(
+        setup_text(id="mc-setup-025", engagements="[mc-eng-003]", approved="pending"))
+    with pytest.raises(higgsfield.Refused, match="mc-setup-025 has no intended-use approval from Sean yet"):
+        higgsfield.setup_record({"engagement": str(engs / "portal-launch-film-2026-10-25")})
+    assert higgsfield.setup_record({"engagement": str(engs / "agent-portal-launch-2026-10-24")})["id"] == "mc-setup-023"
 
 
 @pytest.mark.parametrize("seat_name,stage,extra", [("finishing-sound-designer", "finish", ()),

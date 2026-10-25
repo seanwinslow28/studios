@@ -22,7 +22,9 @@ holds the terms for the call, on the sound doorway's pattern (launcher/sound.py)
   a drafting Art pass for images, a drafting Animator pass for video (`higgsfield` in
   bench/toolbelts.toml, which only those two seats may carry), on either vendor;
 - Sean's intended-use approval (never-do 6), recorded with Higgsfield's data-use and training
-  settings in the ledger's setup record SETUP_ID: no call is made before it says approved;
+  settings in the ledger's setup record for this job: `tool: higgsfield`, with the brief's id in
+  its `engagements:` list. Another job's record never covers this one, two for one job are
+  Sean's to settle, and no call is made before the one says approved;
 - the entry comes from the newest list of the pass's kind that Sean approved in one decision:
   a `higgsfield.json` in the media project's `approved/<version-id>/`, named by an approvals
   entry with decision approved whose sha256 still matches the folder. The pass names an entry
@@ -78,8 +80,9 @@ KINDS = seat.HIGGSFIELD_SEATS  # art-pose-designer: image, animator: video
 ENTRY_ID = {"image": re.compile(r"IM\d+"), "video": re.compile(r"VI\d+")}
 SUFFIXES = {"image": (".png", ".jpg", ".webp"), "video": (".mp4",)}
 TAKES_PER_ENTRY = 3
-# The setup record of Higgsfield's data-use and training settings and Sean's intended-use approval (never-do 6).
-SETUP_ID = "mc-setup-023"
+# A setup record of Higgsfield's data-use and training settings and Sean's intended-use approval (never-do 6) says
+# `tool: higgsfield`, and covers only the jobs its `engagements:` names: mc-setup-023 covers mc-eng-002.
+SETUP_TOOL = "higgsfield"
 LIST_FILE = "higgsfield.json"
 LIST_KEYS = {"test", "ceiling_credits", "entries"}
 ENTRY_KEYS = {"id", "purpose", "model", "prompt", "params", "start_image", "end_image", "image_references"}
@@ -100,7 +103,7 @@ WAIT_TIMEOUT_S = 1200  # a video job; the pass's own time still bounds the call
 METER_WAIT_S, METER_POLL_S = 90, 3
 MAX_DOWNLOAD_BYTES = 2_000_000_000
 LABEL = ("generated: Higgsfield ({model}) through motioncraft/launcher/higgsfield.py, from Sean's approved list "
-         "{approval}, under " + SETUP_ID)
+         "{approval}, under {setup}")
 
 
 class Refused(Exception):
@@ -302,18 +305,38 @@ def approved_list(ctx: Dict, kind: str) -> Dict:
                   f"its locked copy in {approved_root}/<version-id>/ is named by an approvals entry")
 
 
+def engagements(h: Dict[str, str]) -> List[str]:
+    """A setup record's `engagements: [mc-eng-NNN, ...]`, the jobs its intended use is written for; none if unwritten."""
+    v = h.get("engagements", "")
+    if not (v.startswith("[") and v.endswith("]")):
+        return []
+    return [x.strip() for x in v[1:-1].split(",") if x.strip()]
+
+
 def setup_record(ctx: Dict) -> Dict:
-    """The setup record of Higgsfield's settings, with Sean's intended-use approval in it; no call before it."""
+    """The setup record of Higgsfield's settings whose intended use names this job, with Sean's approval in it; no
+    call before it. Another job's approval never covers this one (never-do 6)."""
+    eng = header((Path(ctx["engagement"]) / "brief.md").read_text(encoding="utf-8")).get("id")
+    if not eng:
+        raise Refused("the brief's header names no id, so no intended-use record can be read for this job")
     setup = Path(ctx["engagement"]).parents[1] / "setup"
+    found = []
     for f in sorted(setup.glob("*/record.md")) if setup.is_dir() else []:
         h = header(f.read_text(encoding="utf-8"))
-        if h.get("id") == SETUP_ID:
-            if not h.get("intended_use_approved") or h["intended_use_approved"] in ("null", "pending"):
-                raise Refused(f"{SETUP_ID} has no intended-use approval from Sean yet (never-do 6); no Higgsfield call "
-                              "before it")
-            return {"id": SETUP_ID, "path": str(f), "approved": h["intended_use_approved"]}
-    raise Refused(f"no setup record {SETUP_ID} in the ledger: Higgsfield's data-use and training settings and Sean's "
-                  "intended-use approval come before the first call (never-do 6)")
+        if h.get("tool") == SETUP_TOOL and eng in engagements(h):
+            found.append((f, h))
+    if not found:
+        raise Refused(f"no Higgsfield setup record covers {eng}: its intended use is its own record in the ledger's "
+                      f"setup/ (`tool: {SETUP_TOOL}`, `engagements: [{eng}]`), with Higgsfield's data-use and training "
+                      "settings and Sean's approval, before the first call (never-do 6)")
+    if len(found) > 1:
+        raise Refused(f"{' and '.join(h.get('id', f.parent.name) for f, h in found)} both cover {eng}: one intended-use "
+                      "record a job, so which one holds is Sean's")
+    f, h = found[0]
+    sid = h.get("id", f.parent.name)
+    if not h.get("intended_use_approved") or h["intended_use_approved"] in ("null", "pending"):
+        raise Refused(f"{sid} has no intended-use approval from Sean yet (never-do 6); no Higgsfield call before it")
+    return {"id": sid, "path": str(f), "approved": h["intended_use_approved"], "engagement": eng}
 
 
 def brief_cap(eng: str) -> float:
@@ -586,7 +609,7 @@ def take(a) -> None:
         if data:
             suffix = sniff(data)
             entry.update(sha256=hashlib.sha256(data).hexdigest(), bytes=len(data), format=suffix, made=True)
-            label = LABEL.format(model=e["model"], approval=lst["approval"])
+            label = LABEL.format(model=e["model"], approval=lst["approval"], setup=c["setup"]["id"])
             try:
                 if suffix not in SUFFIXES[c["kind"]]:
                     raise FileExistsError(f"the answer is not a {c['kind']} this doorway files ({suffix or 'unknown'})")
@@ -676,7 +699,8 @@ def settle(a) -> None:
         filed = out.with_suffix(suffix)
         entry = {**orig, "job": a.job, "status": job.get("status"), "result_url": url, "made": True,
                  "sha256": hashlib.sha256(data).hexdigest(), "bytes": len(data), "format": suffix, "filed": str(filed),
-                 "label": LABEL.format(model=e["model"], approval=orig["approval"]["approval"]),
+                 "label": LABEL.format(model=e["model"], approval=orig["approval"]["approval"],
+                                       setup=orig.get("setup") or c["setup"]["id"]),
                  "settled_by": pid, "settled": seat.now(),
                  "credits_source": f"{orig.get('credits_source')}, on the call's own line; filed later by settle"}
         entry.pop("error", None)
@@ -700,7 +724,8 @@ def status(a) -> None:
         refuse(str(e))
     t = tally(job_log(c["ctx"]["engagement"]))
     lst = c["list"]
-    print(f"approved list {lst['approval']} ({lst['path']}), test {lst['test']}; intended use {c['setup']['id']}")
+    print(f"approved list {lst['approval']} ({lst['path']}), test {lst['test']}; intended use {c['setup']['id']} for "
+          f"{c['setup']['engagement']}")
     for i, e in lst["entries"].items():
         used = t["takes"].get(entry_sha(lst, e), 0)
         print(f"  {i} {e['model']}: {used} of {TAKES_PER_ENTRY} takes used · {e.get('purpose', '')}")
