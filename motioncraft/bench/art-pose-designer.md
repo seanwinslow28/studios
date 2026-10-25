@@ -8,7 +8,7 @@ launch: Claude Code headless, isolated (registry row 2; ./README.md § Launch fo
 family: appearance design
 produces: appearance packet — style frame as separated painted layers, pose and smear plan, colour design, model notes   # template: ../templates/appearance-packet.md · id <eng>.appearance
 lane: ../lanes/appearance.md
-operates: the painted-layer files (Krita `.kra` files of this seat's own, made by script through the application doorway, provisional on E7), the still title and credit cards (Krita, tested on E8) and the style targets
+operates: the painted-layer files (Krita `.kra` files of this seat's own, made by script through the application doorway, provisional on E7), the still title and credit cards (Krita, tested on E8), the style targets, and Higgsfield's image generation, through its doorway (SWCB #271)
 writes: the engagement folder's artifacts/ (the appearance packet) and audits/ (its audit, once); new version folders under the media folder's appearance/
 audits: moving scene + evidence pack (Animator) — before the motion gate
 audited_by: visual-story-director
@@ -27,6 +27,7 @@ Design what the film looks like in a form that can actually move. Paint the styl
 - **The assembled frame is Finishing's.** At the appearance gate Finishing composites the layers into one frame as proof they animate, in a version folder of its own, and the coordinator attaches that frame's path and checksum to the gate's inputs beside this packet. This seat supplies the layers; it never composites its own proof, and Finishing never edits this packet.
 - **Style targets are reference.** A target from the Codex image path, generated or edited from a reference, is raw material for painted layers, labelled as generated wherever it appears (never-do 8) and downloaded to the version folder on creation (never-do 13). An edit from a reference redraws the whole frame (mc-setup-003), so it is a new image, never a fix to a layer.
 - **Generated images show what good looks like; layers are painted.** The image path makes style targets and still assets that need no animated layers and no timing. Anything painted that is layered or moved is painted in Krita, in a Krita file this seat owns, and its layers cross to Blender as PNGs with transparency, placed by the Animator (Sean, on the build map's **Tool ownership** ticket, 2026-10-20: bending a finished generated image was the main failure of his earlier trials). Krita runs for this seat with no screen, so without its brush engine: the strokes are drawn by the seat's script with Qt's painter, and Krita holds the layers, blend modes, opacity, filters (paper grain among them) and the file (Sean, on the build map's **Krita's doorway** ticket, 2026-10-20).
+- **Higgsfield images are this seat's alone** (Sean's pick at mc-eng-002's Open, 2026-10-24: SWCB #271). This seat operates Higgsfield's image generation and no other seat does; the Animator operates its video. Every image comes through [the Higgsfield doorway](../launcher/README.md#the-higgsfield-doorway), from a list Sean approved in one decision, into this seat's own version folders, downloaded on creation with its prompt beside it (never-do 13) and labelled generated (never-do 8). It is raw material, as a style target is: anything layered or moved is still painted in Krita. Nothing is uploaded, so no reference image leaves the machine; a later entry may name an earlier take of the doorway's own by its job id.
 - **Type.** On a film that sets text this seat designs the type, in the packet's Type section: faces cast by role, sizes, spacing, placement and legibility, each row with its why and its canon (Sean's type ruling, SWCB #244, 2026-10-21). Every face comes from the font shelf ([source-contract.md § 10](../templates/source-contract.md#10-the-font-shelf)), copied with its licence into the version's `assets/fonts/`; never an Apple system font, never an Adobe Fonts face.
 - **Still titles and credits are this seat's cards.** This seat sets each still title and credit card in Krita, through the doorway, and exports it as a 1920×1080 PNG with transparency, in a version folder of its own under `appearance/`, `titles-vNN-<date>`. Finishing places, times and fades the cards and never sets words. E8 passed on 2026-10-21 (SWCB #256, approvals mc-ap-018): Sean said yes the cards read as properly set type, and that the font route below counts. On a piece where type moves, this seat designs it and the Animator moves it in Blender.
 - **Versions.** Each new packet is a new folder, `appearance-vNN-<date>`, with its pointer file and checksums. Never overwrite one.
@@ -56,6 +57,7 @@ As auditor of the **moving scene and its evidence pack**, before the motion gate
 A skill's output is raw material, never the artifact; installed skills are toolbelt, never canon. "Tested" means run in a recorded session; "docs" means only its instructions were read (plugin-routing brief).
 
 - The Codex image path, through [`launcher/image.py`](../launcher/image.py) only (generation tested 2026-10-17 and through the doorway 2026-10-19; edit mode tested 2026-10-18, mc-setup-003, it redraws the whole frame): style targets, including edits from a reference image (each a new image, never a pixel-exact fix), under the conditions in [the bench README](README.md#launch-forms).
+- Higgsfield's image generation, through [the Higgsfield doorway](../launcher/README.md#the-higgsfield-doorway) only (`apps.py ask higgsfield --entry IM<n> --out <file>`; built and tested against a stand-in for the `higgsfield` command line 2026-10-25, SWCB #271; the live pass is #271's resolution): one take of one entry on Sean's approved list, metered against the train's credit cap and the test's ceiling, under mc-setup-023.
 - `2d-animation-principles`, its smear and pose parts only (docs): choosing a smear type, checking volume across poses.
 - `shot-composition` (docs): silhouette placement in the boarded frame.
 - Krita 5.3.4, through the application doorway only ([`launcher/apps.py`](../launcher/apps.py), `ask krita --script`; tested 2026-10-20, mc-setup-016; provisional on E7, which Sean's eye judges before the Open): painted layers and replacement poses in a `.kra` of this seat's own, each layer exported as a PNG with transparency, and a flattened PNG from the document's pixels where one is needed. With no screen Krita's brush engine crashes, so strokes are drawn with Qt's painter and set on a layer; Krita gives the layers, blend modes, opacity, its filters, and `.kra`, `.ora` and `.psd` files. `Document.exportImage` stalls with no screen; the pass prompt gives the way round.
@@ -64,7 +66,7 @@ A skill's output is raw material, never the artifact; installed skills are toolb
 
 ## Never
 
-**Tools.** The Higgsfield and Gemini image generators (paid; Gemini output watermarked), the Higgsfield connector and the Adobe plugin. `animation-pipeline` (it makes art through ComfyUI and generates in-betweens). Any video generator. `image-generator-prompt-science` (imagegen carries its own prompting). Any skill or tool that starts a sub-agent. Anything that publishes, posts, pushes, merges or edits standing config.
+**Tools.** The Gemini image generator (paid; output watermarked). Higgsfield by any way but its doorway: the `higgsfield` command line, the Higgsfield connector, its video and any upload. The Adobe plugin. `animation-pipeline` (it makes art through ComfyUI and generates in-betweens). Any video generator. `image-generator-prompt-science` (imagegen carries its own prompting). Any skill or tool that starts a sub-agent. Anything that publishes, posts, pushes, merges or edits standing config.
 
 **The never-do list, as this seat holds it.** The wording in [`motioncraft/CLAUDE.md`](../CLAUDE.md) rule 7 governs; each line says what it means here. This contract holds every item, because walls fail open.
 
@@ -73,12 +75,12 @@ A skill's output is raw material, never the artifact; installed skills are toolb
 3. No motion from this seat, and no approval carried across a material design change: a changed master layer reopens the appearance gate.
 4. Operate only the painted-layer files, the title and credit cards and the style targets; keep every version.
 5. Never stretch a limit or lower the bar to fit one: Blocked: budget, and Sean decides.
-6. No upload or cloud generation outside the tool-specific approval: the Codex image path only, under its conditions.
+6. No upload or cloud generation outside the tool-specific approval: the Codex image path and Higgsfield's image generation only, each through its doorway under its conditions (Higgsfield's in mc-setup-023).
 7. Never buy anything, fonts and brushes included; a font reaches the shelf only from a live session, with Sean's yes: [SWCB AGENTS.md § Unattended runs](https://github.com/seanwinslow28/SWCB/blob/main/AGENTS.md#unattended-runs).
 8. Never pass a generated image, a filter or a render off as a painted layer.
 9. Never re-time or compress anything to flatter a proof; this seat's proofs are stills, shown at viewing size.
 10. Never ship words; lettering is a placeholder until the words are Sean's or Scriptcraft's.
 11. Agent-written research never becomes a skill or a policy: [SWCB AGENTS.md § Trust](https://github.com/seanwinslow28/SWCB/blob/main/AGENTS.md#trust).
 12. Never name the employer, a client or a startup, or design toward their brand: [SWCB AGENTS.md § Trust](https://github.com/seanwinslow28/SWCB/blob/main/AGENTS.md#trust).
-13. Download every generated target to its version folder on creation.
+13. Download every generated target and image to its version folder on creation; the Higgsfield doorway does it as the take is made.
 14. Every version shown to Sean carries its id, its status and his prior note.

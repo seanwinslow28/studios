@@ -38,7 +38,9 @@ AGENTS.md and its skills by path in its prompt; the Director's and Art's Claude
 passes reach the Codex image path only through launcher/image.py; and seat-probe
 shows each seat loads only its toolbelt. Finishing's Claude pass reaches ElevenLabs
 and Lyria only through launcher/sound.py (the map's "Finishing's sound doorway"
-ticket, 2026-10-19). Every drafting pass's prompt names the three files a version
+ticket, 2026-10-19). Art's drafting pass reaches Higgsfield's images and the
+Animator's its video, on either vendor, only by asking the launcher, which runs
+launcher/higgsfield.py for them (SWCB #271). Every drafting pass's prompt names the three files a version
 holds, and a version the pass leaves without its manifest, pointer or checksums is
 refused, exit 5 (SWCB #249). Every pass's prompt names the private library by its
 full path, and seat-probe opens one of its files by a lane's pointer (SWCB #250).
@@ -148,7 +150,7 @@ CODEX_FEATURES_OFF = (
 
 CREDENTIAL_PATHS = tuple(str(HOME / p) for p in (
     ".ssh", ".aws", ".gnupg", ".config/gh", ".config/swcb/secrets", ".config/devcraft", ".config/motioncraft",
-    ".config/audio-keys",
+    ".config/audio-keys", ".config/higgsfield",
     ".codex/auth.json", ".codex-devcraft/auth.json", ".codex-motioncraft/auth.json", ".claude/.credentials.json",
     ".netrc", ".git-credentials", ".docker/config.json", ".npmrc", ".pypirc",
     ".kube/config", ".config/gcloud", ".azure", "Library/Keychains",
@@ -176,12 +178,17 @@ IMAGE_DOOR = HERE / "image.py"
 # Finishing's one way to generated sound (ElevenLabs effects, Lyria music), let out the same way.
 SOUND_DOOR = HERE / "sound.py"
 SOUND_SEAT = "finishing-sound-designer"
+# Higgsfield, through its doorway (launcher/higgsfield.py): Art's images and the Animator's video, and no other seat's.
+# A pass asks the launcher for a take, as it asks for Blender, so the way works on either vendor (SWCB #271).
+HIGGSFIELD_DOOR = HERE / "higgsfield.py"
+HIGGSFIELD_SEATS = {"art-pose-designer": "image", "animator": "video"}
 # Every other place skills live on these Macs: no pass reads them, so a pass's skills are its toolbelt's.
 SKILL_ROOTS = tuple(str(HOME / p) for p in (
     ".agents/skills", ".claude/skills", ".claude/plugins", "Library/Application Support/Claude",
     ".codex-motioncraft/skills", ".codex-devcraft/skills",
 ))
-# Commands no Claude pass runs: images come only through the doorway, and no other generator or uploader.
+# Commands no Claude pass runs: images come only through the doorways, and no other generator or uploader. Higgsfield
+# is among them: Art and the Animator reach it only by asking the launcher (launcher/higgsfield.py).
 CLAUDE_DENIED_COMMANDS = ("codex", "higgsfield", "nlm", "hyperframes")
 # Claude Code holds an ffmpeg or ffprobe call with a name=value argument (`stream=width`, `ebur128=peak=true`) for
 # an approval no one is there to give (live passes, 2026-10-19). An allow rule lets them run, still sandboxed, on a
@@ -246,7 +253,8 @@ def toolbelts() -> Dict:
 
 
 def seat_belt(seat: str) -> Dict:
-    """A seat's allowlist line: its skills as (source, name), whether it may call the image or sound path, its apps and tools."""
+    """A seat's allowlist line: its skills as (source, name), whether it may call the image, sound or Higgsfield path,
+    its apps and tools."""
     line = toolbelts().get("seats", {}).get(seat, {})
     skills = [tuple(s.split(":", 1)) for s in line.get("skills", [])]
     apps = list(line.get("apps", []))
@@ -255,12 +263,15 @@ def seat_belt(seat: str) -> Dict:
         die(f"the allowlist gives {seat} {', '.join(bad)}; the application doorway runs only {', '.join(SEAT_APPS)}")
     if line.get("sound") and seat != SOUND_SEAT:
         die(f"the allowlist gives {seat} the sound path; Finishing alone generates sound")
+    higgsfield = line.get("higgsfield", "")
+    if higgsfield and higgsfield != HIGGSFIELD_SEATS.get(seat):
+        die(f"the allowlist gives {seat} Higgsfield {higgsfield}; Art alone makes images there and the Animator video")
     tools = list(line.get("tools", []))
     bad = [t for t in tools if not re.fullmatch(r"[a-z][a-z0-9_]*", t)]
     if bad:
         die(f"the allowlist gives {seat} tools named {', '.join(bad)}; a tool is a module name in motioncraft/tools/")
     return {"skills": skills, "image": bool(line.get("image")), "sound": bool(line.get("sound")), "apps": apps,
-            "tools": tools}
+            "tools": tools, "higgsfield": higgsfield}
 
 
 def tool_gaps(seat: str) -> List[str]:
@@ -353,6 +364,8 @@ def context_belt(seat: str, vendor: str, read_only: bool) -> Dict:
             "sound": belt["sound"] and vendor == "claude" and not read_only,
             # Blender, Resolve and Krita, through the application doorway: a drafting pass's, on either vendor
             "apps": [] if read_only else belt["apps"],
+            # Higgsfield, through its doorway: Art's images, the Animator's video; a drafting pass's, on either vendor
+            "higgsfield": "" if read_only else belt["higgsfield"],
             # Devcraft's pipeline tools, fixed by hash: a drafting pass's, on either vendor
             "tools": [] if read_only else tools}
 
@@ -853,7 +866,8 @@ def launch_argv(ctx: Dict, prompt: str, profile: str = "", output: str = "") -> 
 def claude_prompt(ctx: Dict, prompt: str, output: str = "") -> str:
     """A Claude pass's prompt: the coordinator's, its record, its doorway (image for the Director and Art, sound for
     Finishing), the apps."""
-    apps = [apps_note(ctx)] * bool(ctx["toolbelt"].get("apps")) + [tools_note(ctx)] * bool(ctx["toolbelt"].get("tools"))
+    apps = ([apps_note(ctx)] * bool(ctx["toolbelt"].get("apps")) + [higgsfield_note(ctx)] * bool(ctx["toolbelt"].get("higgsfield"))
+            + [tools_note(ctx)] * bool(ctx["toolbelt"].get("tools")))
     doors = []
     if ctx["toolbelt"]["image"]:
         doors.append(f"The image path, for board roughs and style targets under the bench README's conditions: run "
@@ -1042,6 +1056,25 @@ def apps_note(ctx: Dict) -> str:
             "pass's time.")
 
 
+def higgsfield_note(ctx: Dict) -> str:
+    """How Art's or the Animator's pass reaches Higgsfield: by asking the launcher, never by running it (SWCB #271)."""
+    kind = ctx["toolbelt"]["higgsfield"]
+    ids, suffix = ("IM<n>", "png") if kind == "image" else ("VI<n>", "mp4")
+    return (f"Higgsfield, for the {kind}s on Sean's approved list and nothing else. Never run `higgsfield` yourself: "
+            "this pass has no network and its sign-in is walled off. Ask the launcher, from your shell: "
+            f"`python3 -B {APPS_DOOR} ask higgsfield --entry <{ids}> --out <your stage>/<a new version folder>/"
+            f"<name>.{suffix}`. It sends the entry's approved model, prompt and settings as they stand (a reworded "
+            "entry goes back to Sean as a new list), makes one take, downloads it the moment it is ready into that "
+            "version folder, and files its prompt beside it, labelled generated: up to three takes an entry, inside the "
+            "train's Higgsfield credit cap and the test's ceiling, and a refusal at a cap is a checkpoint for Sean. "
+            "Nothing is uploaded: an entry may name an earlier take of this doorway's only by its job id. "
+            f"`python3 -B {APPS_DOOR} ask higgsfield --status` lists the approved entries, the takes used and the "
+            f"credits spent, and makes nothing. A {kind} can take minutes: if the answer says still running, run "
+            f"`python3 -B {APPS_DOOR} wait <id>`. The call counts against this pass's time. A generated {kind} is raw "
+            "material, never authored craft (never-do 8): say so wherever it is used, and list it in your version's "
+            "manifest as generated.")
+
+
 def tools_note(ctx: Dict) -> str:
     """The pipeline tools a drafting pass's toolbelt names, by path: Devcraft built them, the seat runs them."""
     lines = "\n".join(f"- `{t['tool']}`: {t['path']}" for t in ctx["toolbelt"]["tools"])
@@ -1069,6 +1102,7 @@ def codex_prompt(ctx: Dict, prompt: str, output: str = "") -> str:
         parts.append("Your toolbelt's skills. Read a skill's SKILL.md by its path when its moment comes; "
                      f"no other skill is yours.\n\n{lines}")
     return "\n\n---\n\n".join(parts + [apps_note(ctx)] * bool(ctx["toolbelt"].get("apps"))
+                              + [higgsfield_note(ctx)] * bool(ctx["toolbelt"].get("higgsfield"))
                               + [tools_note(ctx)] * bool(ctx["toolbelt"].get("tools"))
                               + ([versions_note(ctx)] if drafts_versions(ctx) else [])
                               + ([record_note(ctx, output)] if output else []) + [library_note(), prompt])
@@ -1335,8 +1369,9 @@ def cmd_launch(a) -> None:
     swept_roots = list(dict.fromkeys(ctx["fence"]["write"] + [cwd]))
     before = claude_dirs(swept_roots) if vendor == "claude" else []
     server = None
-    if ctx["toolbelt"].get("apps"):
-        # The application doorway runs on this side of the sandbox for as long as the pass does, no longer.
+    if ctx["toolbelt"].get("apps") or ctx["toolbelt"].get("higgsfield"):
+        # The application doorway runs on this side of the sandbox for as long as the pass does, no longer; it also
+        # takes the pass's Higgsfield requests (launcher/higgsfield.py).
         import apps as appdoor  # noqa: E402  launcher/apps.py, beside this file
         server = appdoor.AppServer(ctx, time.time() + ctx["caps"].get("minutes", 60) * 60)
         env.update(server.env())
@@ -1699,6 +1734,7 @@ def probe_seat(seat: str, home: Path, logs: Optional[Path], builtins: Optional[D
     guide = probe_guide()
     res = {"seat": seat, "vendor": ctx["vendor"], "read_only": ctx["read_only"], "toolbelt": belt,
            "image": ctx["toolbelt"]["image"], "sound": ctx["toolbelt"].get("sound", False),
+           "higgsfield": ctx["toolbelt"].get("higgsfield", ""),
            "library": f"../corpus/guides/{guide.name}" if guide else "not on this machine"}
     if ctx["vendor"] == "claude":
         settings = claude_settings(ctx)
@@ -1834,6 +1870,13 @@ def cmd_check(a) -> None:
             gaps += [f"{keys} has no {k}" for k in ("ELEVENLABS_API_KEY", "GEMINI_API_KEY") if k not in names]
         if not any(under(str(keys), c) for c in CREDENTIAL_PATHS):
             gaps.append(f"{keys} is not in a folder every pass is denied")
+    # The Higgsfield doorway: the command line it runs, and its sign-in on every pass's credential wall.
+    if any(seat_belt(s)["higgsfield"] for s in SEATS):
+        if "higgsfield" not in door:
+            gaps.append("the allowlist's [apps] has no `higgsfield` path, which the Higgsfield doorway runs")
+        signin = HOME / ".config" / "higgsfield"
+        if not any(under(str(signin), c) for c in CREDENTIAL_PATHS):
+            gaps.append(f"{signin} is not in a folder every pass is denied")
     for g in gaps:
         print(f"GAP: {g}")
     print(f"preflight on {machine()}: " + ("clean" if not gaps else f"{len(gaps)} gap(s)"))
