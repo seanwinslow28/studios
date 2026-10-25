@@ -16,6 +16,10 @@
 agents = "~/.agents/skills"
 claude-desktop = "~/Library/Application Support/Claude/local-agent-mode-sessions/skills-plugin/*/*/skills"
 watch = "~/.claude/plugins/cache/claude-video/watch/*/skills"
+# Sean's own skills, in his anima repo. `prompt-how-much` is on every seat that writes an image or
+# video prompt: Sean's ruling at mc-eng-002 (mc-eng-002.d14, 2026-10-25), after a re-angle prompt
+# re-described a whole house and drew a detail wrong.
+anima = "~/Code-Brain/anima/.claude/skills"
 
 # `image = true`: the pass may call the Codex image path through `launcher/image.py`.
 # Only the Director and Art; only on Claude, and never on a read-only pass.
@@ -28,18 +32,18 @@ watch = "~/.claude/plugins/cache/claude-video/watch/*/skills"
 # Animator alone video; on either vendor, and never on a read-only pass.
 [seats.visual-story-director]
 skills = ["agents:motion-art-direction", "agents:shot-composition", "agents:beat-sync-editing",
-          "agents:animation-vocabulary", "watch:watch"]
+          "agents:animation-vocabulary", "watch:watch", "anima:prompt-how-much"]
 image = true
 apps = ["blender"]
 
 [seats.art-pose-designer]
-skills = ["claude-desktop:2d-animation-principles", "agents:shot-composition"]
+skills = ["claude-desktop:2d-animation-principles", "agents:shot-composition", "anima:prompt-how-much"]
 image = true
 apps = ["krita"]
 higgsfield = "image"
 
 [seats.animator]
-skills = ["claude-desktop:2d-animation-principles", "agents:animation-principles"]
+skills = ["claude-desktop:2d-animation-principles", "agents:animation-principles", "anima:prompt-how-much"]
 apps = ["blender"]
 tools = ["kerning"]
 higgsfield = "video"
