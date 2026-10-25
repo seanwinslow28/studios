@@ -7,6 +7,7 @@
     apps.py ask krita --script F [--fonts D] [--timeout S] [--wait S] [-- ARG...]
     apps.py ask higgsfield --entry IMn|VIn --out F [--timeout S] [--wait S]
     apps.py ask higgsfield --status
+    apps.py ask higgsfield --settle <job id> --out F
     apps.py wait <id> [--wait S]
     apps.py lock <context> blender|resolve|krita                                      (the coordinator: print a lock)
 
@@ -114,6 +115,7 @@ APPS = ("blender", "resolve", "krita")
 REQUEST = re.compile(r"(blender|resolve|krita|higgsfield)-[0-9]{6}-[0-9a-f]{6}\.json")
 # Higgsfield's doorway: an entry of Sean's approved list, by its id (launcher/higgsfield.py, SWCB #271).
 HIGGSFIELD_ENTRY = re.compile(r"(IM|VI)\d{1,4}")
+HIGGSFIELD_JOB = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 MAX_REQUEST_BYTES = 64_000
 MAX_SCRIPT_BYTES = 256_000
 MAX_ARGS, MAX_ARG = 32, 2048
@@ -355,12 +357,15 @@ def cmd_ask(a) -> None:
     d = requests_dir()
     rid = f"{a.app}-{time.strftime('%H%M%S')}-{secrets.token_hex(3)}"
     if a.app == "higgsfield":
-        if a.script or a.render or a.blend or a.fonts or a.args or not (a.status or (a.entry and a.out)):
-            sys.exit("apps.py: ask higgsfield --entry <IMn or VIn> --out <file in a new version folder>, or --status")
-        req = {"id": rid, "app": a.app, "timeout": a.timeout,
-               "higgsfield": {"status": True} if a.status else {"entry": a.entry, "out": os.path.abspath(a.out)}}
-    elif a.entry or a.status:
-        sys.exit("apps.py: --entry and --status are Higgsfield's")
+        one = [bool(a.status), bool(a.entry and a.out), bool(a.settle and a.out)]
+        if a.script or a.render or a.blend or a.fonts or a.args or sum(one) != 1 or (a.entry and a.settle):
+            sys.exit("apps.py: ask higgsfield --entry <IMn or VIn> --out <file in a new version folder>, "
+                     "--settle <job id> --out <file in a new version folder>, or --status")
+        h = ({"status": True} if a.status else {"settle": a.settle, "out": os.path.abspath(a.out)} if a.settle
+             else {"entry": a.entry, "out": os.path.abspath(a.out)})
+        req = {"id": rid, "app": a.app, "timeout": a.timeout, "higgsfield": h}
+    elif a.entry or a.status or a.settle:
+        sys.exit("apps.py: --entry, --settle and --status are Higgsfield's")
     elif a.render:
         m = re.fullmatch(r"(\d+)-(\d+)", a.frames or "")
         if a.app != "blender" or a.script or a.args or not a.blend or not a.out or not m:
@@ -1304,6 +1309,12 @@ class AppServer:
             raise ValueError(f"--timeout is whole seconds, 1 to {MAX_TIMEOUT_S}")
         if h == {"status": True}:
             return {"app": "higgsfield", "argv": ["status"], "timeout": timeout}
+        if set(h) == {"settle", "out"}:
+            job, out = h.get("settle"), h.get("out")
+            if not isinstance(job, str) or not HIGGSFIELD_JOB.fullmatch(job) \
+                    or not isinstance(out, str) or not out.startswith("/") or "\0" in out or len(out) > MAX_ARG:
+                raise ValueError("ask higgsfield --settle <a Higgsfield job id> --out <a file in a new version folder>")
+            return {"app": "higgsfield", "argv": ["settle", "--job", job, "--out", out], "timeout": timeout}
         entry, out = h.get("entry"), h.get("out")
         if set(h) != {"entry", "out"} or not isinstance(entry, str) or not HIGGSFIELD_ENTRY.fullmatch(entry) \
                 or not isinstance(out, str) or not out.startswith("/") or "\0" in out or len(out) > MAX_ARG:
@@ -1624,6 +1635,8 @@ def main() -> None:
                    help="--render: cycles (on the CPU; the kept render), or eevee or workbench (previews, into scratch)")
     k.add_argument("--entry", default="", help="higgsfield: the approved entry to take, IMn (Art) or VIn (the Animator)")
     k.add_argument("--status", action="store_true", help="higgsfield: the approved entries, takes and credits; no call")
+    k.add_argument("--settle", default="", help="higgsfield: file a job the doorway started and did not file (its id), "
+                                                "as the same take, into --out")
     k.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT_S, help="seconds the call may run")
     k.add_argument("--wait", type=float, default=DEFAULT_WAIT_S, help="seconds to wait here for the result")
     k.add_argument("args", nargs="*", help="after --: the script's own arguments")

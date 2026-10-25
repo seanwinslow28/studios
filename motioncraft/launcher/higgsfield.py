@@ -3,6 +3,8 @@
 
     higgsfield.py take   --context <eng>/trace/logs/pass-NN.context.json --entry IM1
                          --out appearance/<artifact>-vNN-<date>/<name>.png      (the launcher, for a pass's request)
+    higgsfield.py settle --context <eng>/trace/logs/pass-NN.context.json --job <id>
+                         --out appearance/<artifact>-vNN-<date>/<name>.png      (file a job this doorway made, unfiled)
     higgsfield.py status --context <eng>/trace/logs/pass-NN.context.json       (the approved list, takes and spend)
 
 Art operates Higgsfield's image generation and the Animator its video, each into its own
@@ -168,7 +170,8 @@ def job_id(doc: object) -> Optional[str]:
                 return found
     elif isinstance(doc, list):
         for v in doc:
-            found = job_id(v)
+            # `generate create` answers with a bare list of job ids (mc-eng-002's first live call, 2026-10-25)
+            found = v if isinstance(v, str) and UUID.fullmatch(v) else job_id(v)
             if found:
                 return found
     return None
@@ -336,7 +339,10 @@ def job_log(eng: str) -> List[Dict]:
                 e = json.loads(line)
             except ValueError:
                 continue
-            calls[e.get("call") or f"{f.name}:{len(calls)}"] = e
+            key = e.get("call") or f"{f.name}:{len(calls)}"
+            # a call's filed line stands over its unfiled one, whichever pass's log is read last (settle)
+            if not (calls.get(key, {}).get("made") and not e.get("made")):
+                calls[key] = e
     return list(calls.values())
 
 
@@ -349,10 +355,12 @@ def tally(log: List[Dict]) -> Dict:
     tests: Dict[str, float] = {}
     jobs = set()
     for e in log:
-        if e.get("job"):
-            tests[e["test"]] = tests.get(e["test"], 0.0) + float(e.get("credits") or 0)
+        charged = float(e.get("credits") or 0)
+        # a call the balance says was charged counts even when its answer named no job the doorway could read
+        if e.get("job") or charged > 0:
+            tests[e["test"]] = tests.get(e["test"], 0.0) + charged
             # a job that made something, or spent anything, is a take; one Higgsfield failed and charged nothing is not
-            if e.get("made") or float(e.get("credits") or 0) > 0:
+            if e.get("made") or charged > 0:
                 takes[e["entry_sha256"]] = takes.get(e["entry_sha256"], 0) + 1
         if e.get("made") and e.get("job"):
             jobs.add(e["job"])
@@ -431,14 +439,19 @@ def checked(a) -> Dict:
          "list": approved_list(ctx, kind)}
     if c["list"]["ceiling"] > c["cap"]:
         raise Refused(f"the list's ceiling ({c['list']['ceiling']:g}) is over the train's cap ({c['cap']:g})")
-    if getattr(a, "status", False):
+    if getattr(a, "status", False) or getattr(a, "job", None):
         return c
     e = c["list"]["entries"].get(a.entry)
     if e is None:
         raise Refused(f"{a.entry} is not on the approved list {c['list']['approval']}; a new or reworded entry goes "
                       "to Sean first")
+    return {**c, "entry": e, "out": checked_out(ctx, kind, a.out)}
+
+
+def checked_out(ctx: Dict, kind: str, out_arg: str) -> Path:
+    """The file a take is written to: new, in a version folder made in this pass, directly in the seat's stage."""
     stage = os.path.join(ctx["media_project"], seat.STAGE_DIRS[ctx["seat"]])
-    out = Path(seat.real(a.out))
+    out = Path(seat.real(out_arg))
     vdir = out.parent
     if out.suffix not in SUFFIXES[kind]:
         raise Refused(f"--out names a {' or '.join(SUFFIXES[kind])} (an answer of another type is filed under the "
@@ -452,7 +465,7 @@ def checked(a) -> Dict:
     if any(os.path.lexists(out.with_suffix(s)) for s in (".png", ".jpg", ".webp", ".mp4")) \
             or os.path.lexists(out.with_name(out.stem + ".higgsfield.json")):
         raise Refused(f"{out.name} or its sidecar exists; a take is written once")
-    return {**c, "entry": e, "out": out}
+    return out
 
 
 def write_new(vdir: Path, dfd: int, name: str, data: bytes) -> None:
@@ -534,12 +547,15 @@ def take(a) -> None:
         jid = job_id(doc) if code == 0 else None
         if not jid:
             after = settled(before)
+            # any job id the answer names, so `settle` can file a job that was made but not read as one
+            seen = sorted(set(UUID.findall(json.dumps(doc) + " " + why)))
             entry.update(completed=seat.now(), balance_after=after, error=f"Higgsfield took no job ({why})",
                          credits=max(0.0, before - after) if after is not None else 0.0,
-                         credits_source="the account's balance, before and after")
+                         credits_source="the account's balance, before and after", jobs_in_answer=seen)
             append(log, entry)
             os.close(dfd)
-            refuse(f"no job was made ({why}); logged to {log.name}")
+            refuse(f"no job was read from the answer ({why}); logged to {log.name}"
+                   + (f"; it names {', '.join(seen)}, which `settle` can file" if seen else ""))
         # The job's line goes in now, at the estimate, so a call cut off from here still counts what it spent.
         entry.update(job=jid, credits=est, credits_source="estimate, until the job ends", created=seat.now())
         append(log, entry)
@@ -601,6 +617,82 @@ def take(a) -> None:
           f"this take as job:{jid}.")
 
 
+def unfiled(log: List[Dict], jid: str) -> Optional[Dict]:
+    """The doorway's own call that made job `jid` and filed nothing: by the job it read, or by a job id its answer
+    named when it read none (mc-eng-002's first live call). None if no call of this job made it, or it is filed."""
+    for e in log:
+        named = e.get("job") == jid or jid in (e.get("jobs_in_answer") or []) or jid in str(e.get("error") or "")
+        if named and not e.get("refused"):
+            return None if e.get("made") else e
+    return None
+
+
+def settle(a) -> None:
+    """File a job this doorway started but did not file, into a version folder of this pass's own, as the same take:
+    its credits are already counted on the call's line, which this line replaces, so nothing is spent or counted
+    twice. The job is read and downloaded from Higgsfield; nothing is sent to its generator."""
+    try:
+        if not UUID.fullmatch(a.job or ""):
+            raise Refused("--job is a Higgsfield job id")
+        c = checked(a)
+        ctx = c["ctx"]
+        orig = unfiled(job_log(ctx["engagement"]), a.job)
+        if orig is None:
+            raise Refused(f"job {a.job} is no call of this doorway's in this job that is still unfiled; "
+                          "settle files only a job the doorway itself started and did not file")
+        if orig.get("kind") != c["kind"]:
+            raise Refused(f"job {a.job} is {orig.get('kind')}, and this pass takes {c['kind']}s")
+        out = checked_out(ctx, c["kind"], a.out)
+    except Refused as e:
+        refusal_line(a, str(e))
+        refuse(str(e))
+    vdir = out.parent
+    logs = Path(ctx["engagement"]) / "trace" / "logs"
+    pid = seat.pass_id_of(ctx["source"])
+    log = logs / f"{pid}.higgsfield.jsonl"
+    dfd = os.open(vdir, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    with open(logs / "higgsfield.lock", "a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        orig = unfiled(job_log(ctx["engagement"]), a.job)
+        if orig is None:
+            os.close(dfd)
+            refuse(f"job {a.job} was filed by another call meanwhile")
+        code, doc, why = cli("generate", "get", a.job)
+        job = job_of(doc)
+        url = job.get("result_url") if isinstance(job.get("result_url"), str) else None
+        if code != 0 or job.get("status") != "completed" or not url:
+            os.close(dfd)
+            refuse(f"job {a.job} has no finished result to file ({job.get('status') or why}); nothing was written")
+        try:
+            data = fetch(url)
+        except (OSError, urllib.error.URLError) as err:
+            os.close(dfd)
+            refuse(f"job {a.job}'s result could not be downloaded ({seat.one_line(str(err), 200)}); nothing was written")
+        suffix = sniff(data)
+        if suffix not in SUFFIXES[c["kind"]]:
+            os.close(dfd)
+            refuse(f"job {a.job}'s answer is not a {c['kind']} this doorway files ({suffix or 'unknown'})")
+        e = orig["approved_entry"]
+        filed = out.with_suffix(suffix)
+        entry = {**orig, "job": a.job, "status": job.get("status"), "result_url": url, "made": True,
+                 "sha256": hashlib.sha256(data).hexdigest(), "bytes": len(data), "format": suffix, "filed": str(filed),
+                 "label": LABEL.format(model=e["model"], approval=orig["approval"]["approval"]),
+                 "settled_by": pid, "settled": seat.now(),
+                 "credits_source": f"{orig.get('credits_source')}, on the call's own line; filed later by settle"}
+        entry.pop("error", None)
+        write_new(vdir, dfd, out.stem + ".higgsfield.json", (json.dumps(entry, indent=2) + "\n").encode())
+        write_new(vdir, dfd, filed.name, data)
+        append(log, entry)
+    os.close(dfd)
+    t = tally(job_log(ctx["engagement"]))
+    lst = c["list"]
+    print(f"{filed} sha256 {entry['sha256']} · {e['id']} take {orig.get('take')} of {TAKES_PER_ENTRY}, settled · job "
+          f"{a.job} · {float(orig.get('credits') or 0):g} credits, counted once · {lst['test']} "
+          f"{t['tests'].get(lst['test'], 0):g} of {lst['ceiling']:g} credits, train {t['train']:g} of {c['cap']:g}")
+    print("Generated, never authored craft (never-do 8): the sidecar beside it says so, and a later entry may name "
+          f"this take as job:{a.job}.")
+
+
 def status(a) -> None:
     try:
         c = checked(a)
@@ -615,8 +707,14 @@ def status(a) -> None:
     print(f"spend: {lst['test']} {t['tests'].get(lst['test'], 0):g} of {lst['ceiling']:g} credits; "
           f"train {t['train']:g} of {c['cap']:g}")
     for e in job_log(c["ctx"]["engagement"]):
-        if e.get("job") and not e.get("made"):
+        if e.get("refused") or e.get("made"):
+            continue
+        if e.get("job"):
             print(f"  job {e['job']} ({e['entry']}) made no filed take: {e.get('error') or 'cut off before it ended'}")
+        elif float(e.get("credits") or 0) > 0:
+            seen = ", ".join(e.get("jobs_in_answer") or sorted(set(UUID.findall(str(e.get("error") or ""))))) or "none named"
+            print(f"  {e['entry']}: charged {float(e['credits']):g} credits with no job read (job ids in the answer: "
+                  f"{seen}); `settle` can file one")
 
 
 def main() -> None:
@@ -627,6 +725,12 @@ def main() -> None:
     t.add_argument("--entry", required=True)
     t.add_argument("--out", required=True)
     t.set_defaults(fn=take)
+    st = sub.add_parser("settle", help="the launcher, for a pass's request: file a job this doorway started and did "
+                                       "not file, as the same take, with nothing spent or counted twice")
+    st.add_argument("--context", required=True)
+    st.add_argument("--job", required=True)
+    st.add_argument("--out", required=True)
+    st.set_defaults(fn=settle)
     s = sub.add_parser("status", help="the approved list, the takes used and the spend; no call to Higgsfield")
     s.add_argument("--context", required=True)
     s.set_defaults(fn=status, status=True)

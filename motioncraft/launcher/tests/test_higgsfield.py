@@ -77,7 +77,15 @@ if words[:2] == ["generate", "create"]:
     if b.get("charge", b.get("cost", 2)):
         pending.write_text(f"{{b.get('lag', 0)}} {{b.get('charge', b.get('cost', 2))}}")
     (state / "last-job").write_text(jid)
+    if b.get("create_shape") == "ids":
+        out([jid])
+    if b.get("create_shape") == "garbled":
+        out({{"message": "created " + jid}})
     out([{{"id": jid, "job_type": words[2], "status": "queued"}}])
+if words[:2] == ["generate", "get"]:
+    if b.get("job_fails"):
+        out({{"id": words[2], "status": "failed", "result_url": None}})
+    out({{"id": words[2], "status": "completed", "result_url": "https://cdn.example/" + words[2] + b.get("ext", ".png")}})
 if words[:2] == ["generate", "wait"]:
     if b.get("job_fails"):
         if pending.exists():
@@ -396,7 +404,65 @@ def test_a_job_that_makes_nothing_and_charges_nothing_is_no_take(fresh):
     assert last["credits"] == 0 and not last["made"] and not list(vdir.iterdir())
     behave(fresh, create_fails=True)
     r = take(fresh, ctx, "IM1", vdir / "y.png")
-    assert r.returncode == 1 and "no job was made" in r.stderr and "Not enough credits" in r.stderr
+    assert r.returncode == 1 and "no job was read" in r.stderr and "Not enough credits" in r.stderr
+
+
+def test_a_bare_list_of_job_ids_is_read_as_the_job(fresh):
+    # `generate create` answers the real command line's way: a list of job ids (mc-eng-002's first live call)
+    behave(fresh, create_shape="ids", cost=4)
+    ctx, vdir, jid = art_take(fresh)
+    side = json.loads((vdir / "house.higgsfield.json").read_text())
+    assert side["job"] == jid and side["made"] and (vdir / "house.png").read_bytes() == PNG
+
+
+def test_a_charged_call_with_no_job_read_still_counts_its_take_and_credits(fresh):
+    behave(fresh, create_shape="garbled", cost=4)
+    ctx, vdir = pass_of(fresh, "art-pose-designer", "appearance")
+    r = take(fresh, ctx, "IM1", vdir / "house.png")
+    jid = (fresh["state"] / "last-job").read_text()
+    assert r.returncode == 1 and "no job was read" in r.stderr and jid in r.stderr and "settle" in r.stderr
+    last = job(fresh)[-1]
+    assert last["credits"] == 4 and not last["made"] and last["jobs_in_answer"] == [jid] and not list(vdir.iterdir())
+    s = run(fresh, "status", "--context", ctx)
+    assert "IM1 nano_banana_2: 1 of 3 takes used" in s.stdout and "sold-proof 4 of 300 credits" in s.stdout
+    assert f"charged 4 credits with no job read (job ids in the answer: {jid})" in s.stdout
+
+
+def test_settle_files_the_unfiled_job_as_the_same_take_with_nothing_spent_or_counted_twice(fresh):
+    behave(fresh, create_shape="garbled", cost=4)
+    first, vdir = pass_of(fresh, "art-pose-designer", "appearance")
+    take(fresh, first, "IM1", vdir / "house.png")
+    jid = (fresh["state"] / "last-job").read_text()
+    creates = len(sent(fresh))
+    ctx, vdir2 = pass_of(fresh, "art-pose-designer", "appearance")
+    r = run(fresh, "settle", "--context", ctx, "--job", jid, "--out", str(vdir2 / "house.png"))
+    assert r.returncode == 0, r.stderr
+    assert "take 1 of 3, settled" in r.stdout and "4 credits, counted once" in r.stdout
+    assert (vdir2 / "house.png").read_bytes() == PNG
+    side = json.loads((vdir2 / "house.higgsfield.json").read_text())
+    assert side["job"] == jid and side["made"] and side["take"] == 1 and side["credits"] == 4
+    assert side["label"].startswith("generated: Higgsfield") and side["settled_by"] and "error" not in side
+    assert len(sent(fresh)) == creates, "settle reads and downloads; it never asks the generator again"
+    s = run(fresh, "status", "--context", ctx)
+    assert "IM1 nano_banana_2: 1 of 3 takes used" in s.stdout and "sold-proof 4 of 300 credits" in s.stdout
+    # filed once: a second settle, a job the doorway never made, and the other kind's pass are each refused
+    again = run(fresh, "settle", "--context", ctx, "--job", jid, "--out", str(vdir2 / "again.png"))
+    assert again.returncode == 1 and "still unfiled" in again.stderr
+    other = run(fresh, "settle", "--context", ctx, "--job", "00000000-0000-4000-8000-000000000000",
+                "--out", str(vdir2 / "other.png"))
+    assert other.returncode == 1 and "still unfiled" in other.stderr
+    assert not (vdir2 / "again.png").exists() and not (vdir2 / "other.png").exists()
+
+
+def test_settle_refuses_a_job_with_no_finished_result_and_writes_nothing(fresh):
+    behave(fresh, create_shape="garbled", cost=4)
+    first, vdir = pass_of(fresh, "art-pose-designer", "appearance")
+    take(fresh, first, "IM1", vdir / "house.png")
+    jid = (fresh["state"] / "last-job").read_text()
+    behave(fresh, create_shape="garbled", cost=4, job_fails=True)
+    ctx, vdir2 = pass_of(fresh, "art-pose-designer", "appearance")
+    r = run(fresh, "settle", "--context", ctx, "--job", jid, "--out", str(vdir2 / "house.png"))
+    assert r.returncode == 1 and "no finished result" in r.stderr and not list(vdir2.iterdir())
 
 
 def test_no_call_before_seans_intended_use_approval(fresh):
@@ -527,3 +593,16 @@ def test_the_allowlist_gives_higgsfield_only_to_art_for_images_and_the_animator_
         assert r.returncode == 1 and "Art alone makes images there and the Animator video" in r.stderr
     finally:
         belts.write_text(old)
+
+
+def test_the_launcher_takes_a_settle_request_only_as_a_job_id_and_a_file():
+    sys.path.insert(0, str(LAUNCHER))
+    import apps
+    check = lambda h: apps.AppServer.check_higgsfield(None, {"higgsfield": h})
+    job = "be4ac502-797e-49c7-b640-206d7bb055b0"
+    ok = check({"settle": job, "out": "/m/appearance/x-v01-2026-10-25/IM1-take1.png"})
+    assert ok["argv"] == ["settle", "--job", job, "--out", "/m/appearance/x-v01-2026-10-25/IM1-take1.png"]
+    for bad in ({"settle": "job:" + job, "out": "/m/x.png"}, {"settle": job, "out": "x.png"},
+                {"settle": job, "out": "/m/x.png", "entry": "IM1"}, {"settle": "../etc", "out": "/m/x.png"}):
+        with pytest.raises(ValueError):
+            check(bad)
