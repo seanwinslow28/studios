@@ -22,6 +22,10 @@ watch = "~/.claude/plugins/cache/claude-video/watch/*/skills"
 # `sound = true`: the pass may call ElevenLabs (sound effects) and Lyria (music)
 # through `launcher/sound.py`, for the cues on Sean's approved cue list. Finishing
 # alone; only on Claude, and never on a read-only pass.
+# `higgsfield = "image"` or `"video"`: the pass may ask the launcher for one take of an
+# entry on Sean's approved Higgsfield list, through `launcher/higgsfield.py` (SWCB #271,
+# Sean's pick at mc-eng-002's Open, 2026-10-24). Art alone makes images there and the
+# Animator alone video; on either vendor, and never on a read-only pass.
 [seats.visual-story-director]
 skills = ["agents:motion-art-direction", "agents:shot-composition", "agents:beat-sync-editing",
           "agents:animation-vocabulary", "watch:watch"]
@@ -32,11 +36,13 @@ apps = ["blender"]
 skills = ["claude-desktop:2d-animation-principles", "agents:shot-composition"]
 image = true
 apps = ["krita"]
+higgsfield = "image"
 
 [seats.animator]
 skills = ["claude-desktop:2d-animation-principles", "agents:animation-principles"]
 apps = ["blender"]
 tools = ["kerning"]
+higgsfield = "video"
 
 [seats.finishing-sound-designer]
 skills = ["agents:color-motion", "agents:beat-sync-editing"]
@@ -51,7 +57,8 @@ sound = true
 # writes only its own stage, so two seats on Blender each work in their own files
 # (rule 5; the map's "Tool ownership" ticket, 2026-10-20, which also dropped the
 # Animator's `resolve` line: its renders cross to Finishing as files).
-# The paths below are what the doorway's locks run; a missing one is a gap in `seat.py check`.
+# The paths below are what the doorway's locks run, and `higgsfield` the command line the Higgsfield
+# doorway runs, outside any lock; a missing one is a gap in `seat.py check`.
 #
 # `tools`: pipeline software Devcraft built for the seat, one module each in `motioncraft/tools/`,
 # named here with Sean's yes (the bindings rule above). A drafting pass's context fixes each by
@@ -62,6 +69,7 @@ sound = true
 blender = "/Applications/Blender.app/Contents/MacOS/Blender"
 krita = "/Applications/Krita.app/Contents/MacOS/kritarunner"
 python = "/opt/homebrew/bin/python3"
+higgsfield = "~/.local/bin/higgsfield"
 
 # What every pass's environment carries for the two tested applications, since the
 # launcher scrubs the rest: Blender's folder joins PATH (`blender` is a shell alias
@@ -75,6 +83,8 @@ PYTHONPATH = "/Library/Application Support/Blackmagic Design/DaVinci Resolve/Dev
 
 # Names no seat's probe may show anywhere it lists a loaded skill, plugin, tool or
 # connector: the seat files' Never lines, as the plugin-routing brief named them.
+# Higgsfield stays here: Art and the Animator reach it only by asking the launcher,
+# never through a skill, a plugin or the connector a pass would load.
 [never]
 names = ["higgsfield", "adobe", "hyperframes", "remotion", "creative-director", "animation-pipeline",
          "gemini", "nanobanana", "notebooklm", "image-generator-prompt-science", "kinetic-typography",
