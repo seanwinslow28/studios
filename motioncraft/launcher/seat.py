@@ -1013,8 +1013,10 @@ def apps_note(ctx: Dict) -> str:
                      "kept in a version folder uses the CPU and the graphics chip is for previews in your scratch folder. "
                      "A scene holding Grease Pencil, and any Eevee or Workbench render, aborts under your own script, so "
                      f"save the scene and ask `python3 -B {APPS_DOOR} ask blender --render --blend <the saved .blend> --out "
-                     "<a folder> --frames S-E [--engine cycles|eevee|workbench]`, which renders it with the launcher's own "
-                     "script (Cycles on the CPU; scripts inside the file never run); a kept render is cycles into a new "
+                     "<a folder> --frames S-E [--engine cycles|eevee|workbench] [--device gpu]`, which renders it with the "
+                     "launcher's own script (Cycles on the CPU, or on the graphics chip with --device gpu, a preview into "
+                     "your scratch folder unless the brief says render_device: gpu; scripts inside the file never run); a "
+                     "kept render is cycles into a new "
                      "version folder in your stage, and eevee or workbench render only into your scratch folder, as previews")
         if ctx["seat"] == "visual-story-director":
             usage.append("your animatic is a sequencer edit in a .blend of your own in your stage: the boards as image "

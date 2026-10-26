@@ -2,7 +2,7 @@
 """The application doorway: Blender, Resolve and Krita for a seat pass, run by the launcher outside the pass's sandbox, under a lock of its own.
 
     apps.py ask blender --script F [--blend B] [--timeout S] [--wait S] [-- ARG...]    (from inside a pass)
-    apps.py ask blender --render --blend B --out D [--frames S-E] [--engine E] [--timeout S] [--wait S]
+    apps.py ask blender --render --blend B --out D [--frames S-E] [--engine E] [--device cpu|gpu] [--timeout S] [--wait S]
     apps.py ask resolve --script F [--timeout S] [--wait S] [-- ARG...]
     apps.py ask krita --script F [--fonts D] [--timeout S] [--wait S] [-- ARG...]
     apps.py ask higgsfield --entry IMn|VIn --out F [--timeout S] [--wait S]
@@ -31,7 +31,10 @@ with macOS's app registry (LaunchServices) on start, and the lock refuses that, 
 the render aborts (exit -6). The render request opens that one service, and in return
 runs no code of the seat's: the launcher's own render script (`RENDER_SCRIPT`), the
 scene opened with Blender's auto-run of scripts in a file switched off, Cycles on the
-CPU with no OSL script nodes. The opening lets a process see which apps are running
+CPU with no OSL script nodes, or on the graphics chip (Metal) when the request asks
+for `--device gpu`. The GPU needs no opening the CPU's lock lacks, so both run under
+the same lock; a GPU render is kept in a version folder only in a film whose brief
+adopts it (`render_device: gpu`), Sean's call per film (SWCB #272). The opening lets a process see which apps are running
 and which is in front, nothing more (screen, windows, clipboard, input and launching
 apps stay refused; tested 2026-10-19). A kept render is Cycles into a new version
 folder; Eevee and Workbench render only into the scratch folder, as previews. Ruled
@@ -122,19 +125,34 @@ DEFAULT_WAIT_S = 540  # under Claude Code's ten-minute Bash limit; `wait` picks 
 POLL_S = 0.3
 # The render request: the engine names a pass may give, and Blender's own for each. Only Cycles is kept.
 RENDER_ENGINES = {"cycles": "CYCLES", "eevee": "BLENDER_EEVEE", "workbench": "BLENDER_WORKBENCH"}
+# Cycles' device: the CPU by default; the graphics chip (Metal) on `--device gpu`, kept only where the brief adopts it.
+RENDER_DEVICES = {"cpu": "CPU", "gpu": "GPU"}
 MAX_RENDER_FRAMES = 2400  # 100 s at 24 fps; a longer stretch is two requests
 # The render request's script: the launcher's, never a seat's. It sets the engine, the frames and the folder, and
 # renders; it reads nothing else from the request. Cycles runs on the CPU (the one path that repeats a frame
-# exactly) with OSL off, since a script node is code. `autoexec_fail` is set when Blender skipped a script the file
-# carries (a driver expression, a registered text block), so the log says when one was there.
+# exactly) or, asked, on the Metal device, with OSL off, since a script node is code. Cycles falls back to the CPU
+# without a word when no GPU device is enabled, so a GPU render with no Metal device stops instead. `autoexec_fail`
+# is set when Blender skipped a script the file carries (a driver expression, a registered text block), so the log
+# says when one was there.
 RENDER_SCRIPT = r'''import bpy, os, sys
-out, start, end, engine = sys.argv[sys.argv.index("--") + 1:]
+out, start, end, engine, device = sys.argv[sys.argv.index("--") + 1:]
 print("MOTIONCRAFT_RENDER autoexec_blocked", bool(bpy.app.autoexec_fail), repr(bpy.app.autoexec_fail_message))
 s = bpy.context.scene
 s.render.engine = engine
 if engine == "CYCLES":
-    s.cycles.device = "CPU"
+    s.cycles.device = device
     s.cycles.shading_system = False
+    used = []
+    if device == "GPU":
+        p = bpy.context.preferences.addons["cycles"].preferences
+        p.compute_device_type = "METAL"
+        p.get_devices()
+        for d in p.devices:
+            d.use = d.type == "METAL"
+        used = [d.name for d in p.devices if d.use]
+        if not used:
+            raise SystemExit("MOTIONCRAFT_RENDER no Metal device: Cycles would render on the CPU")
+    print("MOTIONCRAFT_RENDER device", device, *([used] if used else []))
 s.frame_start, s.frame_end = int(start), int(end)
 os.makedirs(out, exist_ok=True)
 s.render.filepath = os.path.join(out, "frame-")
@@ -361,13 +379,16 @@ def cmd_ask(a) -> None:
                "higgsfield": {"status": True} if a.status else {"entry": a.entry, "out": os.path.abspath(a.out)}}
     elif a.entry or a.status:
         sys.exit("apps.py: --entry and --status are Higgsfield's")
+    elif a.device != "cpu" and not a.render:
+        sys.exit("apps.py: --device is the render request's: ask blender --render ... --device gpu")
     elif a.render:
         m = re.fullmatch(r"(\d+)-(\d+)", a.frames or "")
         if a.app != "blender" or a.script or a.args or not a.blend or not a.out or not m:
-            sys.exit("apps.py: ask blender --render --blend <scene> --out <folder> --frames S-E [--engine E]; no --script")
+            sys.exit("apps.py: ask blender --render --blend <scene> --out <folder> --frames S-E [--engine E] "
+                     "[--device cpu|gpu]; no --script")
         req = {"id": rid, "app": a.app, "timeout": a.timeout,
                "render": {"blend": os.path.abspath(a.blend), "out": os.path.abspath(a.out),
-                          "frames": [int(m[1]), int(m[2])], "engine": a.engine}}
+                          "frames": [int(m[1]), int(m[2])], "engine": a.engine, "device": a.device}}
     else:
         if not a.script:
             sys.exit("apps.py: ask needs --script, or --render for a render")
@@ -455,6 +476,16 @@ def krita_version(kritarunner: str) -> str:
         return "unknown"
 
 
+def brief_render_device(eng: str) -> str:
+    """The film's render device from its brief's header: `gpu` only once Sean adopts it for this film, else `cpu`."""
+    _seat()
+    from sound import header  # noqa: E402  the same ledger reader the sound and Higgsfield doorways use
+    try:
+        return header((Path(eng) / "brief.md").read_text(encoding="utf-8")).get("render_device") or "cpu"
+    except OSError:
+        return "cpu"
+
+
 def lock(ctx: Dict, app: str, socket_path: str = "", render: bool = False, home: str = "") -> str:
     """The Seatbelt lock for one application call, written from the pass's context.
 
@@ -464,7 +495,9 @@ def lock(ctx: Dict, app: str, socket_path: str = "", render: bool = False, home:
     compiler; a Resolve script adds only the broker's one local socket; Krita adds
     only the call's own home folder (`home`) and the font server. A render
     request (`render`, Blender only) adds LaunchServices, which Blender's GPU drawing
-    engine registers with on start, and nothing else.
+    engine registers with on start, and nothing else. A GPU render (Cycles on Metal)
+    needs nothing more than Blender's graphics chip and shader compiler, so its lock is
+    the CPU render's, rule for rule.
     """
     seat = _seat()
     if app not in APPS:
@@ -1315,8 +1348,9 @@ class AppServer:
         seat, ctx = self.seat, self.ctx
         r = req.get("render")
         if req.get("app") != "blender" or not isinstance(r, dict) or req.get("script") or req.get("args") \
-                or set(r) - {"blend", "out", "frames", "engine"}:
-            raise ValueError("a render request is Blender's: a scene, a folder, frames and an engine, with no script or arguments")
+                or set(r) - {"blend", "out", "frames", "engine", "device"}:
+            raise ValueError("a render request is Blender's: a scene, a folder, frames, an engine and a device, with no "
+                             "script or arguments")
         blend = seat.real(str(r.get("blend") or ""))
         if not blend.endswith(".blend") or not os.path.isfile(blend) or not seat.under(blend, ctx["media_project"]):
             raise ValueError("--blend is a .blend file in the media project, for blender")
@@ -1330,6 +1364,14 @@ class AppServer:
             raise ValueError("--out is a folder in the scratch folder or a new version folder in the seat's stage")
         if name != "cycles" and not seat.under(out, ctx["scratch"]):
             raise ValueError(f"{name} renders are previews: --out is a folder in the scratch folder; a kept render is cycles")
+        device = r.get("device") or "cpu"
+        if device not in RENDER_DEVICES:
+            raise ValueError(f"--device is one of {', '.join(RENDER_DEVICES)}")
+        if device == "gpu" and name != "cycles":
+            raise ValueError("--device gpu is cycles on the graphics chip (Metal); eevee and workbench take no device")
+        if device == "gpu" and not seat.under(out, ctx["scratch"]) and brief_render_device(ctx["engagement"]) != "gpu":
+            raise ValueError("a GPU render is a preview in the scratch folder until Sean adopts it for this film: the "
+                             "brief's header then says render_device: gpu, and only then is it kept in a version folder")
         frames = r.get("frames")
         if (not isinstance(frames, list) or len(frames) != 2 or not all(isinstance(f, int) and f >= 0 for f in frames)
                 or not 1 <= frames[1] - frames[0] + 1 <= MAX_RENDER_FRAMES):
@@ -1338,7 +1380,8 @@ class AppServer:
         if not isinstance(timeout, int) or not 1 <= timeout <= MAX_TIMEOUT_S:
             raise ValueError(f"--timeout is whole seconds, 1 to {MAX_TIMEOUT_S}")
         return {"app": "blender", "render": True, "script": "launcher: RENDER_SCRIPT", "body": RENDER_SCRIPT.encode(),
-                "args": [out, str(frames[0]), str(frames[1]), RENDER_ENGINES[name]], "blend": blend, "timeout": timeout}
+                "args": [out, str(frames[0]), str(frames[1]), RENDER_ENGINES[name], RENDER_DEVICES[device]],
+                "device": device, "blend": blend, "timeout": timeout}
 
     def write_new(self, name: str, data: bytes) -> Path:
         p = self.results / name
@@ -1359,6 +1402,8 @@ class AppServer:
             entry["refused"] = str(e)
             self.finish(entry, {"id": rid, "ok": False, "refused": str(e)})
             return
+        if c.get("render"):
+            entry["device"] = c["device"]
         try:
             self.run(rid, c, entry)
         except Exception as e:  # noqa: BLE001  any failure is the seat's to read, never a dead launcher
@@ -1374,6 +1419,8 @@ class AppServer:
             res["resolve"] = entry.get("resolve")
         if c["app"] == "krita":
             res["fonts"] = entry.get("fonts")
+        if c.get("render"):
+            res["device"] = c["device"]
         self.finish(entry, res)
 
     def run(self, rid: str, c: Dict, entry: Dict) -> None:
@@ -1621,7 +1668,10 @@ def main() -> None:
     k.add_argument("--out", default="", help="--render: the folder the frames go to")
     k.add_argument("--frames", default="", help="--render: S-E, the first and last frame")
     k.add_argument("--engine", default="cycles", choices=sorted(RENDER_ENGINES),
-                   help="--render: cycles (on the CPU; the kept render), or eevee or workbench (previews, into scratch)")
+                   help="--render: cycles (the kept render), or eevee or workbench (previews, into scratch)")
+    k.add_argument("--device", default="cpu", choices=sorted(RENDER_DEVICES),
+                   help="--render: cycles on the cpu (the default), or gpu (Metal): a preview into scratch, kept in a "
+                        "version folder only where the brief says render_device: gpu")
     k.add_argument("--entry", default="", help="higgsfield: the approved entry to take, IMn (Art) or VIn (the Animator)")
     k.add_argument("--status", action="store_true", help="higgsfield: the approved entries, takes and credits; no call")
     k.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT_S, help="seconds the call may run")
