@@ -41,7 +41,9 @@ holds the terms for the call, on the sound doorway's pattern (launcher/sound.py)
   approvals entry with decision approved whose sha256 still matches the folder, be listed in
   that copy's `checksums.sha256`, and match its listed sha256 byte for byte. The bytes checked
   are copied to a private folder and uploaded from there (`upload create`), once each, after
-  the model is known to take the field and before the take is priced. Without the field, a
+  the model is known to take the field and before the take is priced. A call's uploads are
+  spaced a second apart, and a failed upload is tried again after 2, 5 and 10 seconds, every
+  try logged; when all four fail the call is refused, with no job and no take. Without the field, a
   list naming a file is refused whole, as is any list naming a path outside `approved/`, a
   link, a URL or anything else;
 - three takes per entry and wording, counted across the whole job from its logs;
@@ -111,6 +113,11 @@ FILE_REF = re.compile(r"approved/(?:[A-Za-z0-9_-][A-Za-z0-9._-]{0,127}/){1,8}[A-
 CHECKSUMS = "checksums.sha256"
 MAX_UPLOAD_BYTES = 50_000_000
 UPLOAD_TIMEOUT_S = 600
+# Higgsfield's uploads fail now and then with "Failed to upload media bytes." on a file that goes through on the
+# next call (mc-eng-003's pass-34 and pass-35): an upload is retried after each of these waits, and a call's uploads
+# are spaced UPLOAD_GAP_S apart. Every try goes on the call's line.
+UPLOAD_BACKOFF_S = (2, 5, 10)
+UPLOAD_GAP_S = 1
 UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 SCALARS = {"string": (str,), "integer": (int,), "number": (int, float), "boolean": (bool,)}
 # A setting's text value: a word, a ratio or a size. Nothing shaped like a path, a link or a flag goes to the CLI,
@@ -651,29 +658,39 @@ def refusal_line(a, msg: str) -> None:
 
 def uploader(entry: Dict, files: Dict[str, Dict], fields: Dict[str, List[str]]) -> Callable[[str], str]:
     """Send each checked file once, from a private copy of the bytes that were checked, so the command line reads
-    nothing but what the approved copy lists; each upload goes on the call's line, with its path and sha256."""
+    nothing but what the approved copy lists; each upload goes on the call's line, with its path and sha256, and
+    every try at it. A failed try is tried again after each wait in UPLOAD_BACKOFF_S; when every try fails, the call
+    is refused, and no job is made."""
     sent_ids: Dict[str, str] = {}
     entry["uploads"] = []
 
     def upload(ref: str) -> str:
         if ref in sent_ids:
             return sent_ids[ref]
+        if entry["uploads"]:
+            time.sleep(UPLOAD_GAP_S)
         f = files[ref]
         u = {"ref": ref, "fields": fields[ref], "path": f["path"], "sha256": f["sha256"], "bytes": f["bytes"],
-             "approval": f["approval"], "upload": None, "uploaded": seat.now()}
+             "approval": f["approval"], "upload": None, "uploaded": seat.now(), "tries": []}
         entry["uploads"].append(u)
         with tempfile.TemporaryDirectory(prefix="mc-higgsfield-upload-") as private:
             copy = os.path.join(private, os.path.basename(f["path"]))
             fd = os.open(copy, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
             with os.fdopen(fd, "wb") as fh:
                 fh.write(f["data"])
-            code, doc, why = cli("upload", "create", copy, timeout=UPLOAD_TIMEOUT_S)
-        uid = job_id(doc, ("id", "media_id", "upload_id")) if code == 0 else None
-        if not uid:
-            u["error"] = f"Higgsfield gave no upload id ({why})"
-            raise Refused(f"{ref} could not be uploaded ({why}); no job is made without it")
-        u["upload"] = sent_ids[ref] = uid
-        return uid
+            for wait in (0, *UPLOAD_BACKOFF_S):
+                if wait:
+                    time.sleep(wait)
+                t = {"at": seat.now(), **({"waited_s": wait} if wait else {})}
+                u["tries"].append(t)
+                code, doc, why = cli("upload", "create", copy, timeout=UPLOAD_TIMEOUT_S)
+                uid = job_id(doc, ("id", "media_id", "upload_id")) if code == 0 else None
+                if uid:
+                    t["upload"] = u["upload"] = sent_ids[ref] = uid
+                    return uid
+                t["error"] = f"Higgsfield gave no upload id ({why})"
+        u["error"] = t["error"]
+        raise Refused(f"{ref} could not be uploaded in {len(u['tries'])} tries ({why}); no job is made without it")
     return upload
 
 
