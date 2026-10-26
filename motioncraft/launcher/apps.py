@@ -83,7 +83,7 @@ refusal (Sean's call on SWCB #263, 2026-10-22).
 Higgsfield comes through the same requests (SWCB #271), for Art's images and the
 Animator's video: the launcher runs its own doorway, launcher/higgsfield.py, for one
 entry of Sean's approved list, with no lock, since the call needs the network and the
-sign-in no pass may read. The doorway holds the terms (the approved list, no upload,
+sign-in no pass may read. The doorway holds the terms (the approved list, the uploads,
 the takes, the credit caps, the filing); this file only carries the request to it.
 
 Every call is logged to `trace/logs/pass-NN.apps.jsonl`, and its result, log, lock
