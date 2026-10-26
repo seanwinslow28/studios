@@ -23,17 +23,27 @@ holds the terms for the call, on the sound doorway's pattern (launcher/sound.py)
   bench/toolbelts.toml, which only those two seats may carry), on either vendor;
 - Sean's intended-use approval (never-do 6), recorded with Higgsfield's data-use and training
   settings in the ledger's setup record for this job: `tool: higgsfield`, with the brief's id in
-  its `engagements:` list. Another job's record never covers this one, two for one job are
-  Sean's to settle, and no call is made before the one says approved;
+  its `engagements:` list. Another job's record never covers this one, and no call is made
+  before the one says approved. A record that another approved record for the job names in its
+  `supersedes:` is skipped (mc-setup-027 over mc-setup-025); two still standing are Sean's to
+  settle;
 - the entry comes from the newest list of the pass's kind that Sean approved in one decision:
   a `higgsfield.json` in the media project's `approved/<version-id>/`, named by an approvals
   entry with decision approved whose sha256 still matches the folder. The pass names an entry
   by its id and nothing else: the model, the prompt and the settings are the list's, so a
   reworded prompt is a new list for Sean, never a take;
-- nothing leaves the machine but the entry's text and settings. No file is uploaded, and the
-  only reference an entry may carry is an earlier take of this doorway's own in this job, by
-  its Higgsfield job id (`job:<id>`), which is already on Higgsfield's side. A list naming a
-  file, a link or anything else is refused whole;
+- nothing leaves the machine but the entry's text and settings, and, only where the job's
+  setup record says `uploads: approved-media`, the files its entries name. A reference is an
+  earlier take of this doorway's own in this job, by its Higgsfield job id (`job:<id>`), which
+  is already on Higgsfield's side, or, under that field, an image in one of this job's approved
+  copies, by its path from the media project (`approved/<version-id>/<file>`). At the take each
+  such file must exist, be a regular file reached through no link, sit in a copy named by an
+  approvals entry with decision approved whose sha256 still matches the folder, be listed in
+  that copy's `checksums.sha256`, and match its listed sha256 byte for byte. The bytes checked
+  are copied to a private folder and uploaded from there (`upload create`), once each, after
+  the model is known to take the field and before the take is priced. Without the field, a
+  list naming a file is refused whole, as is any list naming a path outside `approved/`, a
+  link, a URL or anything else;
 - three takes per entry and wording, counted across the whole job from its logs;
 - two caps, both in credits: the brief's `higgsfield_credits_cap` for the whole train, and the
   list's `ceiling_credits` for its test. Each take is priced first by Higgsfield's own estimate
@@ -42,14 +52,16 @@ holds the terms for the call, on the sound doorway's pattern (launcher/sound.py)
   account's own balance, read before the call and again until it moves;
 - the take is downloaded the moment it is ready (never-do 13) into a new file in a version
   folder the pass made in its own stage, with `<name>.higgsfield.json` beside it (the entry,
-  the approval, the job, the credits, the label "generated": never-do 8), both created
+  the approval, each upload's path, sha256 and upload id, the job, the credits, the label
+  "generated": never-do 8), both created
   relative to the version folder held open since the check, never through a link and never
   over a file already there. A file that came back but could not be filed is kept in the
   pass's scratch folder. Every call, refusals too, is logged to
   `trace/logs/pass-NN.higgsfield.jsonl`, and a job's line is written the moment Higgsfield
   takes it, so a call cut off mid-way still counts what it spent.
 
-Written on SWCB #271 (2026-10-25), on the sound doorway's pattern.
+Written on SWCB #271 (2026-10-25), on the sound doorway's pattern. Uploads of approved media
+added for mc-eng-003's generated route (mc-eng-003.d29, mc-setup-027, 2026-10-26).
 """
 from __future__ import annotations
 
@@ -59,6 +71,7 @@ import hashlib
 import json
 import os
 import re
+import stat
 import subprocess
 import sys
 import tempfile
@@ -67,7 +80,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -83,12 +96,21 @@ TAKES_PER_ENTRY = 3
 # A setup record of Higgsfield's data-use and training settings and Sean's intended-use approval (never-do 6) says
 # `tool: higgsfield`, and covers only the jobs its `engagements:` names: mc-setup-023 covers mc-eng-002.
 SETUP_TOOL = "higgsfield"
+# A record that says `uploads: approved-media` lets its job's lists name files in the media project's approved/
+# (mc-setup-027, for mc-eng-003). Without the field, no file is ever sent.
+UPLOADS_FIELD, UPLOADS_ALLOWED = "uploads", "approved-media"
 LIST_FILE = "higgsfield.json"
 LIST_KEYS = {"test", "ceiling_credits", "entries"}
 ENTRY_KEYS = {"id", "purpose", "model", "prompt", "params", "start_image", "end_image", "image_references"}
-# The only media an entry may name, each an earlier take of this doorway's own, by its job id: never a file.
+# The only media an entry may name: an earlier take of this doorway's own, by its job id, or, where the job's setup
+# record allows uploads, an image in an approved copy, by its path from the media project (approved/<version>/...).
 MEDIA_FLAGS = {"start_image": "--start-image", "end_image": "--end-image", "image_references": "--image-references"}
 JOB_REF = re.compile(r"job:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})")
+# No part may start with a dot, so no `..`, no `.`, no hidden file; no colon, so no link and no `media:` path.
+FILE_REF = re.compile(r"approved/(?:[A-Za-z0-9_-][A-Za-z0-9._-]{0,127}/){1,8}[A-Za-z0-9_-][A-Za-z0-9._-]{0,127}")
+CHECKSUMS = "checksums.sha256"
+MAX_UPLOAD_BYTES = 50_000_000
+UPLOAD_TIMEOUT_S = 600
 UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 SCALARS = {"string": (str,), "integer": (int,), "number": (int, float), "boolean": (bool,)}
 # A setting's text value: a word, a ratio or a size. Nothing shaped like a path, a link or a flag goes to the CLI,
@@ -161,20 +183,21 @@ def settled(before: Optional[float]) -> Optional[float]:
         time.sleep(METER_POLL_S)
 
 
-def job_id(doc: object) -> Optional[str]:
-    """The first job id in an answer: the job itself, a list of jobs, or a wrapper around them."""
+def job_id(doc: object, keys: Tuple[str, ...] = ("id", "job_id")) -> Optional[str]:
+    """The first job id in an answer: the job itself, a list of jobs, or a wrapper around them. With `keys`, the
+    first id under those names, as an upload's id is read from `upload create`."""
     if isinstance(doc, dict):
-        for k in ("id", "job_id"):
+        for k in keys:
             if isinstance(doc.get(k), str) and UUID.fullmatch(doc[k]):
                 return doc[k]
         for v in doc.values():
-            found = job_id(v) if isinstance(v, (dict, list)) else None
+            found = job_id(v, keys) if isinstance(v, (dict, list)) else None
             if found:
                 return found
     elif isinstance(doc, list):
         for v in doc:
             # `generate create` answers with a bare list of job ids (mc-eng-002's first live call, 2026-10-25)
-            found = v if isinstance(v, str) and UUID.fullmatch(v) else job_id(v)
+            found = v if isinstance(v, str) and UUID.fullmatch(v) else job_id(v, keys)
             if found:
                 return found
     return None
@@ -215,9 +238,9 @@ def sniff(data: bytes) -> Optional[str]:
 
 # --- the approved list ------------------------------------------------------------------------
 
-def check_entry(e: Dict, kind: str) -> Optional[str]:
+def check_entry(e: Dict, kind: str, uploads: bool = False) -> Optional[str]:
     """Why an entry in an approved list cannot be sent as it stands, or None. The model's own settings are
-    checked again at the call, against what Higgsfield says the model takes."""
+    checked again at the call, against what Higgsfield says the model takes, and a named file at the take."""
     want = {"image": "IM", "video": "VI"}[kind]
     if not isinstance(e, dict) or not ENTRY_ID[kind].fullmatch(str(e.get("id", ""))):
         return f"an entry's id is {want}<n> on a list of {kind}s"
@@ -248,16 +271,31 @@ def check_entry(e: Dict, kind: str) -> Optional[str]:
         if k == "image_references" and not isinstance(v, list):
             return f"{i}: image_references is a list of earlier takes, each job:<id>"
         for x in vals:
-            if not isinstance(x, str) or not JOB_REF.fullmatch(x):
-                return (f"{i}: {k} names an earlier take of this doorway's by its job id (job:<id>); nothing is "
-                        f"uploaded, so never a file, a link or an upload")
+            if isinstance(x, str) and (JOB_REF.fullmatch(x) or (uploads and FILE_REF.fullmatch(x))):
+                continue
+            if uploads:
+                return (f"{i}: {k} names an earlier take of this doorway's by its job id (job:<id>), or a file in "
+                        "this job's approved copies by its path (approved/<version-id>/<file>); never a link, a path "
+                        "outside approved/ or anything else")
+            return (f"{i}: {k} names an earlier take of this doorway's by its job id (job:<id>); this job's setup "
+                    f"record allows no upload ({UPLOADS_FIELD}: {UPLOADS_ALLOWED}), so never a file, a link or an upload")
         refs += vals
     if len(refs) > MAX_REFS:
-        return f"{i}: at most {MAX_REFS} earlier takes as references"
+        return f"{i}: at most {MAX_REFS} references"
     return None
 
 
-def read_list(path: str, kind: str) -> Optional[Dict]:
+def file_refs(e: Dict) -> Dict[str, List[str]]:
+    """The files an entry names, each with the fields that name it, in the list's order."""
+    out: Dict[str, List[str]] = {}
+    for k in MEDIA_FLAGS:
+        for x in (e[k] if isinstance(e.get(k), list) else [e[k]]) if k in e else []:
+            if FILE_REF.fullmatch(x):
+                out.setdefault(x, []).append(k)
+    return out
+
+
+def read_list(path: str, kind: str, uploads: bool = False) -> Optional[Dict]:
     """A list file read and checked whole, or None when it is a list of the other kind."""
     try:
         doc = json.loads(Path(path, LIST_FILE).read_text(encoding="utf-8"))
@@ -274,7 +312,7 @@ def read_list(path: str, kind: str) -> Optional[Dict]:
     c = doc["ceiling_credits"]
     if isinstance(c, bool) or not isinstance(c, (int, float)) or c <= 0:
         raise Refused(f"{path}/{LIST_FILE}: ceiling_credits is the test's ceiling, a number of credits")
-    bad = [w for w in (check_entry(e, kind) for e in doc["entries"]) if w]
+    bad = [w for w in (check_entry(e, kind, uploads) for e in doc["entries"]) if w]
     if bad:
         raise Refused("the approved list cannot be sent as it stands: " + "; ".join(bad))
     if len(set(ids)) != len(ids):
@@ -282,21 +320,27 @@ def read_list(path: str, kind: str) -> Optional[Dict]:
     return doc
 
 
-def approved_list(ctx: Dict, kind: str) -> Dict:
-    """The newest list of this kind Sean approved for this job, read from the approvals ledger and its locked copy."""
+def approved_copies(ctx: Dict) -> List[Tuple[Path, Dict[str, str], str]]:
+    """Every approvals entry with decision approved that names a copy in this job's approved/, oldest first."""
     approvals = Path(ctx["engagement"]).parents[1] / "approvals"
     approved_root = os.path.join(ctx["media_project"], "approved")
     found = []
     for f in sorted(approvals.glob("[0-9][0-9][0-9]-*.md")) if approvals.is_dir() else []:
         h = header(f.read_text(encoding="utf-8"))
         path = media_path(ctx, h.get("version_path", ""))
-        if (h.get("decision") == "approved" and h.get("version_path")
-                and seat.under(seat.real(path), seat.real(approved_root)) and os.path.isfile(os.path.join(path, LIST_FILE))):
+        if h.get("decision") == "approved" and h.get("version_path") and seat.under(seat.real(path), seat.real(approved_root)):
             found.append((f, h, path))
+    return found
+
+
+def approved_list(ctx: Dict, kind: str, uploads: bool = False) -> Dict:
+    """The newest list of this kind Sean approved for this job, read from the approvals ledger and its locked copy."""
+    approved_root = os.path.join(ctx["media_project"], "approved")
+    found = [(f, h, path) for f, h, path in approved_copies(ctx) if os.path.isfile(os.path.join(path, LIST_FILE))]
     for f, h, path in reversed(found):
         if sha256_path(Path(path)) != h.get("version_sha256"):
             raise Refused(f"{path} no longer matches its approval {h.get('id', f.name)}; an approved copy is never changed")
-        doc = read_list(path, kind)
+        doc = read_list(path, kind, uploads)
         if doc is not None:
             return {"approval": h.get("id", f.stem), "entry": str(f), "path": path, "sha256": h["version_sha256"],
                     "test": doc["test"], "ceiling": float(doc["ceiling_credits"]),
@@ -305,17 +349,89 @@ def approved_list(ctx: Dict, kind: str) -> Dict:
                   f"its locked copy in {approved_root}/<version-id>/ is named by an approvals entry")
 
 
+def checksums(vdir: str) -> Dict[str, str]:
+    """An approved copy's checksums.sha256, file by file, as `sha256sum` writes it: `<sha256>  <path>`."""
+    try:
+        text = Path(vdir, CHECKSUMS).read_text(encoding="utf-8")
+    except (OSError, ValueError):
+        return {}
+    return {m[2]: m[1] for m in (re.fullmatch(r"([0-9a-f]{64}) [ *](.+)", x.rstrip("\r")) for x in text.splitlines()) if m}
+
+
+def media_file(ctx: Dict, ref: str) -> Dict:
+    """A file an entry names, checked to the byte against the approved copy it sits in, before anything is sent: the
+    copy's approval and its folder hash, its checksums.sha256, and the file itself, a regular file reached through no
+    link. The bytes returned are the ones checked, so what is uploaded is what the copy lists."""
+    approved_root = seat.real(os.path.join(ctx["media_project"], "approved"))
+    parts = ref.split("/")[1:]
+    path, at = approved_root, None
+    for p in parts:
+        path = os.path.join(path, p)
+        try:
+            at = os.lstat(path)
+        except FileNotFoundError:
+            raise Refused(f"{ref} does not exist")
+        if stat.S_ISLNK(at.st_mode):
+            raise Refused(f"{ref} goes through a link ({p}); a file is sent only as itself, from its approved copy")
+    if at is None or not stat.S_ISREG(at.st_mode):
+        raise Refused(f"{ref} is not a regular file")
+    vdir = os.path.join(approved_root, parts[0])
+    named = [(f, h) for f, h, p in approved_copies(ctx) if seat.real(p) == vdir]
+    if not named:
+        raise Refused(f"{ref}: no approvals entry with decision approved names {parts[0]}; only an approved copy's "
+                      "files are sent")
+    folder = sha256_path(Path(vdir))
+    match = [h for f, h in named if h.get("version_sha256") == folder]
+    if not match:
+        f, h = named[-1]
+        raise Refused(f"{parts[0]} no longer matches its approval {h.get('id', f.name)}; an approved copy is never "
+                      "changed")
+    rel = "/".join(parts[1:])
+    listed = checksums(vdir).get(rel)
+    if not listed:
+        raise Refused(f"{ref} is not listed in {parts[0]}/{CHECKSUMS}")
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    except OSError as err:
+        raise Refused(f"{ref} could not be read ({seat.one_line(str(err), 120)})")
+    with os.fdopen(fd, "rb") as fh:
+        if not stat.S_ISREG(os.fstat(fh.fileno()).st_mode):
+            raise Refused(f"{ref} is not a regular file")
+        data = fh.read(MAX_UPLOAD_BYTES + 1)
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise Refused(f"{ref} is over {MAX_UPLOAD_BYTES} bytes")
+    sha = hashlib.sha256(data).hexdigest()
+    if sha != listed:
+        raise Refused(f"{ref} is not the file its approved copy lists (sha256 {sha[:12]}, listed {listed[:12]})")
+    if sniff(data) not in SUFFIXES["image"]:
+        raise Refused(f"{ref} is not an image (png, jpg or webp); only an image goes as a reference")
+    return {"ref": ref, "path": path, "sha256": sha, "bytes": len(data), "approval": match[-1].get("id"), "data": data}
+
+
+def ids(v: str) -> List[str]:
+    """A header's list of ids, `[a, b]`, or one id on its own; none if unwritten."""
+    v = v.strip()
+    if v.startswith("[") and v.endswith("]"):
+        return [x.strip() for x in v[1:-1].split(",") if x.strip()]
+    return [v] if v and not v.startswith("[") else []
+
+
 def engagements(h: Dict[str, str]) -> List[str]:
     """A setup record's `engagements: [mc-eng-NNN, ...]`, the jobs its intended use is written for; none if unwritten."""
     v = h.get("engagements", "")
     if not (v.startswith("[") and v.endswith("]")):
         return []
-    return [x.strip() for x in v[1:-1].split(",") if x.strip()]
+    return ids(v)
+
+
+def approved_use(h: Dict[str, str]) -> bool:
+    return bool(h.get("intended_use_approved")) and h["intended_use_approved"] not in ("null", "pending")
 
 
 def setup_record(ctx: Dict) -> Dict:
     """The setup record of Higgsfield's settings whose intended use names this job, with Sean's approval in it; no
-    call before it. Another job's approval never covers this one (never-do 6)."""
+    call before it. Another job's approval never covers this one (never-do 6). A record that another approved record
+    for this job supersedes (`supersedes: mc-setup-NNN`) is skipped; two still standing are Sean's to settle."""
     eng = header((Path(ctx["engagement"]) / "brief.md").read_text(encoding="utf-8")).get("id")
     if not eng:
         raise Refused("the brief's header names no id, so no intended-use record can be read for this job")
@@ -329,14 +445,23 @@ def setup_record(ctx: Dict) -> Dict:
         raise Refused(f"no Higgsfield setup record covers {eng}: its intended use is its own record in the ledger's "
                       f"setup/ (`tool: {SETUP_TOOL}`, `engagements: [{eng}]`), with Higgsfield's data-use and training "
                       "settings and Sean's approval, before the first call (never-do 6)")
-    if len(found) > 1:
-        raise Refused(f"{' and '.join(h.get('id', f.parent.name) for f, h in found)} both cover {eng}: one intended-use "
-                      "record a job, so which one holds is Sean's")
-    f, h = found[0]
+    gone = {s for f, h in found if approved_use(h) for s in ids(h.get("supersedes", ""))}
+    standing = [(f, h) for f, h in found if h.get("id", f.parent.name) not in gone]
+    if not standing:
+        raise Refused(f"{' and '.join(h.get('id', f.parent.name) for f, h in found)} supersede one another for {eng}, "
+                      "so none stands; which one holds is Sean's")
+    if len(standing) > 1:
+        raise Refused(f"{' and '.join(h.get('id', f.parent.name) for f, h in standing)} both cover {eng}: one "
+                      "intended-use record a job, so which one holds is Sean's")
+    f, h = standing[0]
     sid = h.get("id", f.parent.name)
-    if not h.get("intended_use_approved") or h["intended_use_approved"] in ("null", "pending"):
+    if not approved_use(h):
         raise Refused(f"{sid} has no intended-use approval from Sean yet (never-do 6); no Higgsfield call before it")
-    return {"id": sid, "path": str(f), "approved": h["intended_use_approved"], "engagement": eng}
+    if h.get(UPLOADS_FIELD) not in (None, UPLOADS_ALLOWED):
+        raise Refused(f"{sid} says `{UPLOADS_FIELD}: {h[UPLOADS_FIELD]}`; the field is `{UPLOADS_FIELD}: "
+                      f"{UPLOADS_ALLOWED}` or absent, so no file is sent under it")
+    return {"id": sid, "path": str(f), "approved": h["intended_use_approved"], "engagement": eng,
+            "uploads": h.get(UPLOADS_FIELD) == UPLOADS_ALLOWED, "supersedes": ids(h.get("supersedes", ""))}
 
 
 def brief_cap(eng: str) -> float:
@@ -392,8 +517,9 @@ def tally(log: List[Dict]) -> Dict:
 
 # --- the call ---------------------------------------------------------------------------------
 
-def command(e: Dict, kind: str, made: set) -> List[str]:
-    """The `generate` arguments for an entry, checked against what Higgsfield says its model takes."""
+def command(e: Dict, kind: str, made: set, upload: Optional[Callable[[str], str]] = None) -> List[str]:
+    """The `generate` arguments for an entry, checked against what Higgsfield says its model takes. A named file goes
+    as the id `upload` returns for it, asked only once the model is known to take the field."""
     code, listed, why = cli("model", "list", f"--{kind}")
     if code != 0 or not isinstance(listed, list):
         raise Refused(f"could not list Higgsfield's {kind} models ({why})")
@@ -414,23 +540,27 @@ def command(e: Dict, kind: str, made: set) -> List[str]:
         types = SCALARS.get(str(p.get("type")))
         if types is None:
             raise Refused(f"{e['id']}: {k} is a media setting ({p.get('type')}); media go only as start_image, "
-                          "end_image or image_references, each an earlier take by its job id")
+                          "end_image or image_references")
         if isinstance(v, bool) != (bool in types) or not isinstance(v, types):
             raise Refused(f"{e['id']}: {k} is {p.get('type')} for {e['model']}")
         if p.get("enum") and v not in p["enum"]:
             raise Refused(f"{e['id']}: {k} is one of {', '.join(map(str, p['enum']))} for {e['model']}")
         args.append(f"--{k}=" + (json.dumps(v) if isinstance(v, bool) else str(v)))
-    for k, flag in MEDIA_FLAGS.items():
-        if k not in e:
-            continue
+    media = [k for k in MEDIA_FLAGS if k in e]
+    for k in media:
         if k not in schema:
             raise Refused(f"{e['id']}: {e['model']} takes no {k}")
         for ref in e[k] if isinstance(e[k], list) else [e[k]]:
-            jid = JOB_REF.fullmatch(ref)[1]
-            if jid not in made:
-                raise Refused(f"{e['id']}: {k} names job {jid}, which is no take this doorway made in this job; "
-                              "nothing is uploaded")
-            args.append(f"{flag}={jid}")
+            m = JOB_REF.fullmatch(ref)
+            if m and m[1] not in made:
+                raise Refused(f"{e['id']}: {k} names job {m[1]}, which is no take this doorway made in this job; "
+                              "a job id names only the doorway's own takes")
+    for k in media:
+        for ref in e[k] if isinstance(e[k], list) else [e[k]]:
+            m = JOB_REF.fullmatch(ref)
+            if not m and upload is None:
+                raise Refused(f"{e['id']}: {k} names a file, and nothing is uploaded here")
+            args.append(f"{MEDIA_FLAGS[k]}={m[1] if m else upload(ref)}")
     return args
 
 
@@ -458,8 +588,9 @@ def checked(a) -> Dict:
                       "Animator's, for video")
     if ctx.get("machine") != seat.machine():
         raise Refused(f"the context was written on {ctx.get('machine')}, not {seat.machine()}")
-    c = {"ctx": ctx, "kind": kind, "setup": setup_record(ctx), "cap": brief_cap(ctx["engagement"]),
-         "list": approved_list(ctx, kind)}
+    setup = setup_record(ctx)
+    c = {"ctx": ctx, "kind": kind, "setup": setup, "cap": brief_cap(ctx["engagement"]),
+         "list": approved_list(ctx, kind, setup["uploads"])}
     if c["list"]["ceiling"] > c["cap"]:
         raise Refused(f"the list's ceiling ({c['list']['ceiling']:g}) is over the train's cap ({c['cap']:g})")
     if getattr(a, "status", False) or getattr(a, "job", None):
@@ -518,6 +649,34 @@ def refusal_line(a, msg: str) -> None:
         pass
 
 
+def uploader(entry: Dict, files: Dict[str, Dict], fields: Dict[str, List[str]]) -> Callable[[str], str]:
+    """Send each checked file once, from a private copy of the bytes that were checked, so the command line reads
+    nothing but what the approved copy lists; each upload goes on the call's line, with its path and sha256."""
+    sent_ids: Dict[str, str] = {}
+    entry["uploads"] = []
+
+    def upload(ref: str) -> str:
+        if ref in sent_ids:
+            return sent_ids[ref]
+        f = files[ref]
+        u = {"ref": ref, "fields": fields[ref], "path": f["path"], "sha256": f["sha256"], "bytes": f["bytes"],
+             "approval": f["approval"], "upload": None, "uploaded": seat.now()}
+        entry["uploads"].append(u)
+        with tempfile.TemporaryDirectory(prefix="mc-higgsfield-upload-") as private:
+            copy = os.path.join(private, os.path.basename(f["path"]))
+            fd = os.open(copy, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+            with os.fdopen(fd, "wb") as fh:
+                fh.write(f["data"])
+            code, doc, why = cli("upload", "create", copy, timeout=UPLOAD_TIMEOUT_S)
+        uid = job_id(doc, ("id", "media_id", "upload_id")) if code == 0 else None
+        if not uid:
+            u["error"] = f"Higgsfield gave no upload id ({why})"
+            raise Refused(f"{ref} could not be uploaded ({why}); no job is made without it")
+        u["upload"] = sent_ids[ref] = uid
+        return uid
+    return upload
+
+
 def take(a) -> None:
     try:
         c = checked(a)
@@ -544,7 +703,11 @@ def take(a) -> None:
         try:
             if t["takes"].get(sha, 0) >= TAKES_PER_ENTRY:
                 raise Refused(f"{e['id']} has had its {TAKES_PER_ENTRY} takes; more is a question for Sean")
-            args = command(e, c["kind"], t["jobs"])
+            # every named file is checked here, on this machine, before anything is sent
+            fields = file_refs(e)
+            files = {ref: media_file(ctx, ref) for ref in fields}
+            # the files go up once the model is known to take them, and the take is priced with them
+            args = command(e, c["kind"], t["jobs"], uploader(entry, files, fields) if files else None)
             est = estimate(args)
             spent = t["tests"].get(lst["test"], 0.0)
             if t["train"] + est > c["cap"] + 1e-9:
@@ -725,7 +888,8 @@ def status(a) -> None:
     t = tally(job_log(c["ctx"]["engagement"]))
     lst = c["list"]
     print(f"approved list {lst['approval']} ({lst['path']}), test {lst['test']}; intended use {c['setup']['id']} for "
-          f"{c['setup']['engagement']}")
+          f"{c['setup']['engagement']}"
+          + (f", with uploads of approved media ({UPLOADS_FIELD}: {UPLOADS_ALLOWED})" if c["setup"]["uploads"] else ""))
     for i, e in lst["entries"].items():
         used = t["takes"].get(entry_sha(lst, e), 0)
         print(f"  {i} {e['model']}: {used} of {TAKES_PER_ENTRY} takes used · {e.get('purpose', '')}")
