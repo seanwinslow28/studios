@@ -76,8 +76,14 @@ if words[:2] == ["upload", "create"]:
     uid = str(uuid.uuid4())
     with open(state / "uploads.jsonl", "a") as f:
         f.write(json.dumps({{"path": words[2], "sha256": hashlib.sha256(data).hexdigest(), "id": uid}}) + "\n")
-    if b.get("upload_fails"):
-        print("Error: upload rejected", file=sys.stderr)
+    # `upload_fails`: true fails every upload, a number fails that many first attempts (Higgsfield's own
+    # "Failed to upload media bytes.", mc-eng-003's pass-34 and pass-35)
+    tried = state / "upload-attempts"
+    n_tried = int(tried.read_text()) + 1 if tried.exists() else 1
+    tried.write_text(str(n_tried))
+    fails = b.get("upload_fails")
+    if fails is True or (isinstance(fails, int) and n_tried <= fails):
+        print("Error: Failed to upload media bytes.", file=sys.stderr)
         sys.exit(1)
     out({{"id": uid, "type": "image", "url": "https://cdn.example/uploads/" + uid}})
 if words[:2] == ["generate", "cost"]:
@@ -118,6 +124,14 @@ import higgsfield
 state = Path(os.environ["HF_FAKE"])
 higgsfield.METER_POLL_S = 0
 higgsfield.METER_WAIT_S = 0.3
+
+def sleep(s):
+    # a wait is recorded, not slept, so the retries' backoff is seen without the test waiting on it
+    if s:
+        with open(state / "sleeps", "a") as f:
+            f.write(f"{s}\n")
+
+higgsfield.time.sleep = sleep
 
 def fetch(url):
     (state / "fetched").write_text(url)
@@ -376,6 +390,11 @@ def uploads_allowed(w, value="approved-media"):
         w["setup"].write_text(setup_text())
 
 
+def sleeps(w):
+    f = w["state"] / "sleeps"
+    return [float(x) for x in f.read_text().split()] if f.exists() else []
+
+
 def uploads(w):
     """Every file the fake command line was given to upload, with the sha256 of the bytes it read."""
     f = w["state"] / "uploads.jsonl"
@@ -530,14 +549,64 @@ def test_an_upload_higgsfield_rejects_is_logged_and_no_job_is_made(fresh):
             behave(fresh, upload_fails=True)
             ctx, vdir = pass_of(fresh, "animator", "motion")
             r = take(fresh, ctx, "VI1", vdir / "shot.mp4")
+            status = run(fresh, "status", "--context", ctx)
     finally:
         withdraw(fresh, "046")
         withdraw(fresh, "045")
-    assert r.returncode == 1 and "upload rejected" in r.stderr, r.stderr
+    assert r.returncode == 1 and "Failed to upload media bytes" in r.stderr and "4 tries" in r.stderr, r.stderr
     assert [c for c in sent(fresh) if c[:1] == ["generate"]] == [], "no job without its upload"
     last = job(fresh)[-1]
     assert last["refused"] and last["uploads"][0]["ref"] == ref and last["uploads"][0]["upload"] is None
     assert last["uploads"][0]["sha256"] == hashlib.sha256(RENDER).hexdigest()
+    # tried once and retried three times, after 2, 5 and 10 seconds, each try on the call's line
+    tries = last["uploads"][0]["tries"]
+    assert len(tries) == 4 and all("Failed to upload media bytes" in t["error"] for t in tries)
+    assert [t.get("waited_s", 0) for t in tries] == [0, 2, 5, 10] and sleeps(fresh) == [2, 5, 10]
+    assert len(uploads(fresh)) == 4
+    assert "VI1 seedance_2_0: 0 of 3 takes used" in status.stdout, "a call refused at its upload is no take"
+
+
+def test_an_upload_that_fails_and_then_goes_through_is_retried_and_the_take_made(fresh):
+    renders(fresh, "047", "renders47-v01-2026-10-26")
+    ref = "approved/renders47-v01-2026-10-26/screens/R01.png"
+    approve(fresh, "048", "higgsfield-video-r47-v01-2026-10-26", video_list(ref))
+    try:
+        with uploads_allowed(fresh):
+            behave(fresh, upload_fails=2, cost=4)
+            result(fresh, MP4)
+            ctx, vdir = pass_of(fresh, "animator", "motion")
+            r = take(fresh, ctx, "VI1", vdir / "shot.mp4")
+            assert r.returncode == 0, r.stderr
+    finally:
+        withdraw(fresh, "048")
+        withdraw(fresh, "047")
+    up = uploads(fresh)
+    side = json.loads((vdir / "shot.higgsfield.json").read_text())
+    [u] = side["uploads"]
+    assert u["upload"] == up[-1]["id"] and len(up) == 3 and "error" not in u
+    assert [bool(t.get("error")) for t in u["tries"]] == [True, True, False] and u["tries"][-1]["upload"] == u["upload"]
+    assert sleeps(fresh) == [2, 5]
+    assert f"--start-image={u['upload']}" in sent(fresh)[-1]
+
+
+def test_the_uploads_of_one_call_are_spaced_apart(fresh):
+    second = RENDER + b" R02"
+    renders(fresh, "049", "renders49-v01-2026-10-26", files={"screens/R01.png": RENDER, "screens/R02.png": second})
+    v = "approved/renders49-v01-2026-10-26/screens"
+    approve(fresh, "039", "higgsfield-video-r49-v01-2026-10-26",
+            video_list(f"{v}/R01.png", image_references=[f"{v}/R02.png", f"{v}/R01.png"]))
+    try:
+        with uploads_allowed(fresh):
+            result(fresh, MP4)
+            ctx, vdir = pass_of(fresh, "animator", "motion")
+            r = take(fresh, ctx, "VI1", vdir / "shot.mp4")
+            assert r.returncode == 0, r.stderr
+    finally:
+        withdraw(fresh, "039")
+        withdraw(fresh, "049")
+    assert len(uploads(fresh)) == 2, "each file once"
+    import higgsfield
+    assert sleeps(fresh) == [higgsfield.UPLOAD_GAP_S], "one gap, between the two uploads, and none before the first"
 
 
 def test_a_record_another_approved_record_supersedes_is_skipped_and_two_live_records_still_refuse(tmp_path):
