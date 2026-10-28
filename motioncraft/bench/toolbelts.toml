@@ -43,8 +43,9 @@ apps = ["krita"]
 higgsfield = "image"
 
 [seats.animator]
-skills = ["claude-desktop:2d-animation-principles", "agents:animation-principles", "anima:prompt-how-much"]
-apps = ["blender"]
+skills = ["claude-desktop:2d-animation-principles", "agents:animation-principles", "anima:prompt-how-much",
+          "agents:hyperframes-core", "agents:hyperframes-keyframes"]
+apps = ["blender", "hyperframes"]
 tools = ["kerning"]
 higgsfield = "video"
 
@@ -57,12 +58,16 @@ sound = true
 # doorway (`launcher/apps.py`), on either vendor: the Director's animatic, in Blender's
 # sequencer; Art's painted layers, in Krita with no screen and so without Krita's brush
 # engine (the map's "Krita's doorway" ticket, 2026-10-20: Art draws strokes with Qt's
-# painter); the Animator's Blender scene; Finishing's delivery project. Each pass
+# painter); the Animator's Blender scene, and its code route, a HyperFrames composition
+# rendered to frames (SWCB #276, Sean's yes 2026-10-28); Finishing's delivery project. Each pass
 # writes only its own stage, so two seats on Blender each work in their own files
 # (rule 5; the map's "Tool ownership" ticket, 2026-10-20, which also dropped the
 # Animator's `resolve` line: its renders cross to Finishing as files).
 # The paths below are what the doorway's locks run, and `higgsfield` the command line the Higgsfield
-# doorway runs, outside any lock; a missing one is a gap in `seat.py check`.
+# doorway runs, outside any lock; a missing one is a gap in `seat.py check`. HyperFrames is pinned
+# outside every repo, with the GSAP its compositions copy in, from one lockfile
+# (`~/.local/share/motioncraft/hyperframes/0.8.164/`, its dependencies as they stood on 2026-10-16,
+# installed with scripts off), and runs on `node` with the pinned headless Chrome beside it.
 #
 # `tools`: pipeline software Devcraft built for the seat, one module each in `motioncraft/tools/`,
 # named here with Sean's yes (the bindings rule above). A drafting pass's context fixes each by
@@ -74,6 +79,9 @@ blender = "/Applications/Blender.app/Contents/MacOS/Blender"
 krita = "/Applications/Krita.app/Contents/MacOS/kritarunner"
 python = "/opt/homebrew/bin/python3"
 higgsfield = "~/.local/bin/higgsfield"
+hyperframes = "~/.local/share/motioncraft/hyperframes/0.8.164/node_modules/hyperframes/bin/hyperframes.mjs"
+node = "~/.nvm/versions/node/v22.22.2/bin/node"
+chrome = "~/.local/share/motioncraft/chrome-headless-shell/mac_arm-150.0.7871.24/chrome-headless-shell-mac-arm64/chrome-headless-shell"
 
 # What every pass's environment carries for the two tested applications, since the
 # launcher scrubs the rest: Blender's folder joins PATH (`blender` is a shell alias
@@ -88,8 +96,10 @@ PYTHONPATH = "/Library/Application Support/Blackmagic Design/DaVinci Resolve/Dev
 # Names no seat's probe may show anywhere it lists a loaded skill, plugin, tool or
 # connector: the seat files' Never lines, as the plugin-routing brief named them.
 # Higgsfield stays here: Art and the Animator reach it only by asking the launcher,
-# never through a skill, a plugin or the connector a pass would load.
+# never through a skill, a plugin or the connector a pass would load. `hyperframes` left
+# the list when the Animator's line took its two skills (SWCB #276, Sean's yes 2026-10-28);
+# a pass still never runs its command line, only asks the doorway.
 [never]
-names = ["higgsfield", "adobe", "hyperframes", "remotion", "creative-director", "animation-pipeline",
+names = ["higgsfield", "adobe", "remotion", "creative-director", "animation-pipeline",
          "gemini", "nanobanana", "notebooklm", "image-generator-prompt-science", "kinetic-typography",
          "publish", "deploy", "tiktok"]

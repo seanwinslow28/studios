@@ -195,10 +195,10 @@ CLAUDE_DENIED_COMMANDS = ("codex", "higgsfield", "nlm", "hyperframes")
 # pass with no way out of the sandbox; on a pass with a doorway (the Director's, Art's and Finishing's drafting
 # passes) the same rule would let them out, so not there: those passes put a filter in a file instead.
 CLAUDE_HELD_COMMANDS = ("ffmpeg", "ffprobe")
-# Blender, Resolve and Krita run for a pass only through the application doorway (launcher/apps.py), on the
-# launcher's side of the sandbox under a lock written from the pass's context; none works inside a vendor's sandbox.
+# Blender, Resolve, Krita and HyperFrames run for a pass only through the application doorway (launcher/apps.py), on
+# the launcher's side of the sandbox under a lock written from the pass's context; none works inside a vendor's sandbox.
 APPS_DOOR = HERE / "apps.py"
-SEAT_APPS = ("blender", "resolve", "krita")
+SEAT_APPS = ("blender", "resolve", "krita", "hyperframes")
 # Pipeline tools Devcraft built for the seats, one module each; a seat runs one only once its allowlist line names it.
 TOOLS = Path(os.environ.get("MOTIONCRAFT_TOOLS", str(MOTIONCRAFT / "tools")))
 
@@ -272,6 +272,13 @@ def seat_belt(seat: str) -> Dict:
         die(f"the allowlist gives {seat} tools named {', '.join(bad)}; a tool is a module name in motioncraft/tools/")
     return {"skills": skills, "image": bool(line.get("image")), "sound": bool(line.get("sound")), "apps": apps,
             "tools": tools, "higgsfield": higgsfield}
+
+
+def hf_gsap() -> Path:
+    """The GSAP pinned beside HyperFrames (same install, same lockfile): a composition copies it in, since no page loads
+    from a CDN under the doorway's lock."""
+    hf = str(toolbelts().get("apps", {}).get("hyperframes", ""))
+    return Path(os.path.expanduser(hf)).parents[2] / "gsap" / "dist" / "gsap.min.js" if hf else Path("/nonexistent")
 
 
 def tool_gaps(seat: str) -> List[str]:
@@ -677,6 +684,7 @@ def claude_reads(ctx: Dict) -> List[str]:
     """What a Claude pass reads from outside its working folders: the job, the studio and its law, and its toolbelt."""
     reads = [ctx["engagement"], ctx["media_project"], str(MOTIONCRAFT), str(STUDIOS / "craftwork")]
     reads += [ctx["toolbelt"]["dir"]] * bool(ctx["toolbelt"]["dir"])
+    reads += [str(hf_gsap().parent)] * ("hyperframes" in (ctx["toolbelt"].get("apps") or []))  # the GSAP it copies in
     return reads + [str(STUDIOS / "AGENTS.md")] * (STUDIOS / "AGENTS.md").exists()
 
 
@@ -1048,7 +1056,21 @@ def apps_note(ctx: Dict) -> str:
                      "script runs (Krita reads its font folders only at start-up, so copying a font in does nothing). "
                      "Text that names a family the call did not register, or names none, fails the call. A call "
                      "succeeds only if your script runs to its end; exit non-zero (`sys.exit(1)`) when it fails")
-    names = " and ".join(", ".join(n.capitalize() for n in apps).rsplit(", ", 1))
+    if "hyperframes" in apps:
+        usage.append(f"`python3 -B {APPS_DOOR} ask hyperframes --check --project <your project folder>` lints and checks "
+                     "a HyperFrames composition in Chrome (layout, motion, contrast), and "
+                     f"`python3 -B {APPS_DOOR} ask hyperframes --render --project <your project folder> --out <a folder not "
+                     "made yet, beside it> [--fps 60]` renders it to a PNG sequence, one file per frame, with the launcher's "
+                     "own fixed settings (software drawing, screenshot capture, lint errors and missing media fail it), "
+                     "frames that repeat byte for byte. The project is a folder you write in a new version folder in your "
+                     "stage (or your scratch folder, for a try): its `index.html` and everything it loads, by relative path "
+                     "inside the folder. Nothing off this Mac loads: GSAP is the pinned copy at "
+                     f"`{hf_gsap()}`, copied into the project's `assets/`, never a CDN; each font is a file in the project "
+                     "loaded with `@font-face`, never a font installed on the Mac; each piece of the capture is copied in "
+                     "from the media project, never linked. Never run `hyperframes` or `npx` yourself, and nothing that "
+                     "previews, publishes, uploads, sends feedback, or fetches from the catalog or registry: the doorway "
+                     "runs only check and render. Join the frames with `ffmpeg` in your own shell")
+    names = " and ".join(", ".join({"hyperframes": "HyperFrames"}.get(n, n.capitalize()) for n in apps).rsplit(", ", 1))
     return (f"{names}: none runs inside this pass's sandbox, so never run one yourself. "
             "Ask the launcher, from your shell: " + "; ".join(usage) + ". Write the script in your scratch "
             "folder or a new version folder in your stage. The launcher runs a copy under a lock as tight as your own "
@@ -1069,7 +1091,8 @@ def higgsfield_note(ctx: Dict) -> str:
             "entry goes back to Sean as a new list), makes one take, downloads it the moment it is ready into that "
             "version folder, and files its prompt beside it, labelled generated: up to three takes an entry, inside the "
             "train's Higgsfield credit cap and the test's ceiling, and a refusal at a cap is a checkpoint for Sean. "
-            "Nothing is uploaded: an entry may name an earlier take of this doorway's only by its job id. "
+            "An entry names an earlier take of this doorway's by its job id, or, only where the job's setup record allows "
+            "uploads, an approved image by its path (approved/<version-id>/<file>), which the doorway checks and uploads. "
             f"`python3 -B {APPS_DOOR} ask higgsfield --status` lists the approved entries, the takes used and the "
             f"credits spent, and makes nothing. A {kind} can take minutes: if the answer says still running, run "
             f"`python3 -B {APPS_DOOR} wait <id>`. The call counts against this pass's time. A generated {kind} is raw "
@@ -1855,8 +1878,11 @@ def cmd_check(a) -> None:
     if listed:
         if not os.access("/usr/bin/sandbox-exec", os.X_OK):
             gaps.append("no /usr/bin/sandbox-exec, which the application doorway's locks run under")
-        gaps += [f"the allowlist's [apps] has no `{k}` path" for k in sorted((listed - {"resolve"}) | {"python"})
-                 if k not in door]
+        # HyperFrames runs on node, with its own pinned Chrome
+        need = (listed - {"resolve"}) | {"python"} | ({"node", "chrome"} if "hyperframes" in listed else set())
+        gaps += [f"the allowlist's [apps] has no `{k}` path" for k in sorted(need) if k not in door]
+        if "hyperframes" in listed and not hf_gsap().is_file():
+            gaps.append(f"no pinned GSAP at {hf_gsap()}, which HyperFrames compositions copy in")
         gaps += [f"the doorway's {k} {p} is not on this machine" for k, p in door.items() if not os.access(p, os.X_OK)]
     # The sound doorway: the keys file it reads, and the two keys, by name only.
     if any(seat_belt(s)["sound"] for s in SEATS):

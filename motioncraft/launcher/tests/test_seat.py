@@ -28,6 +28,11 @@ PROJECT = "Film/proj-2026-10-19"
 # The application doorway's tests run the real Blender where it is installed (launcher/tests/test_apps.py).
 BLENDER = "/Applications/Blender.app/Contents/MacOS/Blender"
 KRITA = "/Applications/Krita.app/Contents/MacOS/kritarunner"
+# HyperFrames, pinned with its own GSAP and headless Chrome outside every repo (SWCB #276); its tests skip where absent.
+HYPERFRAMES = os.path.expanduser("~/.local/share/motioncraft/hyperframes/0.8.164/node_modules/hyperframes/bin/hyperframes.mjs")
+NODE = shutil.which("node") or "/usr/local/bin/node"
+CHROME = os.path.expanduser("~/.local/share/motioncraft/chrome-headless-shell/mac_arm-150.0.7871.24/"
+                            "chrome-headless-shell-mac-arm64/chrome-headless-shell")
 
 
 @pytest.fixture(scope="module")
@@ -77,7 +82,7 @@ image = true
 apps = ["krita"]
 [seats.animator]
 skills = ["desk:2d-animation-principles", "agents:animation-principles"]
-apps = ["blender"]
+apps = ["blender", "hyperframes"]
 tools = ["kerning"]
 [seats.finishing-sound-designer]
 apps = ["resolve"]
@@ -86,6 +91,9 @@ sound = true
 blender = "{BLENDER}"
 krita = "{KRITA}"
 python = "{sys.executable}"
+hyperframes = "{HYPERFRAMES}"
+node = "{NODE}"
+chrome = "{CHROME}"
 [env]
 path = ["{root}/Blender.app"]
 RESOLVE_SCRIPT_API = "{root}/Blender.app"
@@ -930,7 +938,7 @@ def test_the_context_fixes_the_toolbelt(world):
     assert ctx_data(context(world, "visual-story-director", "t3", "--read-only"))["toolbelt"]["image"] is False
     assert ctx_data(context(world, "story-gate", "t4", *CLAUDE_ANCHOR))["toolbelt"] == {
         "dir": "", "skills": [], "manifest_sha256": "", "image": False, "sound": False, "apps": [], "tools": [], "higgsfield": ""}
-    assert data["toolbelt"]["apps"] == ["blender"], "the Animator's app, through the doorway"
+    assert data["toolbelt"]["apps"] == ["blender", "hyperframes"], "the Animator's apps, through the doorway"
     assert ctx_data(context(world, "visual-story-director", "t2b"))["toolbelt"]["apps"] == ["blender"], "the animatic's sequencer"
     assert ctx_data(context(world, "art-pose-designer", "t2c"))["toolbelt"]["apps"] == ["krita"], "the painted layers"
     assert ctx_data(context(world, "art-pose-designer", "t2d", "--read-only"))["toolbelt"]["apps"] == []

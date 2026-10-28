@@ -1,4 +1,4 @@
-"""Motioncraft's Higgsfield doorway: the approved list, no upload, the takes, the credit caps, the fence and the filing.
+"""Motioncraft's Higgsfield doorway: the approved list, the uploads, the takes, the credit caps, the fence and the filing.
 
 The doorway runs as the launcher runs it, in its own process, calling a fake `higgsfield`
 command line that the test allowlist names (the real one's answers, from `higgsfield`
@@ -8,6 +8,8 @@ world, its context and its fence are the launcher tests' own (test_seat.py).
 """
 from __future__ import annotations
 
+import contextlib
+import hashlib
 import json
 import os
 import subprocess
@@ -67,6 +69,23 @@ if words[:2] == ["model", "get"]:
     out({{"job_type": words[2], "params": [p("aspect_ratio", "string", ["16:9", "9:16"]), p("duration", "integer"),
          p("generate_audio", "boolean"), p("image_references", "array"), p("start_image", "object|null"),
          p("end_image", "object|null"), p("prompt", "string")]}})
+if words[:2] == ["upload", "create"]:
+    # the bytes as Higgsfield would receive them, read from the path given at the moment of the upload
+    import hashlib
+    data = Path(words[2]).read_bytes()
+    uid = str(uuid.uuid4())
+    with open(state / "uploads.jsonl", "a") as f:
+        f.write(json.dumps({{"path": words[2], "sha256": hashlib.sha256(data).hexdigest(), "id": uid}}) + "\n")
+    # `upload_fails`: true fails every upload, a number fails that many first attempts (Higgsfield's own
+    # "Failed to upload media bytes.", mc-eng-003's pass-34 and pass-35)
+    tried = state / "upload-attempts"
+    n_tried = int(tried.read_text()) + 1 if tried.exists() else 1
+    tried.write_text(str(n_tried))
+    fails = b.get("upload_fails")
+    if fails is True or (isinstance(fails, int) and n_tried <= fails):
+        print("Error: Failed to upload media bytes.", file=sys.stderr)
+        sys.exit(1)
+    out({{"id": uid, "type": "image", "url": "https://cdn.example/uploads/" + uid}})
 if words[:2] == ["generate", "cost"]:
     out({{"credits": b.get("cost", 2)}})
 if words[:2] == ["generate", "create"]:
@@ -77,7 +96,15 @@ if words[:2] == ["generate", "create"]:
     if b.get("charge", b.get("cost", 2)):
         pending.write_text(f"{{b.get('lag', 0)}} {{b.get('charge', b.get('cost', 2))}}")
     (state / "last-job").write_text(jid)
+    if b.get("create_shape") == "ids":
+        out([jid])
+    if b.get("create_shape") == "garbled":
+        out({{"message": "created " + jid}})
     out([{{"id": jid, "job_type": words[2], "status": "queued"}}])
+if words[:2] == ["generate", "get"]:
+    if b.get("job_fails"):
+        out({{"id": words[2], "status": "failed", "result_url": None}})
+    out({{"id": words[2], "status": "completed", "result_url": "https://cdn.example/" + words[2] + b.get("ext", ".png")}})
 if words[:2] == ["generate", "wait"]:
     if b.get("job_fails"):
         if pending.exists():
@@ -98,6 +125,14 @@ state = Path(os.environ["HF_FAKE"])
 higgsfield.METER_POLL_S = 0
 higgsfield.METER_WAIT_S = 0.3
 
+def sleep(s):
+    # a wait is recorded, not slept, so the retries' backoff is seen without the test waiting on it
+    if s:
+        with open(state / "sleeps", "a") as f:
+            f.write(f"{s}\n")
+
+higgsfield.time.sleep = sleep
+
 def fetch(url):
     (state / "fetched").write_text(url)
     return (state / "result.bin").read_bytes()
@@ -114,14 +149,23 @@ IMAGES = {"test": "sold-proof", "ceiling_credits": 300, "entries": [
     {"id": "IM2", "model": "nano_banana_2", "prompt": "the same porch at dawn"},
 ]}
 SETUP = """---
-id: mc-setup-023
+id: {id}
 date: 2026-10-25
 step: "Higgsfield's data-use and training settings, and Sean's intended-use approval (SWCB #271)"
-intended_use_approved: {approved}
+tool: {tool}
+engagements: {engagements}
+{extra}intended_use_approved: {approved}
 ---
 
 The record.
 """
+
+
+def setup_text(approved="2026-10-25", id="mc-setup-023", tool="higgsfield", engagements="[mc-eng-900]", **fields):
+    """The test world's own intended-use record: its engagement is the world's brief, mc-eng-900. Any other header
+    field (uploads, supersedes) goes in as given."""
+    extra = "".join(f"{k}: {v}\n" for k, v in fields.items())
+    return SETUP.format(id=id, tool=tool, engagements=engagements, approved=approved, extra=extra)
 
 
 @pytest.fixture(scope="module")
@@ -145,7 +189,7 @@ def hw(world):
     brief.write_text(old_brief.replace("media:", "higgsfield_credits_cap: 2500\nmedia:", 1))
     setup = root / "ledger" / "setup" / "2026-10-25-higgsfield" / "record.md"
     setup.parent.mkdir(parents=True)
-    setup.write_text(SETUP.format(approved="2026-10-25"))
+    setup.write_text(setup_text())
     world.update(state=state, fake=fake, setup=setup, brief=brief)
     approve(world, "020", "higgsfield-images-v01-2026-10-25", IMAGES)
     yield world
@@ -153,11 +197,20 @@ def hw(world):
     brief.write_text(old_brief)
 
 
-def approve(w, n, version, doc):
-    """Sean's approval of a list: its locked copy in approved/, named by an approvals entry with its folder hash."""
+def approve(w, n, version, doc=None, files=None):
+    """Sean's approval of a list, or of a copy of media files: its locked copy in approved/, named by an approvals
+    entry with its folder hash."""
     approved = w["project"] / "approved" / version
     approved.mkdir(parents=True)
-    (approved / "higgsfield.json").write_text(json.dumps(doc, indent=2))
+    if doc is not None:
+        (approved / "higgsfield.json").write_text(json.dumps(doc, indent=2))
+    for rel, data in (files or {}).items():
+        (approved / rel).parent.mkdir(parents=True, exist_ok=True)
+        (approved / rel).write_bytes(data)
+    return record_approval(w, n, version, approved)
+
+
+def record_approval(w, n, version, approved):
     approvals = w["root"] / "ledger" / "approvals"
     approvals.mkdir(parents=True, exist_ok=True)
     rel = w["project"].relative_to(w["root"] / "media")
@@ -304,10 +357,305 @@ def test_a_reference_to_a_job_this_doorway_did_not_make_is_refused(fresh):
     try:
         ctx, vdir = pass_of(fresh, "animator", "motion")
         r = take(fresh, ctx, "VI1", vdir / "push-in.mp4")
-        assert r.returncode == 1 and "no take this doorway made" in r.stderr and "nothing is uploaded" in r.stderr
+        assert r.returncode == 1 and "no take this doorway made" in r.stderr and "names only the doorway's own takes" in r.stderr
         assert sent(fresh) == []
     finally:
         withdraw(fresh, "028")
+
+
+RENDER = b"\x89PNG\r\n\x1a\n" + b"the real portal, on demo data"
+
+
+def renders(w, n, version, files=None, listed=None):
+    """An approved copy of media files with its checksums.sha256, named by Sean's approval mc-ap-<n>."""
+    files = {"screens/R01.png": RENDER} if files is None else files
+    listed = files if listed is None else listed
+    sums = "".join(f"{hashlib.sha256(d).hexdigest()}  {rel}\n" for rel, d in listed.items())
+    return approve(w, n, version, files={**files, "checksums.sha256": sums.encode()})
+
+
+def video_list(ref, **more):
+    return {"test": "film-test", "ceiling_credits": 300, "entries": [
+        {"id": "VI1", "model": "seedance_2_0", "prompt": "the portal builds itself on the desk", "start_image": ref,
+         "params": {"duration": 5, "aspect_ratio": "16:9"}, **more}]}
+
+
+@contextlib.contextmanager
+def uploads_allowed(w, value="approved-media"):
+    """The job's setup record says its lists may name approved media files (mc-setup-027's field)."""
+    w["setup"].write_text(setup_text(uploads=value))
+    try:
+        yield
+    finally:
+        w["setup"].write_text(setup_text())
+
+
+def sleeps(w):
+    f = w["state"] / "sleeps"
+    return [float(x) for x in f.read_text().split()] if f.exists() else []
+
+
+def uploads(w):
+    """Every file the fake command line was given to upload, with the sha256 of the bytes it read."""
+    f = w["state"] / "uploads.jsonl"
+    return [json.loads(x) for x in f.read_text().splitlines()] if f.exists() else []
+
+
+def test_a_file_is_refused_whole_when_the_setup_record_does_not_allow_uploads(fresh):
+    renders(fresh, "040", "renders40-v01-2026-10-26")
+    approve(fresh, "041", "higgsfield-video-r40-v01-2026-10-26", video_list("approved/renders40-v01-2026-10-26/screens/R01.png"))
+    ctx, vdir = pass_of(fresh, "animator", "motion")
+    try:
+        r = take(fresh, ctx, "VI1", vdir / "shot.mp4")
+        assert r.returncode == 1 and "cannot be sent as it stands" in r.stderr and "never a file" in r.stderr, r.stderr
+        # the field says approved-media or it says nothing: any other word is no permission
+        with uploads_allowed(fresh, "yes"):
+            r = take(fresh, ctx, "VI1", vdir / "shot.mp4")
+            assert r.returncode == 1 and "uploads: approved-media" in r.stderr, r.stderr
+    finally:
+        withdraw(fresh, "041")
+        withdraw(fresh, "040")
+    assert sent(fresh) == [] and uploads(fresh) == [] and not list(vdir.iterdir())
+
+
+def test_with_uploads_allowed_a_listed_approved_file_is_uploaded_from_a_checked_copy_and_logged(fresh):
+    approved = renders(fresh, "042", "renders42-v01-2026-10-26")
+    ref = "approved/renders42-v01-2026-10-26/screens/R01.png"
+    approve(fresh, "043", "higgsfield-video-r42-v01-2026-10-26", video_list(ref, image_references=[ref]))
+    try:
+        with uploads_allowed(fresh):
+            behave(fresh, cost=30)
+            result(fresh, MP4)
+            ctx, vdir = pass_of(fresh, "animator", "motion")
+            r = take(fresh, ctx, "VI1", vdir / "shot.mp4")
+            assert r.returncode == 0, r.stderr
+            s = run(fresh, "status", "--context", ctx)
+            assert "with uploads of approved media (uploads: approved-media)" in s.stdout, s.stderr
+    finally:
+        withdraw(fresh, "043")
+        withdraw(fresh, "042")
+    sha = hashlib.sha256(RENDER).hexdigest()
+    up = uploads(fresh)
+    assert len(up) == 1 and up[0]["sha256"] == sha, "one upload a file, of exactly the bytes its copy lists"
+    assert not os.path.realpath(up[0]["path"]).startswith(os.path.realpath(fresh["project"])), \
+        "sent from a private copy of the checked bytes, never from the approved folder"
+    order = [c["args"][:2] for c in calls(fresh) if c["args"][0] in ("upload", "generate")]
+    assert order[:3] == [["upload", "create"], ["generate", "cost"], ["generate", "create"]]
+    for args in ([c["args"] for c in calls(fresh) if c["args"][:2] == ["generate", "cost"]][-1], sent(fresh)[-1]):
+        assert f"--start-image={up[0]['id']}" in args and f"--image-references={up[0]['id']}" in args
+        assert not [a for a in args if "R01" in a or "/" in a.split("=", 1)[-1]], "no path goes to the generator"
+    side = json.loads((vdir / "shot.higgsfield.json").read_text())
+    assert side["label"].startswith("generated: Higgsfield (seedance_2_0)") and side["made"]
+    [u] = side["uploads"]
+    assert u["ref"] == ref and u["fields"] == ["start_image", "image_references"] and u["sha256"] == sha
+    assert u["path"] == os.path.realpath(approved / "screens" / "R01.png") and u["approval"] == "mc-ap-042"
+    assert u["upload"] == up[0]["id"] and u["bytes"] == len(RENDER) and u["uploaded"]
+    assert all(e["uploads"] == side["uploads"] for e in job(fresh) if e.get("job") == side["job"]), \
+        "every line of the call in the pass's log names the upload"
+
+
+def test_with_uploads_allowed_a_path_outside_approved_a_link_or_a_url_is_refused_whole(fresh):
+    renders(fresh, "044", "renders44-v01-2026-10-26")
+    v = "renders44-v01-2026-10-26"
+    bad = ["inputs/rendered-assets-r2-2026-10-26/R01.png", "approved/../inputs/R01.png", f"approved/{v}/../{v}/R01.png",
+           f"approved/{v}/./screens/R01.png", "/Users/someone/R01.png", f"./approved/{v}/screens/R01.png",
+           "https://example.com/R01.png", f"media:film/project/approved/{v}/screens/R01.png",
+           f"approved\\{v}\\screens\\R01.png", f"approved/{v}/", f"approved/{v}", f"upload:{uuid.uuid4()}"]
+    ctx, vdir = pass_of(fresh, "animator", "motion")
+    try:
+        with uploads_allowed(fresh):
+            for i, ref in enumerate(bad):
+                n = f"{50 + i:03d}"
+                approve(fresh, n, f"higgsfield-bad{n}-v01-2026-10-26", video_list(ref))
+                try:
+                    r = take(fresh, ctx, "VI1", vdir / f"bad{n}.mp4")
+                    assert r.returncode == 1 and "cannot be sent as it stands" in r.stderr, (ref, r.stderr)
+                finally:
+                    withdraw(fresh, n)
+    finally:
+        withdraw(fresh, "044")
+    assert sent(fresh) == [] and uploads(fresh) == [] and not list(vdir.iterdir())
+
+
+def test_with_uploads_allowed_a_file_is_sent_only_as_its_approved_copy_lists_it(fresh):
+    """Each named file is checked at the take: the copy's approval and hash, its checksums.sha256, the file itself."""
+    proj = fresh["project"] / "approved"
+    outside = fresh["root"] / "outside"
+    (outside / "screens").mkdir(parents=True)
+    (outside / "screens" / "R01.png").write_bytes(RENDER)
+    sums = f"{hashlib.sha256(RENDER).hexdigest()}  screens/R01.png\n"
+    cases = []
+    # a file that is a link, to the same bytes outside the copy
+    a = proj / "renders70-v01-2026-10-26"
+    (a / "screens").mkdir(parents=True)
+    os.symlink(outside / "screens" / "R01.png", a / "screens" / "R01.png")
+    (a / "checksums.sha256").write_text(sums)
+    record_approval(fresh, "070", a.name, a)
+    cases.append((f"approved/{a.name}/screens/R01.png", "goes through a link"))
+    # a folder that is a link
+    a = proj / "renders71-v01-2026-10-26"
+    a.mkdir()
+    os.symlink(outside / "screens", a / "screens")
+    (a / "checksums.sha256").write_text(sums)
+    record_approval(fresh, "071", a.name, a)
+    cases.append((f"approved/{a.name}/screens/R01.png", "goes through a link"))
+    # the bytes are not the ones the copy lists
+    renders(fresh, "072", "renders72-v01-2026-10-26", listed={"screens/R01.png": b"another render"})
+    cases.append(("approved/renders72-v01-2026-10-26/screens/R01.png", "is not the file its approved copy lists"))
+    # a file the copy does not list
+    renders(fresh, "073", "renders73-v01-2026-10-26", files={"screens/R01.png": RENDER, "screens/R02.png": RENDER + b"2"},
+            listed={"screens/R01.png": RENDER})
+    cases.append(("approved/renders73-v01-2026-10-26/screens/R02.png", "not listed in"))
+    cases.append(("approved/renders73-v01-2026-10-26/screens/R09.png", "does not exist"))
+    cases.append(("approved/renders73-v01-2026-10-26/screens", "is not a regular file"))
+    # a copy no approval names, and one changed since its approval
+    a = proj / "renders74-v01-2026-10-26"
+    (a / "screens").mkdir(parents=True)
+    (a / "screens" / "R01.png").write_bytes(RENDER)
+    (a / "checksums.sha256").write_text(sums)
+    cases.append((f"approved/{a.name}/screens/R01.png", "no approvals entry with decision approved names"))
+    a = renders(fresh, "075", "renders75-v01-2026-10-26")
+    (a / "screens" / "R01.png").write_bytes(RENDER + b"edited")
+    (a / "checksums.sha256").write_text(f"{hashlib.sha256(RENDER + b'edited').hexdigest()}  screens/R01.png\n")
+    cases.append((f"approved/{a.name}/screens/R01.png", "no longer matches its approval mc-ap-075"))
+    # listed and approved, but no image
+    renders(fresh, "076", "renders76-v01-2026-10-26", files={"screens/notes.png": b"not a picture"})
+    cases.append(("approved/renders76-v01-2026-10-26/screens/notes.png", "is not an image"))
+    ctx, vdir = pass_of(fresh, "animator", "motion")
+    try:
+        with uploads_allowed(fresh):
+            for i, (ref, why) in enumerate(cases):
+                n = f"{80 + i:03d}"
+                approve(fresh, n, f"higgsfield-file{n}-v01-2026-10-26", video_list(ref))
+                try:
+                    r = take(fresh, ctx, "VI1", vdir / f"f{n}.mp4")
+                    assert r.returncode == 1 and why in r.stderr, (ref, r.stderr)
+                    assert job(fresh)[-1].get("refused"), "the refusal is a line in the pass's log"
+                finally:
+                    withdraw(fresh, n)
+    finally:
+        for n in ("070", "071", "072", "073", "075", "076"):
+            withdraw(fresh, n)
+    assert sent(fresh) == [] and uploads(fresh) == [], "nothing left the machine"
+    assert not list(vdir.iterdir())
+
+
+def test_an_upload_higgsfield_rejects_is_logged_and_no_job_is_made(fresh):
+    renders(fresh, "045", "renders45-v01-2026-10-26")
+    ref = "approved/renders45-v01-2026-10-26/screens/R01.png"
+    approve(fresh, "046", "higgsfield-video-r45-v01-2026-10-26", video_list(ref))
+    try:
+        with uploads_allowed(fresh):
+            behave(fresh, upload_fails=True)
+            ctx, vdir = pass_of(fresh, "animator", "motion")
+            r = take(fresh, ctx, "VI1", vdir / "shot.mp4")
+            status = run(fresh, "status", "--context", ctx)
+    finally:
+        withdraw(fresh, "046")
+        withdraw(fresh, "045")
+    assert r.returncode == 1 and "Failed to upload media bytes" in r.stderr and "4 tries" in r.stderr, r.stderr
+    assert [c for c in sent(fresh) if c[:1] == ["generate"]] == [], "no job without its upload"
+    last = job(fresh)[-1]
+    assert last["refused"] and last["uploads"][0]["ref"] == ref and last["uploads"][0]["upload"] is None
+    assert last["uploads"][0]["sha256"] == hashlib.sha256(RENDER).hexdigest()
+    # tried once and retried three times, after 2, 5 and 10 seconds, each try on the call's line
+    tries = last["uploads"][0]["tries"]
+    assert len(tries) == 4 and all("Failed to upload media bytes" in t["error"] for t in tries)
+    assert [t.get("waited_s", 0) for t in tries] == [0, 2, 5, 10] and sleeps(fresh) == [2, 5, 10]
+    assert len(uploads(fresh)) == 4
+    assert "VI1 seedance_2_0: 0 of 3 takes used" in status.stdout, "a call refused at its upload is no take"
+
+
+def test_an_upload_that_fails_and_then_goes_through_is_retried_and_the_take_made(fresh):
+    renders(fresh, "047", "renders47-v01-2026-10-26")
+    ref = "approved/renders47-v01-2026-10-26/screens/R01.png"
+    approve(fresh, "048", "higgsfield-video-r47-v01-2026-10-26", video_list(ref))
+    try:
+        with uploads_allowed(fresh):
+            behave(fresh, upload_fails=2, cost=4)
+            result(fresh, MP4)
+            ctx, vdir = pass_of(fresh, "animator", "motion")
+            r = take(fresh, ctx, "VI1", vdir / "shot.mp4")
+            assert r.returncode == 0, r.stderr
+    finally:
+        withdraw(fresh, "048")
+        withdraw(fresh, "047")
+    up = uploads(fresh)
+    side = json.loads((vdir / "shot.higgsfield.json").read_text())
+    [u] = side["uploads"]
+    assert u["upload"] == up[-1]["id"] and len(up) == 3 and "error" not in u
+    assert [bool(t.get("error")) for t in u["tries"]] == [True, True, False] and u["tries"][-1]["upload"] == u["upload"]
+    assert sleeps(fresh) == [2, 5]
+    assert f"--start-image={u['upload']}" in sent(fresh)[-1]
+
+
+def test_the_uploads_of_one_call_are_spaced_apart(fresh):
+    second = RENDER + b" R02"
+    renders(fresh, "049", "renders49-v01-2026-10-26", files={"screens/R01.png": RENDER, "screens/R02.png": second})
+    v = "approved/renders49-v01-2026-10-26/screens"
+    approve(fresh, "039", "higgsfield-video-r49-v01-2026-10-26",
+            video_list(f"{v}/R01.png", image_references=[f"{v}/R02.png", f"{v}/R01.png"]))
+    try:
+        with uploads_allowed(fresh):
+            result(fresh, MP4)
+            ctx, vdir = pass_of(fresh, "animator", "motion")
+            r = take(fresh, ctx, "VI1", vdir / "shot.mp4")
+            assert r.returncode == 0, r.stderr
+    finally:
+        withdraw(fresh, "039")
+        withdraw(fresh, "049")
+    assert len(uploads(fresh)) == 2, "each file once"
+    import higgsfield
+    assert sleeps(fresh) == [higgsfield.UPLOAD_GAP_S], "one gap, between the two uploads, and none before the first"
+
+
+def test_a_record_another_approved_record_supersedes_is_skipped_and_two_live_records_still_refuse(tmp_path):
+    """mc-setup-027 supersedes mc-setup-025, both for mc-eng-003: the newer approved one holds, and uploads with it."""
+    import higgsfield
+    setup = tmp_path / "ledger" / "setup"
+    eng = tmp_path / "ledger" / "engagements" / "portal-launch-film-2026-10-25"
+    eng.mkdir(parents=True)
+    (eng / "brief.md").write_text("---\nid: mc-eng-003\ntype: full-train\nhiggsfield_credits_cap: 1000\n---\n")
+
+    def record(folder, **kw):
+        (setup / folder).mkdir(parents=True, exist_ok=True)
+        (setup / folder / "record.md").write_text(setup_text(engagements="[mc-eng-003]", **kw))
+
+    def holds():
+        return higgsfield.setup_record({"engagement": str(eng)})
+
+    record("2026-10-25-higgsfield-portal-launch-film", id="mc-setup-025")
+    assert holds()["id"] == "mc-setup-025" and holds()["uploads"] is False, "no field, no file, ever"
+    record("2026-10-26-higgsfield-portal-launch-film-video", id="mc-setup-027", approved="2026-10-26",
+           supersedes="mc-setup-025", uploads="approved-media")
+    got = holds()
+    assert got["id"] == "mc-setup-027" and got["uploads"] is True and got["supersedes"] == ["mc-setup-025"]
+    record("2026-10-26-higgsfield-portal-launch-film-video", id="mc-setup-027", approved="2026-10-26",
+           supersedes="[mc-setup-025]  # the plates' record")
+    assert holds()["id"] == "mc-setup-027" and holds()["uploads"] is False
+    # a superseding record still pending supersedes nothing yet: two live records are Sean's to settle
+    record("2026-10-26-higgsfield-portal-launch-film-video", id="mc-setup-027", approved="pending",
+           supersedes="mc-setup-025")
+    with pytest.raises(higgsfield.Refused, match="mc-setup-025 and mc-setup-027 both cover mc-eng-003"):
+        holds()
+    # a third live record, superseding nothing, still refuses
+    record("2026-10-26-higgsfield-portal-launch-film-video", id="mc-setup-027", approved="2026-10-26",
+           supersedes="mc-setup-025")
+    record("2026-10-27-higgsfield-another", id="mc-setup-028")
+    with pytest.raises(higgsfield.Refused, match="mc-setup-027 and mc-setup-028 both cover mc-eng-003"):
+        holds()
+    # two records that supersede each other leave none standing, and say so
+    record("2026-10-27-higgsfield-another", id="mc-setup-028", supersedes="mc-setup-027")
+    record("2026-10-26-higgsfield-portal-launch-film-video", id="mc-setup-027", approved="2026-10-26",
+           supersedes="[mc-setup-025, mc-setup-028]")
+    with pytest.raises(higgsfield.Refused, match="supersede one another"):
+        holds()
+    # the field says approved-media, or nothing
+    (setup / "2026-10-27-higgsfield-another" / "record.md").unlink()
+    record("2026-10-26-higgsfield-portal-launch-film-video", id="mc-setup-027", approved="2026-10-26",
+           supersedes="mc-setup-025", uploads="any")
+    with pytest.raises(higgsfield.Refused, match="uploads: approved-media"):
+        holds()
 
 
 def test_only_an_entry_on_an_approved_list_is_sent(fresh):
@@ -396,21 +744,149 @@ def test_a_job_that_makes_nothing_and_charges_nothing_is_no_take(fresh):
     assert last["credits"] == 0 and not last["made"] and not list(vdir.iterdir())
     behave(fresh, create_fails=True)
     r = take(fresh, ctx, "IM1", vdir / "y.png")
-    assert r.returncode == 1 and "no job was made" in r.stderr and "Not enough credits" in r.stderr
+    assert r.returncode == 1 and "no job was read" in r.stderr and "Not enough credits" in r.stderr
+
+
+def test_a_bare_list_of_job_ids_is_read_as_the_job(fresh):
+    # `generate create` answers the real command line's way: a list of job ids (mc-eng-002's first live call)
+    behave(fresh, create_shape="ids", cost=4)
+    ctx, vdir, jid = art_take(fresh)
+    side = json.loads((vdir / "house.higgsfield.json").read_text())
+    assert side["job"] == jid and side["made"] and (vdir / "house.png").read_bytes() == PNG
+
+
+def test_a_charged_call_with_no_job_read_still_counts_its_take_and_credits(fresh):
+    behave(fresh, create_shape="garbled", cost=4)
+    ctx, vdir = pass_of(fresh, "art-pose-designer", "appearance")
+    r = take(fresh, ctx, "IM1", vdir / "house.png")
+    jid = (fresh["state"] / "last-job").read_text()
+    assert r.returncode == 1 and "no job was read" in r.stderr and jid in r.stderr and "settle" in r.stderr
+    last = job(fresh)[-1]
+    assert last["credits"] == 4 and not last["made"] and last["jobs_in_answer"] == [jid] and not list(vdir.iterdir())
+    s = run(fresh, "status", "--context", ctx)
+    assert "IM1 nano_banana_2: 1 of 3 takes used" in s.stdout and "sold-proof 4 of 300 credits" in s.stdout
+    assert f"charged 4 credits with no job read (job ids in the answer: {jid})" in s.stdout
+
+
+def test_settle_files_the_unfiled_job_as_the_same_take_with_nothing_spent_or_counted_twice(fresh):
+    behave(fresh, create_shape="garbled", cost=4)
+    first, vdir = pass_of(fresh, "art-pose-designer", "appearance")
+    take(fresh, first, "IM1", vdir / "house.png")
+    jid = (fresh["state"] / "last-job").read_text()
+    creates = len(sent(fresh))
+    ctx, vdir2 = pass_of(fresh, "art-pose-designer", "appearance")
+    r = run(fresh, "settle", "--context", ctx, "--job", jid, "--out", str(vdir2 / "house.png"))
+    assert r.returncode == 0, r.stderr
+    assert "take 1 of 3, settled" in r.stdout and "4 credits, counted once" in r.stdout
+    assert (vdir2 / "house.png").read_bytes() == PNG
+    side = json.loads((vdir2 / "house.higgsfield.json").read_text())
+    assert side["job"] == jid and side["made"] and side["take"] == 1 and side["credits"] == 4
+    assert side["label"].startswith("generated: Higgsfield") and side["label"].endswith("under mc-setup-023") and side["settled_by"] and "error" not in side
+    assert len(sent(fresh)) == creates, "settle reads and downloads; it never asks the generator again"
+    s = run(fresh, "status", "--context", ctx)
+    assert "IM1 nano_banana_2: 1 of 3 takes used" in s.stdout and "sold-proof 4 of 300 credits" in s.stdout
+    # filed once: a second settle, a job the doorway never made, and the other kind's pass are each refused
+    again = run(fresh, "settle", "--context", ctx, "--job", jid, "--out", str(vdir2 / "again.png"))
+    assert again.returncode == 1 and "still unfiled" in again.stderr
+    other = run(fresh, "settle", "--context", ctx, "--job", "00000000-0000-4000-8000-000000000000",
+                "--out", str(vdir2 / "other.png"))
+    assert other.returncode == 1 and "still unfiled" in other.stderr
+    assert not (vdir2 / "again.png").exists() and not (vdir2 / "other.png").exists()
+
+
+def test_settle_refuses_a_job_with_no_finished_result_and_writes_nothing(fresh):
+    behave(fresh, create_shape="garbled", cost=4)
+    first, vdir = pass_of(fresh, "art-pose-designer", "appearance")
+    take(fresh, first, "IM1", vdir / "house.png")
+    jid = (fresh["state"] / "last-job").read_text()
+    behave(fresh, create_shape="garbled", cost=4, job_fails=True)
+    ctx, vdir2 = pass_of(fresh, "art-pose-designer", "appearance")
+    r = run(fresh, "settle", "--context", ctx, "--job", jid, "--out", str(vdir2 / "house.png"))
+    assert r.returncode == 1 and "no finished result" in r.stderr and not list(vdir2.iterdir())
 
 
 def test_no_call_before_seans_intended_use_approval(fresh):
     ctx, vdir = pass_of(fresh, "art-pose-designer", "appearance")
     try:
-        fresh["setup"].write_text(SETUP.format(approved="pending"))
+        fresh["setup"].write_text(setup_text(approved="pending"))
         r = take(fresh, ctx, "IM1", vdir / "x.png")
         assert r.returncode == 1 and "no intended-use approval from Sean yet" in r.stderr
         fresh["setup"].unlink()
         r = take(fresh, ctx, "IM1", vdir / "x.png")
-        assert r.returncode == 1 and "no setup record mc-setup-023" in r.stderr
+        assert r.returncode == 1 and "no Higgsfield setup record covers mc-eng-900" in r.stderr
     finally:
-        fresh["setup"].write_text(SETUP.format(approved="2026-10-25"))
+        fresh["setup"].write_text(setup_text())
     assert sent(fresh) == []
+
+
+def test_a_call_for_an_engagement_no_record_covers_is_refused(fresh):
+    """Never-do 6 is per engagement: another film's approval, or another tool's, never covers this one."""
+    ctx, vdir = pass_of(fresh, "art-pose-designer", "appearance")
+    other = fresh["setup"].parent.parent / "2026-10-26-higgsfield-second" / "record.md"
+    try:
+        # mc-eng-002's record, approved, names only mc-eng-002
+        fresh["setup"].write_text(setup_text(engagements="[mc-eng-002]"))
+        r = take(fresh, ctx, "IM1", vdir / "x.png")
+        assert r.returncode == 1 and "no Higgsfield setup record covers mc-eng-900" in r.stderr, r.stderr
+        assert "refused" in job(fresh)[-1]
+        # a record of another tool's intended use names this job, and still does not cover Higgsfield
+        fresh["setup"].write_text(setup_text(tool="elevenlabs"))
+        r = take(fresh, ctx, "IM1", vdir / "x.png")
+        assert r.returncode == 1 and "no Higgsfield setup record covers mc-eng-900" in r.stderr
+        # a record with no engagements line covers nothing, as mc-setup-023 did before it had one
+        fresh["setup"].write_text(setup_text().replace("engagements: [mc-eng-900]\n", ""))
+        r = take(fresh, ctx, "IM1", vdir / "x.png")
+        assert r.returncode == 1 and "no Higgsfield setup record covers mc-eng-900" in r.stderr
+        # a name that only starts like this job's id is not this job
+        fresh["setup"].write_text(setup_text(engagements="[mc-eng-9000, mc-eng-90]"))
+        r = take(fresh, ctx, "IM1", vdir / "x.png")
+        assert r.returncode == 1 and "no Higgsfield setup record covers mc-eng-900" in r.stderr
+        # two records for one job is a question for Sean, never a pick
+        fresh["setup"].write_text(setup_text())
+        other.parent.mkdir()
+        other.write_text(setup_text(id="mc-setup-099", engagements="[mc-eng-002, mc-eng-900]"))
+        r = take(fresh, ctx, "IM1", vdir / "x.png")
+        assert r.returncode == 1 and "mc-setup-023 and mc-setup-099 both cover mc-eng-900" in r.stderr, r.stderr
+    finally:
+        fresh["setup"].write_text(setup_text())
+        if other.exists():
+            other.unlink()
+            other.parent.rmdir()
+    assert sent(fresh) == []
+    # the job's own record, listed among others, covers it
+    fresh["setup"].write_text(setup_text(engagements="[mc-eng-002, mc-eng-900]"))
+    try:
+        r = take(fresh, ctx, "IM1", vdir / "x.png")
+        assert r.returncode == 0, r.stderr
+        assert json.loads((vdir / "x.higgsfield.json").read_text())["setup"] == "mc-setup-023"
+    finally:
+        fresh["setup"].write_text(setup_text())
+
+
+def test_mc_eng_002_still_passes_on_mc_setup_023_and_mc_eng_003_does_not(tmp_path):
+    """The ledger's own shape: mc-setup-023 names mc-eng-002, and mc-eng-003 waits on a record of its own."""
+    import higgsfield
+    setup = tmp_path / "ledger" / "setup"
+    (setup / "2026-10-25-higgsfield-intended-use").mkdir(parents=True)
+    (setup / "2026-10-25-higgsfield-intended-use" / "record.md").write_text(
+        setup_text(engagements="[mc-eng-002]  # the train it covers"))
+    (setup / "2026-10-25-font-poppins").mkdir()
+    (setup / "2026-10-25-font-poppins" / "record.md").write_text("---\nid: mc-setup-024\nengagements: [mc-eng-003]\n---\n")
+    engs = tmp_path / "ledger" / "engagements"
+    for folder, eid in (("agent-portal-launch-2026-10-24", "mc-eng-002"), ("portal-launch-film-2026-10-25", "mc-eng-003")):
+        (engs / folder).mkdir(parents=True)
+        (engs / folder / "brief.md").write_text(f"---\nid: {eid}\ntype: full-train\nhiggsfield_credits_cap: 1000\n---\n")
+    got = higgsfield.setup_record({"engagement": str(engs / "agent-portal-launch-2026-10-24")})
+    assert got["id"] == "mc-setup-023" and got["approved"] == "2026-10-25" and got["engagement"] == "mc-eng-002"
+    with pytest.raises(higgsfield.Refused, match="no Higgsfield setup record covers mc-eng-003"):
+        higgsfield.setup_record({"engagement": str(engs / "portal-launch-film-2026-10-25")})
+    # mc-eng-003's draft, pending Sean, still refuses
+    (setup / "2026-10-25-higgsfield-portal-launch-film").mkdir()
+    (setup / "2026-10-25-higgsfield-portal-launch-film" / "record.md").write_text(
+        setup_text(id="mc-setup-025", engagements="[mc-eng-003]", approved="pending"))
+    with pytest.raises(higgsfield.Refused, match="mc-setup-025 has no intended-use approval from Sean yet"):
+        higgsfield.setup_record({"engagement": str(engs / "portal-launch-film-2026-10-25")})
+    assert higgsfield.setup_record({"engagement": str(engs / "agent-portal-launch-2026-10-24")})["id"] == "mc-setup-023"
 
 
 @pytest.mark.parametrize("seat_name,stage,extra", [("finishing-sound-designer", "finish", ()),
@@ -527,3 +1003,16 @@ def test_the_allowlist_gives_higgsfield_only_to_art_for_images_and_the_animator_
         assert r.returncode == 1 and "Art alone makes images there and the Animator video" in r.stderr
     finally:
         belts.write_text(old)
+
+
+def test_the_launcher_takes_a_settle_request_only_as_a_job_id_and_a_file():
+    sys.path.insert(0, str(LAUNCHER))
+    import apps
+    check = lambda h: apps.AppServer.check_higgsfield(None, {"higgsfield": h})
+    job = "be4ac502-797e-49c7-b640-206d7bb055b0"
+    ok = check({"settle": job, "out": "/m/appearance/x-v01-2026-10-25/IM1-take1.png"})
+    assert ok["argv"] == ["settle", "--job", job, "--out", "/m/appearance/x-v01-2026-10-25/IM1-take1.png"]
+    for bad in ({"settle": "job:" + job, "out": "/m/x.png"}, {"settle": job, "out": "x.png"},
+                {"settle": job, "out": "/m/x.png", "entry": "IM1"}, {"settle": "../etc", "out": "/m/x.png"}):
+        with pytest.raises(ValueError):
+            check(bad)
