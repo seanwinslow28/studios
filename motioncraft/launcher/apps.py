@@ -5,11 +5,13 @@
     apps.py ask blender --render --blend B --out D [--frames S-E] [--engine E] [--timeout S] [--wait S]
     apps.py ask resolve --script F [--timeout S] [--wait S] [-- ARG...]
     apps.py ask krita --script F [--fonts D] [--timeout S] [--wait S] [-- ARG...]
+    apps.py ask hyperframes --render --project P --out D [--fps N] [--timeout S] [--wait S]
+    apps.py ask hyperframes --check --project P [--timeout S] [--wait S]
     apps.py ask higgsfield --entry IMn|VIn --out F [--timeout S] [--wait S]
     apps.py ask higgsfield --status
     apps.py ask higgsfield --settle <job id> --out F
     apps.py wait <id> [--wait S]
-    apps.py lock <context> blender|resolve|krita                                      (the coordinator: print a lock)
+    apps.py lock <context> blender|resolve|krita|hyperframes                          (the coordinator: print a lock)
 
 Neither vendor's sandbox lets Blender or Resolve work from inside a pass. Both hide
 the Mac's graphics chip (no IOKit opening for `AGXDeviceUserClient`, and no setting
@@ -80,6 +82,29 @@ added, a document opened, or a document still open at the end that names a famil
 `--fonts` registered, or names none, fails the call, even if the script catches the
 refusal (Sean's call on SWCB #263, 2026-10-22).
 
+HyperFrames is the Animator's code route (SWCB #276, Sean's pick 2026-10-28): the shot
+is a composition, an HTML page whose GSAP timeline the renderer seeks frame by frame,
+in a project folder the pass wrote. Headless Chrome cannot start inside either vendor's
+sandbox (macOS refuses its startup rendezvous, `bootstrap_check_in`), so the launcher
+runs the pinned HyperFrames command line (`[apps] hyperframes`, on `[apps] node`, with
+the pinned `[apps] chrome`) and nothing else: `render` to a PNG sequence at a fixed frame
+rate, software drawing, screenshot capture, `--strict`, and `check`. The pass picks no
+flag and runs no code in Node; its page's scripts run only inside Chrome. HyperFrames
+feeds the page to Chrome from a file server on "any free port" of this Mac's loopback,
+and drives each Chrome over another. The launcher picks a handful of free loopback ports
+for the call, and its own preload (`HF_PINS`, loaded into every Node process of the call)
+hands each of those servers, and each Chrome's control port, one of them. The lock allows
+TCP to and from exactly those ports and nothing else, so a page reaches neither the Mac's
+other servers (its databases, model runners, AirPlay) nor anything off it. Allowing all
+of loopback and denying the ports already in use does not hold: Seatbelt let a denied
+port through for many port numbers, with a later deny not winning over the earlier
+allow (tested 2026-10-28), while an allow-list held for every port tried.
+It adds Chrome's own rendezvous name, the power-management client Chrome opens, and the
+scheduling call HyperFrames' lint worker makes. No graphics chip, no window server, no
+font server (a font is a file the page loads). Each call runs in a home of its own,
+deleted after, with telemetry off, so Sean's own `~/.hyperframes` is never read or
+written. Frames repeat byte for byte under the lock (tested 2026-10-28).
+
 Higgsfield comes through the same requests (SWCB #271), for Art's images and the
 Animator's video: the launcher runs its own doorway, launcher/higgsfield.py, for one
 entry of Sean's approved list, with no lock, since the call needs the network and the
@@ -89,7 +114,8 @@ the takes, the credit caps, the filing); this file only carries the request to i
 Every call is logged to `trace/logs/pass-NN.apps.jsonl`, and its result, log, lock
 and script copy go to `trace/logs/pass-NN.apps/`, which the pass reads but cannot
 write. Written on the Motioncraft build map's "Blender and Resolve inside the seat
-sandboxes" ticket (2026-10-19), Krita on "Krita's doorway" (2026-10-20).
+sandboxes" ticket (2026-10-19), Krita on "Krita's doorway" (2026-10-20), HyperFrames on
+SWCB #276 (2026-10-28).
 """
 from __future__ import annotations
 
@@ -111,8 +137,54 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 HERE = Path(__file__).resolve().parent
-APPS = ("blender", "resolve", "krita")
-REQUEST = re.compile(r"(blender|resolve|krita|higgsfield)-[0-9]{6}-[0-9a-f]{6}\.json")
+APPS = ("blender", "resolve", "krita", "hyperframes")
+REQUEST = re.compile(r"(blender|resolve|krita|hyperframes|higgsfield)-[0-9]{6}-[0-9a-f]{6}\.json")
+# HyperFrames: the frame rates a render may ask for, and the flags every render carries, which the pass never sets.
+# A PNG sequence (the kept render crosses to Finishing as frames, as Blender's does), software drawing and screenshot
+# capture (the path that repeats a frame; the fast capture needs the graphics chip), lint errors fail the render, and
+# missing media fails it rather than rendering around it.
+HF_FPS = (24, 25, 30, 50, 60)
+HF_RENDER_FLAGS = ("--format", "png-sequence", "--no-browser-gpu", "--experimental-fast-capture=false", "--strict",
+                   "--no-best-effort")
+# What every HyperFrames call's environment says: no telemetry, no update checks, no skills installed, no .env read.
+HF_ENV = {"HYPERFRAMES_NO_TELEMETRY": "1", "DO_NOT_TRACK": "1", "HYPERFRAMES_SKIP_SKILLS": "1",
+          "HYPERFRAMES_NO_CAPTURE_DOTENV": "1", "CI": "1"}
+# How many loopback ports a call gets: one file server and one control port per Chrome (the probe, the calibration,
+# the workers); a call that runs out fails, closed.
+HF_PORTS = 24
+# The launcher's preload for every Node process of a HyperFrames call (NODE_OPTIONS=--require; written into the call's
+# record). A server asked for "any port" gets the next of the launcher's ports, and so does a Chrome started with
+# `--remote-debugging-port=0`. Each port is claimed by making a file in the call's home, so the call's processes never
+# hand out the same one; an "any port" past the last fails.
+HF_PINS = r'''"use strict";
+// Motioncraft's port pins for one HyperFrames call (motioncraft/launcher/apps.py, HF_PINS). Never hand-edited.
+const fs = require("fs"), path = require("path"), net = require("net"), cp = require("child_process");
+const ports = (process.env.MOTIONCRAFT_HF_PORTS || "").split(",").map(Number).filter(Boolean);
+const claims = process.env.MOTIONCRAFT_HF_CLAIMS;
+function take() {
+  for (const p of ports) {
+    try { fs.closeSync(fs.openSync(path.join(claims, String(p)), "wx")); return p; }
+    catch (e) { if (e.code !== "EEXIST") throw e; }
+  }
+  throw new Error("motioncraft: this HyperFrames call used every loopback port the launcher gave it");
+}
+const listen = net.Server.prototype.listen;
+net.Server.prototype.listen = function (...args) {
+  const a = args[0];
+  if (a && typeof a === "object" && a.path === undefined && a.handle === undefined && !a.port) args[0] = { ...a, port: take() };
+  else if (a === 0 || a === "0") args[0] = take();
+  else if (a === undefined || typeof a === "function") args.unshift(take());
+  return listen.apply(this, args);
+};
+for (const name of ["spawn", "execFile"]) {
+  const orig = cp[name];
+  cp[name] = function (file, argv, ...rest) {
+    if (Array.isArray(argv)) argv = argv.map(x => x === "--remote-debugging-port=0" ? `--remote-debugging-port=${take()}` : x);
+    return orig.call(this, file, argv, ...rest);
+  };
+}
+require("module").syncBuiltinESMExports();
+'''
 # Higgsfield's doorway: an entry of Sean's approved list, by its id (launcher/higgsfield.py, SWCB #271).
 HIGGSFIELD_ENTRY = re.compile(r"(IM|VI)\d{1,4}")
 HIGGSFIELD_JOB = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
@@ -366,6 +438,17 @@ def cmd_ask(a) -> None:
         req = {"id": rid, "app": a.app, "timeout": a.timeout, "higgsfield": h}
     elif a.entry or a.status or a.settle:
         sys.exit("apps.py: --entry, --settle and --status are Higgsfield's")
+    elif a.app == "hyperframes":
+        if a.script or a.blend or a.fonts or a.args or a.frames or not a.project or a.render == a.check \
+                or (a.render and not a.out) or (a.check and (a.out or a.fps)):
+            sys.exit("apps.py: ask hyperframes --render --project <folder> --out <folder> [--fps N], or "
+                     "ask hyperframes --check --project <folder>; no script")
+        h = {"mode": "render" if a.render else "check", "project": os.path.abspath(a.project)}
+        if a.render:
+            h.update(out=os.path.abspath(a.out), fps=a.fps or 60)
+        req = {"id": rid, "app": a.app, "timeout": a.timeout, "hyperframes": h}
+    elif a.project or a.check or a.fps:
+        sys.exit("apps.py: --project, --check and --fps are HyperFrames'")
     elif a.render:
         m = re.fullmatch(r"(\d+)-(\d+)", a.frames or "")
         if a.app != "blender" or a.script or a.args or not a.blend or not a.out or not m:
@@ -444,6 +527,27 @@ def krita_cache() -> str:
     return seat.real(os.path.expanduser(os.environ.get("MOTIONCRAFT_KRITA_CACHE", "~/.cache/motioncraft/apps/krita")))
 
 
+def hyperframes_cache() -> str:
+    """Where each HyperFrames call's own home goes (`calls/<id>/`, deleted when the call ends)."""
+    seat = _seat()
+    return seat.real(os.path.expanduser(os.environ.get("MOTIONCRAFT_HYPERFRAMES_CACHE", "~/.cache/motioncraft/apps/hyperframes")))
+
+
+def free_ports(n: int = HF_PORTS) -> List[int]:
+    """`n` loopback ports free now, as the system hands them out: the only ports a HyperFrames call's lock allows."""
+    import socket
+    held = []
+    try:
+        for _ in range(n):
+            s = socket.socket()
+            s.bind(("127.0.0.1", 0))
+            held.append(s)
+        return sorted(s.getsockname()[1] for s in held)
+    finally:
+        for s in held:
+            s.close()
+
+
 def resolve_cache() -> str:
     """The broker's own folder on this machine, outside every fence: each call's folder (`calls/<id>/`, deleted when the
     call ends) and the export register (`exports.jsonl`), which only the broker writes."""
@@ -460,7 +564,7 @@ def krita_version(kritarunner: str) -> str:
         return "unknown"
 
 
-def lock(ctx: Dict, app: str, socket_path: str = "", render: bool = False, home: str = "") -> str:
+def lock(ctx: Dict, app: str, socket_path: str = "", render: bool = False, home: str = "", ports=()) -> str:
     """The Seatbelt lock for one application call, written from the pass's context.
 
     Deny by default, as Codex's own base policy does; read as the pass reads (its
@@ -469,7 +573,9 @@ def lock(ctx: Dict, app: str, socket_path: str = "", render: bool = False, home:
     compiler; a Resolve script adds only the broker's one local socket; Krita adds
     only the call's own home folder (`home`) and the font server. A render
     request (`render`, Blender only) adds LaunchServices, which Blender's GPU drawing
-    engine registers with on start, and nothing else.
+    engine registers with on start, and nothing else. HyperFrames adds its own home,
+    TCP on this Mac's loopback to and from the call's own `ports` only, and the three
+    openings Chrome needs to start with no screen.
     """
     seat = _seat()
     if app not in APPS:
@@ -540,6 +646,30 @@ def lock(ctx: Dict, app: str, socket_path: str = "", render: bool = False, home:
               if user_temp() else []),
             "; the fonts Krita draws text with; no graphics chip, no window server (Qt's offscreen platform)",
             "(allow mach-lookup (global-name \"com.apple.fonts\") (global-name \"com.apple.FontObjectsServer\"))",
+        ]
+    elif app == "hyperframes":
+        if not home:
+            raise ValueError("a HyperFrames call runs in a home folder of its own")
+        if not ports:
+            raise ValueError("a HyperFrames call runs on loopback ports the launcher chose for it")
+        mine = " ".join(f"(local tcp \"localhost:{int(p)}\")" for p in ports)
+        theirs = " ".join(f"(remote tcp \"localhost:{int(p)}\")" for p in ports)
+        lines += [
+            "; HyperFrames' home for this call: its settings and caches, never Sean's own ~/.hyperframes",
+            f"(allow file-write* (subpath {sb(seat.real(home))}))",
+            "; the lint worker lowers its own priority (setpriority), which Seatbelt files under scheduling",
+            "(allow system-sched)",
+            "; HyperFrames serves the page to Chrome from a loopback port and drives each Chrome over another; the launcher's",
+            "; preload gives each one of these ports. TCP on them only: no other port on the Mac, nothing off it, no UDP",
+            "; (an allow for all of loopback with these denied after it did not hold in Seatbelt; tested 2026-10-28)",
+            f"(allow network-bind {mine})",
+            f"(allow network-inbound {mine})",
+            f"(allow network-outbound {theirs})",
+            "; Chrome with no screen: its own rendezvous service, which it registers and its helpers look up, and the",
+            "; power-management client it opens. No graphics chip, no window server, no font server (tested 2026-10-28)",
+            "(allow mach-register (global-name-prefix \"org.chromium.\"))",
+            "(allow mach-lookup (global-name-prefix \"org.chromium.\"))",
+            "(allow iokit-open (iokit-registry-entry-class \"RootDomainUserClient\"))",
         ]
     else:
         lines += ["; the broker's socket, and nothing else: never Resolve's own ports, which would let a script make it run code"]
@@ -1242,6 +1372,8 @@ class AppServer:
             raise ValueError(f"{ctx['seat']}'s pass may not run {app}; its seat lists {', '.join(self.allowed) or 'no app'}")
         if app == "higgsfield":
             return self.check_higgsfield(req)
+        if app == "hyperframes":
+            return self.check_hyperframes(req)
         if "render" in req:
             return self.check_render(req)
         script = seat.real(str(req.get("script") or ""))
@@ -1351,6 +1483,45 @@ class AppServer:
         return {"app": "blender", "render": True, "script": "launcher: RENDER_SCRIPT", "body": RENDER_SCRIPT.encode(),
                 "args": [out, str(frames[0]), str(frames[1]), RENDER_ENGINES[name]], "blend": blend, "timeout": timeout}
 
+    def check_hyperframes(self, req: Dict) -> Dict:
+        """A HyperFrames request held to the pass's fence: a project the pass wrote and, for a render, a new folder for its
+        frames and a frame rate. The command line is the launcher's; the request names no flag and no code."""
+        seat, ctx = self.seat, self.ctx
+        h = req.get("hyperframes")
+        if req.get("script") or req.get("args") or req.get("render") or req.get("blend") or not isinstance(h, dict) \
+                or h.get("mode") not in ("render", "check") \
+                or set(h) != ({"mode", "project", "out", "fps"} if h.get("mode") == "render" else {"mode", "project"}):
+            raise ValueError("a HyperFrames request is a project to render (with a folder and a frame rate) or to check, "
+                             "and no script")
+        stage = os.path.join(ctx["media_project"], seat.STAGE_DIRS[ctx["seat"]])
+        frozen = ctx["fence"]["frozen"]
+
+        def new_in(p: str) -> bool:  # in the scratch folder, or in a new version folder in the seat's stage
+            return seat.under(p, ctx["scratch"]) or (
+                seat.under(p, stage) and p != stage and not any(seat.under(p, f) for f in frozen))
+
+        project = seat.real(str(h.get("project") or ""))
+        if not os.path.isfile(os.path.join(project, "index.html")) or not new_in(project):
+            raise ValueError("--project is a folder holding index.html, in the scratch folder or a new version folder in "
+                             "the seat's stage")
+        timeout = req.get("timeout") or DEFAULT_TIMEOUT_S
+        if not isinstance(timeout, int) or not 1 <= timeout <= MAX_TIMEOUT_S:
+            raise ValueError(f"--timeout is whole seconds, 1 to {MAX_TIMEOUT_S}")
+        c = {"app": "hyperframes", "mode": h["mode"], "project": project, "timeout": timeout,
+             "script": f"launcher: hyperframes {h['mode']}"}
+        if h["mode"] == "check":
+            c["argv"] = ["check", project]
+            return c
+        out = seat.real(str(h.get("out") or ""))
+        if not new_in(out) or os.path.lexists(out) or not os.path.isdir(os.path.dirname(out)) \
+                or seat.under(out, project) or seat.under(project, out):
+            raise ValueError("--out is a folder not made yet, in the scratch folder or a new version folder in the seat's "
+                             "stage, beside the project and not inside it")
+        if h.get("fps") not in HF_FPS:
+            raise ValueError(f"--fps is one of {', '.join(map(str, HF_FPS))}")
+        c.update(out=out, fps=h["fps"], argv=["render", project, *HF_RENDER_FLAGS, "--fps", str(h["fps"]), "-o", out])
+        return c
+
     def write_new(self, name: str, data: bytes) -> Path:
         p = self.results / name
         with open(p, "xb") as f:
@@ -1364,7 +1535,7 @@ class AppServer:
         try:
             req = self.read_request(name)
             entry["request"] = {k: req.get(k) for k in ("app", "script", "args", "blend", "render", "fonts", "higgsfield",
-                                                        "timeout") if k in req}
+                                                        "hyperframes", "timeout") if k in req}
             c = self.check(req)
         except (ValueError, OSError) as e:
             entry["refused"] = str(e)
@@ -1385,18 +1556,37 @@ class AppServer:
             res["resolve"] = entry.get("resolve")
         if c["app"] == "krita":
             res["fonts"] = entry.get("fonts")
+        if c["app"] == "hyperframes":
+            res["hyperframes"] = entry.get("hyperframes")
         self.finish(entry, res)
 
     def run(self, rid: str, c: Dict, entry: Dict) -> None:
         if c["app"] == "higgsfield":
             return self.run_higgsfield(rid, c, entry)
         seat, ctx, paths = self.seat, self.ctx, app_paths()
-        copy = self.write_new(f"{rid}.py", c["body"])
+        if c["app"] == "hyperframes":  # no code of the seat's: the record keeps the launcher's command line
+            argv = [paths["node"], paths["hyperframes"], *c["argv"]]
+            copy = self.write_new(f"{rid}.argv.json", (json.dumps(argv, indent=1) + "\n").encode())
+        else:
+            copy = self.write_new(f"{rid}.py", c["body"])
         env = {k: os.environ[k] for k in ("HOME", "USER", "LOGNAME", "LANG", "LC_ALL") if k in os.environ}
         env.update(PATH="/usr/bin:/bin:/usr/sbin:/sbin", TMPDIR=ctx["scratch"])
         timeout = max(1, min(c["timeout"], self.deadline - time.time()))
-        broker, sock, home, rhome = None, "", "", ""
-        if c["app"] == "blender":
+        broker, sock, home, rhome, ports = None, "", "", "", []
+        if c["app"] == "hyperframes":
+            home = os.path.join(hyperframes_cache(), "calls", rid)
+            os.makedirs(os.path.join(home, "claims"), mode=0o700)
+            ports = free_ports()
+            pins = self.write_new(f"{rid}.pins.cjs", HF_PINS.encode())
+            env.update(HF_ENV, HOME=home, HYPERFRAMES_BROWSER_PATH=paths["chrome"], NODE_OPTIONS=f"--require {pins}",
+                       MOTIONCRAFT_HF_PORTS=",".join(map(str, ports)), MOTIONCRAFT_HF_CLAIMS=os.path.join(home, "claims"))
+            for tool in ("ffmpeg", "ffprobe"):  # for a composition's video sources; a PNG sequence needs no encoder
+                found = shutil.which(tool, path=os.pathsep.join([os.environ.get("PATH", ""), "/opt/homebrew/bin"]))
+                if found:
+                    env[f"HYPERFRAMES_{tool.upper()}_PATH"] = found
+            entry["hyperframes"] = {"mode": c["mode"], "project": c["project"], "ports": ports,
+                                    **({"out": c["out"], "fps": c["fps"]} if c["mode"] == "render" else {})}
+        elif c["app"] == "blender":
             Path(blender_cache()).mkdir(parents=True, exist_ok=True)
             env["XDG_CACHE_HOME"] = blender_cache()
             # a render request opens its scene with auto-run off, before the file loads: no code the file carries runs
@@ -1420,7 +1610,7 @@ class AppServer:
             # no Resolve variables and no Resolve module: only the stand-in, and the broker's socket
             env.update(PYTHONPATH=str(shim), MOTIONCRAFT_RESOLVE_SOCKET=sock)
             argv = [paths["python"], "-s", "-B", str(copy), *c["args"]]
-        rules = lock(ctx, c["app"], sock, render=bool(c.get("render")), home=home)
+        rules = lock(ctx, c["app"], sock, render=bool(c.get("render")), home=home, ports=ports)
         sbf = self.write_new(f"{rid}.sb", rules.encode())
         log = self.results / f"{rid}.log"
         before = tree(ctx["fence"]["write"])
@@ -1451,6 +1641,11 @@ class AppServer:
         if c["app"] == "krita" and code == 0 and not krita_finished(log):
             entry["error"] = ("Krita ended without the script finishing (kritarunner exits 0 when a script fails to "
                               "load); see the log")
+        if c["app"] == "hyperframes" and c["mode"] == "render":
+            frames = sorted(f for f in os.listdir(c["out"]) if f.endswith(".png")) if os.path.isdir(c["out"]) else []
+            entry["hyperframes"].update(frames=len(frames), first=frames[0] if frames else "", last=frames[-1] if frames else "")
+            if code == 0 and not frames:
+                entry["error"] = "HyperFrames ended without writing a frame; see the log"
         if c["app"] == "krita":
             registered, faults = krita_font_lines(log)
             entry["fonts"]["families"] = registered
@@ -1614,21 +1809,27 @@ class AppServer:
 def cmd_lock(a) -> None:
     seat = _seat()
     ctx = seat.load(a.context)
-    home = os.path.join(krita_cache(), "calls", "<call>") if a.app == "krita" else ""
-    sys.stdout.write(lock(ctx, a.app, "/private/tmp/mc-<call>/s" if a.app == "resolve" else "", home=home))
+    home = os.path.join({"krita": krita_cache, "hyperframes": hyperframes_cache}[a.app](), "calls", "<call>") \
+        if a.app in ("krita", "hyperframes") else ""
+    sys.stdout.write(lock(ctx, a.app, "/private/tmp/mc-<call>/s" if a.app == "resolve" else "", home=home,
+                          ports=free_ports() if a.app == "hyperframes" else ()))
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
-    k = sub.add_parser("ask", help="from inside a pass: ask the launcher to run Blender, Resolve or Krita")
+    k = sub.add_parser("ask", help="from inside a pass: ask the launcher to run Blender, Resolve, Krita or HyperFrames")
     k.add_argument("app", choices=APPS + ("higgsfield",))
     k.add_argument("--script", default="", help="a .py the pass wrote, in its scratch folder or a new version folder")
     k.add_argument("--blend", default="", help="blender: a .blend in the media project to open first")
     k.add_argument("--fonts", default="",
                    help="krita: the version's font folder in the media project, registered before the script runs")
     k.add_argument("--render", action="store_true",
-                   help="blender: render --blend with the launcher's own script (Grease Pencil, Eevee, Workbench render only so)")
+                   help="blender: render --blend with the launcher's own script (Grease Pencil, Eevee, Workbench render only "
+                        "so); hyperframes: render --project to a PNG sequence")
+    k.add_argument("--project", default="", help="hyperframes: the composition's project folder (its index.html)")
+    k.add_argument("--check", action="store_true", help="hyperframes: lint and check --project in Chrome; no render")
+    k.add_argument("--fps", type=int, default=0, help=f"hyperframes --render: one of {', '.join(map(str, HF_FPS))}; 60 if unset")
     k.add_argument("--out", default="", help="--render: the folder the frames go to")
     k.add_argument("--frames", default="", help="--render: S-E, the first and last frame")
     k.add_argument("--engine", default="cycles", choices=sorted(RENDER_ENGINES),

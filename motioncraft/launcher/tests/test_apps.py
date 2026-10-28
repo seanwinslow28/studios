@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -19,7 +20,7 @@ from pathlib import Path
 
 import pytest
 
-from test_seat import (BLENDER, KRITA, LAUNCHER, behave, codex_home, codex_pass, context, ctx_data, fake,  # noqa: F401
+from test_seat import (BLENDER, CHROME, HYPERFRAMES, KRITA, LAUNCHER, NODE, behave, codex_home, codex_pass, context, ctx_data, fake,  # noqa: F401
                        launch, record, seat, world)
 
 sys.path.insert(0, str(LAUNCHER))
@@ -28,6 +29,8 @@ import apps  # noqa: E402
 APPS = LAUNCHER / "apps.py"
 HAVE_BLENDER = os.access(BLENDER, os.X_OK)
 HAVE_KRITA = os.access(KRITA, os.X_OK)
+HAVE_HYPERFRAMES = all(os.access(p, os.X_OK) for p in (HYPERFRAMES, NODE, CHROME))
+GSAP = Path(HYPERFRAMES).parents[2] / "gsap" / "dist" / "gsap.min.js"
 
 
 @pytest.fixture()
@@ -38,6 +41,7 @@ def env_of(world):
     os.environ["MOTIONCRAFT_APPS_CACHE"] = str(world["root"] / "appcache")
     os.environ["MOTIONCRAFT_KRITA_CACHE"] = str(world["root"] / "kritacache")
     os.environ["MOTIONCRAFT_RESOLVE_CACHE"] = str(world["root"] / "resolvecache")
+    os.environ["MOTIONCRAFT_HYPERFRAMES_CACHE"] = str(world["root"] / "hfcache")
     import seat as seatmod
     import importlib
     importlib.reload(seatmod)
@@ -123,6 +127,38 @@ def test_the_resolve_lock_opens_only_the_brokers_socket(env_of):
     assert "remote ip" not in text and "localhost" not in text, "never Resolve's own ports"
     assert "AGXDeviceUserClient" not in text and "MTLCompilerService" not in text
     assert "network-outbound" not in apps.lock(c, "resolve", "")
+
+
+def test_the_hyperframes_lock_opens_only_the_calls_own_ports_and_what_chrome_needs_to_start(env_of):
+    c = ctx_of(env_of, "animator", "h1")
+    home = str(env_of["root"] / "hfcache" / "calls" / "x")
+    text = apps.lock(c, "hyperframes", home=home, ports=[51001, 51002])
+    assert "(deny default)" in text and f'(subpath "{home}")' in text
+    for rule in ("network-bind", "network-inbound"):
+        assert f'(allow {rule} (local tcp "localhost:51001") (local tcp "localhost:51002"))' in text
+    assert '(allow network-outbound (remote tcp "localhost:51001") (remote tcp "localhost:51002"))' in text
+    assert "localhost:*" not in text, "never all of loopback: a deny after it did not hold"
+    assert "udp" not in text and "remote ip" not in text and "unix-socket" not in text, "loopback TCP only, nothing off the Mac"
+    assert '(allow mach-register (global-name-prefix "org.chromium."))' in text and "RootDomainUserClient" in text
+    for shut in ("AGXDeviceUserClient", "MTLCompilerService", "launchservicesd", "windowserver", "com.apple.fonts",
+                 "pasteboard", "IOSurfaceRootUserClient"):
+        assert shut not in text, f"HyperFrames' lock has no {shut}"
+    for w in c["fence"]["write"]:
+        assert f'(subpath "{w}")' in text
+    assert text.index("(deny file-write*") > text.index("(allow file-write*"), "the frozen list comes after the allows"
+    with pytest.raises(ValueError):
+        apps.lock(c, "hyperframes", ports=[51001])  # never without a home of its own
+    with pytest.raises(ValueError):
+        apps.lock(c, "hyperframes", home=home)  # never without its own ports
+
+
+def test_the_free_ports_are_free_and_distinct():
+    import socket
+    ports = apps.free_ports()
+    assert len(ports) == apps.HF_PORTS == len(set(ports))
+    for p in ports[:4]:
+        with socket.socket() as s:
+            s.bind(("127.0.0.1", p))  # nothing holds it
 
 
 # --- the Resolve broker, against a fake Resolve ----------------------------------------------
@@ -582,9 +618,13 @@ def test_the_prompt_tells_a_seat_with_an_app_to_ask(env_of):
     f = ctx_of(env_of, "finishing-sound-designer", "a7")
     assert "apps.py ask resolve" in seatmod.claude_prompt(f, "work") and "ask blender" not in seatmod.claude_prompt(f, "work")
     assert "ask resolve" not in seatmod.codex_prompt(c, "work") and "sequencer" not in seatmod.codex_prompt(c, "work")
+    hf = seatmod.codex_prompt(c, "work")
+    assert "ask hyperframes --render" in hf and "ask hyperframes --check" in hf and "never a CDN" in hf
+    assert "Blender and HyperFrames: none runs inside" in hf
     d = ctx_of(env_of, "visual-story-director", "a9b")
     prompt = seatmod.claude_prompt(d, "work")
     assert "ask blender --render" in prompt and "sequencer edit" in prompt and "`aud`" in prompt and "ask resolve" not in prompt
+    assert "ask hyperframes" not in prompt, "the code route is the Animator's alone"
     a = ctx_of(env_of, "art-pose-designer", "a9c")
     prompt = seatmod.claude_prompt(a, "work")
     assert prompt.count("apps.py ask krita") == 1 and "brush engine is not available" in prompt and "QPainter" in prompt
@@ -1113,6 +1153,169 @@ def test_krita_registers_the_versions_fonts_and_an_unregistered_reopen_fails_lou
             res5, _ = ask(srv, "krita", scratch / "card.py", str(scratch / family), family, fonts=fonts)
             assert res5["ok"] is False and said in res5["error"], (family, res5["error"])
     finally:
+        os.close(srv.fd)
+
+
+# --- HyperFrames under the real lock ---------------------------------------------------------------
+
+def ask_hf(srv, mode, project, out="", fps=60, timeout=600, **extra):
+    """What `apps.py ask hyperframes` does, without its wait."""
+    rid = f"hyperframes-{time.strftime('%H%M%S')}-{os.urandom(3).hex()}"
+    h = {"mode": mode, "project": str(project), **({"out": str(out), "fps": fps} if mode == "render" else {})}
+    (srv.requests / f"{rid}.json").write_text(json.dumps({"id": rid, "app": "hyperframes", "timeout": timeout,
+                                                          "hyperframes": h, **extra}))
+    srv.handle(f"{rid}.json")
+    return json.loads((srv.results / f"{rid}.result.json").read_text()), srv.calls[-1]
+
+
+# A card that slides, turns and sharpens over one second at 60 fps, with a headline in a font file the page loads, and,
+# when asked, an image from a port on this Mac's loopback that was listening before the call began.
+HF_PAGE = """<!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=1920, height=1080">
+<script src="assets/gsap.min.js"></script><style>*{margin:0;padding:0}html,body{width:1920px;height:1080px;overflow:hidden;
+background:#eef3fc}#root{position:relative;width:100%;height:100%;perspective:1400px}
+@font-face{font-family:F;src:url("assets/font.ttf")}#h{position:absolute;left:200px;top:120px;font:74px F;color:#0f1b33}
+#card{position:absolute;left:300px;top:380px;width:420px;height:280px;border-radius:22px;background:#1a6ae8;
+box-shadow:0 50px 100px -30px rgba(20,50,110,.5)}</style></head><body>
+<div id="root" data-composition-id="main" data-start="0" data-duration="1" data-fps="60" data-width="1920" data-height="1080">
+<div id="h" class="clip" data-start="0" data-duration="1" data-track-index="1">Built in code</div>
+<div id="card" class="clip" data-start="0" data-duration="1" data-track-index="0"></div>EXTRA</div>
+<script>const tl = gsap.timeline({ paused: true });
+tl.fromTo("#card", { x: 0, rotationY: 25, filter: "blur(6px)" }, { x: 900, rotationY: 0, filter: "blur(0px)", duration: 1,
+ease: "power3.out" }, 0);
+window.__timelines["main"] = tl; tl.seek(0);</script></body></html>
+"""
+
+
+def hf_project(folder: Path, extra: str = "") -> Path:
+    (folder / "assets").mkdir(parents=True)
+    shutil.copy(GSAP, folder / "assets" / "gsap.min.js")
+    shutil.copy(STIX, folder / "assets" / "font.ttf")
+    (folder / "index.html").write_text(HF_PAGE.replace("EXTRA", extra))
+    return folder
+
+
+def test_a_hyperframes_request_carries_no_code_and_is_held_to_the_fence(env_of):
+    srv, c = server(env_of, "animator", "h2")
+    scratch, stage = Path(c["scratch"]), env_of["project"] / "motion"
+    proj = stage / "motion-v07-2026-10-28" / "page"
+    proj.mkdir(parents=True)
+    (proj / "index.html").write_text("<html></html>")
+    frozen = stage / "motion-v01-2026-10-19"
+    refused = lambda *a, **k: ask_hf(srv, *a, **k)[0]["refused"]  # noqa: E731
+    assert "no script" in refused("render", proj, scratch / "f", script=str(scratch / "x.py"))
+    assert "no script" in refused("render", proj, scratch / "f", args=["--format", "mp4"])
+    assert "no script" in refused("lint", proj)
+    assert "--project" in refused("check", env_of["root"]), "a project the pass wrote, in its fence"
+    assert "--project" in refused("check", frozen), "a saved version is never a project to run"
+    assert "--project" in refused("check", scratch / "nowhere")
+    assert "not made yet" in refused("render", proj, proj.parent), "frames go into a folder of their own"
+    assert "not made yet" in refused("render", proj, proj / "frames"), "never inside the project"
+    assert "not made yet" in refused("render", proj, frozen / "frames")
+    assert "not made yet" in refused("render", proj, env_of["eng"] / "frames")
+    assert "--fps" in refused("render", proj, scratch / "f", fps=59)
+    assert "may not run" in ask_hf(server(env_of, "art-pose-designer", "h3")[0], "check", proj)[0]["refused"]
+    os.close(srv.fd)
+
+
+def test_the_seats_ask_writes_a_hyperframes_request_the_launcher_accepts(env_of):
+    srv, c = server(env_of, "animator", "h5")
+    proj = env_of["project"] / "motion" / "motion-v09-2026-10-28" / "page"
+    proj.mkdir(parents=True)
+    (proj / "index.html").write_text("<html></html>")
+    env = dict(os.environ, MOTIONCRAFT_APPS_REQUESTS=str(srv.requests), MOTIONCRAFT_APPS_RESULTS=str(srv.results))
+    run = lambda *a: subprocess.run([sys.executable, "-B", str(APPS), "ask", "hyperframes", *a, "--wait", "0.1"],  # noqa: E731
+                                    env=env, capture_output=True, text=True)
+    for bad in (["--render", "--project", str(proj)], ["--check", "--project", str(proj), "--fps", "30"],
+                ["--check", "--render", "--project", str(proj), "--out", str(proj.parent / "f")],
+                ["--check", "--project", str(proj), "--script", "x.py"], ["--project", str(proj)]):
+        assert "ask hyperframes --render" in run(*bad).stderr, bad
+    assert not list(srv.requests.glob("*.json")), "a malformed ask writes no request"
+    run("--check", "--project", str(proj))
+    run("--render", "--project", str(proj), "--out", str(proj.parent / "frames"), "--fps", "30")
+    reqs = sorted(srv.requests.glob("hyperframes-*.json"))
+    checked = [srv.check(json.loads(r.read_text())) for r in reqs]
+    assert sorted(x["mode"] for x in checked) == ["check", "render"]
+    render = next(x for x in checked if x["mode"] == "render")
+    assert render["argv"][:2] == ["render", str(proj)] and render["argv"][-4:] == ["--fps", "30", "-o", str(proj.parent / "frames")]
+    os.close(srv.fd)
+
+
+def frames_of(folder: Path) -> dict:
+    return {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(folder.glob("*.png"))}
+
+
+@pytest.mark.skipif(not HAVE_HYPERFRAMES, reason="the pinned HyperFrames, node or Chrome is not on this machine")
+def test_hyperframes_renders_inside_the_fence_repeats_and_reaches_nothing_else(env_of):
+    import http.server
+    import socketserver
+    import threading
+    hits = []
+
+    class Seen(http.server.SimpleHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802
+            hits.append(self.path)
+            self.send_response(404)
+            self.end_headers()
+
+        def log_message(self, *a):
+            pass
+
+    local = socketserver.TCPServer(("127.0.0.1", 0), Seen)
+    threading.Thread(target=local.serve_forever, daemon=True).start()
+    port = local.server_address[1]
+    srv, c = server(env_of, "animator", "h4")
+    try:
+        version = env_of["project"] / "motion" / "motion-v08-2026-10-28"
+        proj = hf_project(version / "page")
+        ours = Path(os.path.expanduser("~/.hyperframes"))
+        ours_before = sorted(p.name for p in ours.iterdir()) if ours.is_dir() else None
+        res, entry = ask_hf(srv, "check", proj)
+        assert res["ok"], Path(res["log"]).read_text()[-3000:]
+        res1, entry1 = ask_hf(srv, "render", proj, version / "frames")
+        log1 = Path(res1["log"]).read_text()
+        assert res1["ok"], log1[-3000:]
+        assert res1["hyperframes"]["frames"] == 60 and res1["hyperframes"]["fps"] == 60
+        assert len(res1["hyperframes"]["ports"]) == apps.HF_PORTS and port not in res1["hyperframes"]["ports"]
+        one = frames_of(version / "frames")
+        assert len(one) == 60 and len(set(one.values())) > 30, "a moving card: the frames differ"
+        res2, _ = ask_hf(srv, "render", proj, Path(c["scratch"]) / "again")
+        assert res2["ok"] and frames_of(Path(c["scratch"]) / "again") == one, "frames repeat byte for byte"
+        # what ran is the launcher's command line, hashed beside the lock; the pass named no flag
+        argv = json.loads(Path(entry1["script"]["copy"]).read_text())
+        assert argv[:2] == [NODE, HYPERFRAMES] and argv[2] == "render" and "png-sequence" in argv and "--strict" in argv
+        assert f'localhost:{port}"' not in Path(entry1["lock"]["path"]).read_text(), "the test's server is no port of the call's"
+        pins = Path(entry1["script"]["copy"]).parent / f'{entry1["id"]}.pins.cjs'
+        assert pins.read_text() == apps.HF_PINS, "the preload that ran is the launcher's, kept in the record"
+        assert not list((env_of["root"] / "hfcache" / "calls").iterdir()), "each call's home is gone after it"
+        assert (sorted(p.name for p in ours.iterdir()) if ours.is_dir() else None) == ours_before, \
+            "Sean's own ~/.hyperframes is never written"
+        assert str(proj / "index.html") not in res1["new_or_changed_in_fence"], "the project is read, never rewritten"
+        # a page that reaches a port listening before the call fails, and the server there hears nothing
+        bad = hf_project(version / "reach", f'<img src="http://127.0.0.1:{port}/x.png">')
+        res3, _ = ask_hf(srv, "render", bad, version / "reach-frames")
+        assert res3["ok"] is False and "media_load_failed" in Path(res3["log"]).read_text()
+        assert hits == [], "the local server already listening heard nothing"
+        # the control: with the server's port among the call's own, the same page reaches it, so the lock is what held
+        real = apps.free_ports
+        apps.free_ports = lambda: real() + [port]
+        try:
+            ask_hf(srv, "render", bad, version / "reach-frames-open")
+        finally:
+            apps.free_ports = real
+        assert hits, "with its port allowed, the page does reach the server: the lock, not the page, held it off"
+        # a page that loads GSAP from a CDN, the way HyperFrames' own starter does, never reaches it: no timeline, no render
+        cdn = hf_project(version / "cdn")
+        (cdn / "index.html").write_text((cdn / "index.html").read_text().replace(
+            'src="assets/gsap.min.js"', 'src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"'))
+        (cdn / "assets" / "gsap.min.js").unlink()
+        res4, _ = ask_hf(srv, "render", cdn, version / "cdn-frames")
+        log4 = Path(res4["log"]).read_text()
+        assert res4["ok"] is False and not list((version / "cdn-frames").glob("*.png")), \
+            "nothing off the Mac loads, so a CDN page does not render"
+        assert "Failed to download CDN script" in log4 and "ERR_NAME_NOT_RESOLVED" in log4, \
+            "both HyperFrames' own download and Chrome's request were stopped at the network"
+    finally:
+        local.shutdown()
         os.close(srv.fd)
 
 
