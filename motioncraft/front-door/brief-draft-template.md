@@ -65,11 +65,18 @@ written: <YYYY-MM-DD>
 ## Stress test
 
 <verdict: proceed (residuals: ...) | revise; Sean's decision in his words; the binding residuals already folded above, named here by the line they became. [L<n>]>
+
+## Locks not in this brief
+
+- [L<n>] <its handle>: <why it stays in `concept.md` or the sidecar: room procedure, a ceiling, register, a superseded call>.
+- ...
 ```
 
 ## Rules
 
 - **Every ASK line ends with its lock id.** A line with no lock does not ship; the structure check fails it.
+- **Every lock reaches this file.** Each lock id in the sidecar is cited by a line above or listed under *Locks not in this brief* with its reason; a lock in neither fails the structure check. A superseded lock counts through the lock that supersedes it, and the bundle lock is written after the check.
+- **How the film is built is a non-negotiable.** A lock that names the build tool, host or route (a code tool, Blender, a browser-built clip), even inside a style lock, becomes a non-negotiable line citing it, so Open cannot route the film another way by default (SWCB #276).
 - **One thing per ASK line.** The story gate attacks "Intake that leaked": a line the Director's intake cannot map to one thing is a leak.
 - **Checkable or absent.** A non-negotiable the gates could not verdict a frame against is moved to `concept.md` as register, or sharpened until it checks.
 - **The hero frame is a reference.** The word "style frame" never appears in this file; the appearance gate's "A target passed as a design" is written for exactly that slip.

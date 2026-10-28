@@ -74,11 +74,18 @@ Takeout: <what a cold viewer thinks, feels or does when it ends, in one line>. [
 ## Read-back
 
 Before any thumbnail, the Director's intake restates in its own words the objective, the takeout and the non-negotiables, and lists what it cannot board from this brief. Sean accepts or corrects it; the answer lands in the engagement, never back in this file.
+
+## Locks not in this brief
+
+- [L<n>] <its handle>: <why it stays in `concept.md` or the sidecar: room procedure, a ceiling, register, a superseded call>.
+- ...
 ```
 
 ## Rules
 
 - **Every ASK line ends with its lock id.** A line with no lock does not ship; the structure check fails it.
+- **Every lock reaches this file.** Each lock id in the sidecar is cited by a line above or listed under *Locks not in this brief* with its reason; a lock in neither fails the structure check. A superseded lock counts through the lock that supersedes it, and the bundle lock is written after the check.
+- **How the film is built is a non-negotiable.** A lock that names the build tool, host or route (a code tool, Blender, a browser-built clip), even inside a style lock, becomes a non-negotiable line citing it, so Open cannot route the film another way by default (SWCB #276).
 - **One thing per ASK line.** The story gate attacks "Intake that leaked": a line the Director's intake cannot map to one thing is a leak.
 - **No boards in the brief.** No shot size, no duration per shot, no order of shots beyond the waypoints; the structure check fails a line that has one.
 - **Checkable or absent.** A non-negotiable the gates could not verdict a frame against is moved to `concept.md` as register, or sharpened until it checks.

@@ -40,6 +40,8 @@ The lens's template, section for section, exact headers and order. Every bundle'
 - **What good looks like**: the board rows that bind, by row id; the chosen hero frame by path and hash **as a taste reference, never a frozen look**; and the signature move's timing feel in Sean's words. This is the section the first train never had, and the reason the room exists.
 - **What this is NOT**: the nearest plausible wrong versions, fenced. A NOT that only inverts a positive is padding and fails the structure check.
 - **Non-negotiables**: one checkable directive per line, each something a reviewer could verdict a frame, a clip or a file against. "Hold the pre-strike frames past comfort, at least 36 frames" checks; "punchy timing" does not.
+- **How it is built**, where a lock names it (a tool, a host or a route, even inside a look or style lock): a non-negotiable that names it, so the studio's Open cannot route around it by default.
+- **Locks not in this brief**: every lock no line above cites, each with the reason it stays in `concept.md` or the sidecar. With the ASK lines' lock ids it lets the structure check prove both directions: every brief line traces to a lock, and every lock reaches the brief or says why not (SWCB #276).
 - **Stress residuals that bind** are already folded into the two sections above; the brief-draft does not keep a separate list. The non-binding ones stay in `concept.md`.
 
 ## `board.md`, `look/`, `motion/`
