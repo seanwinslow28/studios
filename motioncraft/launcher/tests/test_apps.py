@@ -565,11 +565,12 @@ def test_the_wrapper_reads_the_families_each_text_names():
         families("<svg><text>")
 
 
-def ask_render(srv, blend, out, frames=(1, 3), engine="cycles", timeout=300, **extra):
+def ask_render(srv, blend, out, frames=(1, 3), engine="cycles", timeout=300, device="", **extra):
     """What `apps.py ask blender --render` does, without its wait."""
     rid = f"blender-{time.strftime('%H%M%S')}-{os.urandom(3).hex()}"
     req = {"id": rid, "app": "blender", "timeout": timeout,
-           "render": {"blend": str(blend), "out": str(out), "frames": list(frames), "engine": engine}, **extra}
+           "render": {"blend": str(blend), "out": str(out), "frames": list(frames), "engine": engine,
+                      **({"device": device} if device else {})}, **extra}
     (srv.requests / f"{rid}.json").write_text(json.dumps(req))
     srv.handle(f"{rid}.json")
     return json.loads((srv.results / f"{rid}.result.json").read_text()), srv.calls[-1]
@@ -600,6 +601,34 @@ def test_a_render_request_carries_no_code_and_is_held_to_the_fence(env_of):
     os.close(srv.fd)
 
 
+def test_a_gpu_render_is_opt_in_cycles_and_kept_only_where_the_brief_adopts_it(env_of):
+    srv, c = server(env_of, "animator", "g1")
+    scratch, v08 = Path(c["scratch"]), env_of["project"] / "motion" / "motion-v08-2026-10-19"
+    blend = v08 / "scene.blend"
+    blend.parent.mkdir(exist_ok=True)
+    blend.write_bytes(b"BLENDER")
+    req = lambda out, **r: {"app": "blender", "render": {"blend": str(blend), "out": str(out), "frames": [1, 3], **r}}  # noqa: E731
+    # the CPU stays the default, and the device reaches the launcher's script as its last argument
+    assert srv.check(req(scratch / "f"))["args"][-1] == "CPU"
+    assert srv.check(req(scratch / "f", device="cpu"))["args"][-1] == "CPU"
+    assert srv.check(req(scratch / "f", device="gpu"))["args"][-1] == "GPU", "a GPU preview into scratch"
+    refused = lambda *a, **k: ask_render(srv, *a, **k)[0]["refused"]  # noqa: E731
+    assert "--device" in refused(blend, scratch / "f", device="metal")
+    assert "--device gpu is cycles" in refused(blend, scratch / "f", engine="eevee", device="gpu")
+    assert "render_device: gpu" in refused(blend, v08 / "frames", device="gpu"), "no film adopts the GPU by default"
+    # Sean adopts it for one film, on the brief's header; then a GPU render is kept like a CPU one
+    brief = env_of["eng"] / "brief.md"
+    was = brief.read_text()
+    try:
+        brief.write_text(was.replace("machine: laptop\n", "machine: laptop\nrender_device: gpu\n"))
+        assert srv.check(req(v08 / "frames", device="gpu"))["args"][-1] == "GPU"
+        assert "new version folder" in refused(blend, env_of["project"] / "motion" / "motion-v01-2026-10-19" / "f",
+                                               device="gpu"), "a saved version never takes a render, on any device"
+    finally:
+        brief.write_text(was)
+    os.close(srv.fd)
+
+
 def test_a_planted_link_is_never_read_as_a_request(env_of):
     srv, c = server(env_of, "animator", "a5")
     secret = env_of["root"] / "secret.json"
@@ -615,6 +644,7 @@ def test_the_prompt_tells_a_seat_with_an_app_to_ask(env_of):
     import seat as seatmod
     c = ctx_of(env_of, "animator", "a6")
     assert "apps.py ask blender" in seatmod.codex_prompt(c, "work") and "ask blender --render" in seatmod.codex_prompt(c, "work")
+    assert "[--device gpu]" in seatmod.codex_prompt(c, "work") and "render_device: gpu" in seatmod.codex_prompt(c, "work")
     f = ctx_of(env_of, "finishing-sound-designer", "a7")
     assert "apps.py ask resolve" in seatmod.claude_prompt(f, "work") and "ask blender" not in seatmod.claude_prompt(f, "work")
     assert "ask resolve" not in seatmod.codex_prompt(c, "work") and "sequencer" not in seatmod.codex_prompt(c, "work")
@@ -769,6 +799,33 @@ def test_grease_pencil_renders_only_through_the_render_request_and_repeats(env_o
     assert res["ok"], Path(res["log"]).read_text()[-2000:]
     assert (scratch / "preview" / "frame-0001.png").stat().st_size > 0
     os.close(srv.fd)
+
+
+@pytest.mark.skipif(not HAVE_BLENDER, reason="Blender is not installed on this machine")
+def test_a_gpu_render_runs_on_metal_under_the_same_lock(env_of):
+    srv, c = server(env_of, "animator", "g2")
+    scratch, v09 = Path(c["scratch"]), env_of["project"] / "motion" / "motion-v09-2026-10-19"
+    build = scratch / "gp.py"
+    build.write_text(GP_SCENE)
+    res, _ = ask(srv, "blender", build, str(v09), str(scratch / "autorun-marker"))
+    assert res["ok"], Path(res["log"]).read_text()[-2000:]
+    blend = v09 / "gp.blend"
+    cpu, cpu_entry = ask_render(srv, blend, scratch / "cpu", frames=(1, 1))
+    gpu, gpu_entry = ask_render(srv, blend, scratch / "gpu", frames=(1, 1), device="gpu")
+    assert cpu["ok"] and gpu["ok"], (cpu, gpu)
+    log = Path(gpu["log"]).read_text()
+    assert "MOTIONCRAFT_RENDER device CPU" in Path(cpu["log"]).read_text()
+    assert "MOTIONCRAFT_RENDER device GPU ['" in log, "Cycles found the Metal device inside the lock"
+    assert cpu["device"] == "cpu" and gpu["device"] == "gpu" and gpu_entry["device"] == "gpu"
+    assert gpu_entry["lock"]["sha256"] == cpu_entry["lock"]["sha256"], "the GPU runs under the CPU's lock, unopened"
+    assert (scratch / "gpu" / "frame-0001.png").stat().st_size > 0
+    os.close(srv.fd)
+
+
+def test_a_gpu_render_with_no_metal_device_fails_rather_than_falling_back_to_the_cpu():
+    """Cycles quietly renders on the CPU when no GPU device is enabled; the launcher's script stops instead."""
+    assert 'raise SystemExit("MOTIONCRAFT_RENDER no Metal device' in apps.RENDER_SCRIPT
+    assert apps.RENDER_SCRIPT.index("no Metal device") < apps.RENDER_SCRIPT.index("bpy.ops.render.render")
 
 
 # The Director's animatic: two boards cut in Blender's sequencer over a scratch timing track whose clicks (frames 1, 13

@@ -74,6 +74,7 @@ attention_budget: 10              # Sean's stops
 spend_cap_usd: 10                 # generated sound, inside #158's testing total
 sound_credits_cap: 15000          # ElevenLabs credits for sound effects; the sound doorway reads both caps
 machine: laptop                   # laptop | mini; one machine per job at a time
+render_device: cpu                # cpu | gpu: gpu only on Sean's recorded adoption for this film (SWCB #272)
 media: media:<film>/<project>-<YYYY-MM-DD>
 sound_scope: texture and accents only
 originates_from: null             # the Scriptcraft brief's id, on a handoff
