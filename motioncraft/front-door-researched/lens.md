@@ -16,7 +16,7 @@ Before `[L1]`:
 
 1. **The media folder** is mapped (`folders.local`, `media =`); the piece's folder and `Planning/<slug>/` are made there. The ledger is not touched: the room writes nothing under `motioncraft/ledger/`.
 2. **The Higgsfield meter.** `higgsfield account status` for the balance; Sean names the session's ceiling in credits, locked as `[L2] CEILING`. It is the only ceiling: stills on ChatGPT desktop and the Codex image path run on the subscription. Every motion round says `spent / ceiling`; the next clip that would cross it stops the rounds.
-3. **The settings**, as a checked absence: ChatGPT's "Improve the model for everyone" off and Codex's "Include environments" unchecked (mc-setup-001), before any image is generated on either host. The room reaches no other cloud tool.
+3. **The settings**, before any image is generated on either host: ChatGPT's "Improve the model for everyone" off, and Codex's "Include environments" not shown on this account, a checked absence (mc-setup-001); re-checked if a Codex cloud environment is created or the row appears, and if it does appear it must be off. The room reaches no other cloud tool.
 4. **The approvals ledger** is read for the pieces' precedents only when the piece continues an approved one; a new piece starts from Sean's words, and the earlier film's rejected looks are read for what he named wrong, never as a look to match.
 
 ## The ten points: the film's North Star
