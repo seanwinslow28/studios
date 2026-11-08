@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Proves the private layer stays private. Drops a canary file into every
-# team's corpus/, ledger/ and books/ (and into a made-up future team), then
-# fails if git would stage any of them or already tracks anything there.
+# Proves the private book notes stay private. Drops a canary file into every
+# studio's library/ (and into a made-up future studio's), plus a stray ebook,
+# then fails if git would stage any of them or already tracks anything private.
 # Run before every push. Exit 0 means pass.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
@@ -27,22 +27,22 @@ mkd() {  # mkdir -p that remembers each folder it had to create
   done
 }
 
-teams=(canaryteam)
-for team in */; do
-  team="${team%/}"
-  [ -f "$team/CLAUDE.md" ] || [ -f "$team/taste.md" ] || [ -d "$team/corpus" ] || [ -d "$team/ledger" ] || continue
-  teams+=("$team")
+studios=(canarystudio)
+for studio in */; do
+  studio="${studio%/}"
+  [ -f "$studio/taste.md" ] || [ -d "$studio/library" ] || continue
+  studios+=("$studio")
 done
 
-for team in "${teams[@]}"; do
-  for d in corpus ledger books library; do
-    mkd "$team/$d/nested"
-    for f in "$team/$d/$stamp.md" "$team/$d/nested/.$stamp" "$team/$d/nested/$stamp.epub"; do
-      if [ ! -e "$f" ]; then echo canary > "$f"; made+=("$f"); fi
-    done
+for studio in "${studios[@]}"; do
+  mkd "$studio/library/nested"
+  for f in "$studio/library/$stamp.md" "$studio/library/nested/.$stamp" "$studio/library/nested/$stamp.epub"; do
+    if [ ! -e "$f" ]; then echo canary > "$f"; made+=("$f"); fi
   done
 done
 echo canary > "$stamp.epub"; made+=("$stamp.epub")
+
+private="$stamp|^add '[^/]+/library/|\.epub'"
 
 # 1. Every canary is ignored.
 for f in "${made[@]}"; do
@@ -53,19 +53,19 @@ done
 
 # 2. Staging everything would stage no canary and nothing private.
 staged="$(git add --dry-run --all . 2>/dev/null || true)"
-if printf '%s\n' "$staged" | grep -E "$stamp|^add '[^/]+/(corpus|ledger|books|library)/|\.epub'" >/dev/null; then
+if printf '%s\n' "$staged" | grep -E "$private" >/dev/null; then
   echo "FAIL: git add would stage private files:"
-  printf '%s\n' "$staged" | grep -E "$stamp|^add '[^/]+/(corpus|ledger|books|library)/|\.epub'"
+  printf '%s\n' "$staged" | grep -E "$private"
   fail=1
 fi
 
 # 3. Nothing private is already tracked or in the index.
-tracked="$(git ls-files --cached | grep -E '^[^/]+/(corpus|ledger|books|library)/|\.epub$' || true)"
+tracked="$(git ls-files --cached | grep -E '^[^/]+/library/|\.epub$' || true)"
 if [ -n "$tracked" ]; then
   echo "FAIL: private files are tracked:"; printf '%s\n' "$tracked"; fail=1
 fi
 
 if [ "$fail" -eq 0 ]; then
-  echo "PASS: ${#made[@]} canaries across ${#teams[@]} teams (${teams[*]}) all ignored; nothing private tracked."
+  echo "PASS: ${#made[@]} canaries across ${#studios[@]} studio folder(s) (${studios[*]}) all ignored; nothing private tracked."
 fi
 exit "$fail"

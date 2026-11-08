@@ -1,20 +1,8 @@
-# PRIVATE LAYER. Each team's corpus (free-canon distillates and book-to-skill
-# ingests, derivative of licensed sources), its ledger (a clone of the team's
-# own private ledger repo) and its books/ guard stay on this disk only. Never
-# `git add` them; book-derived text never lands in a tracked file or an issue.
-# `bin/canary-check.sh` proves these rules hold; run it before every push.
-# 2026-10-08: Devcraft's corpus/, ledger/ and books/ join under the same rules.
-# 2026-10-17: Motioncraft's corpus/, ledger/ and books/ join under the same rules.
-/*/corpus/
-/*/ledger/
-/*/books/
-# A studio's library/ holds its book notes: private, on this disk only.
+# Private. A studio's library/ holds its book notes and stays on this disk
+# only; text drawn from a book never lands in a tracked file or an issue.
+# `bin/canary-check.sh` proves this holds; run it before every push.
 /*/library/
 *.epub
-
-# Each machine's named folders for the trace kit (SWCB #210); the shape is in
-# folders.example, tracked. Real paths stay on the machine.
-/folders.local
 
 # Caches and local files
 .DS_Store

@@ -1,6 +1,6 @@
 # studios
 
-Sean Winslow's -craft teams: craftwork's shared law and every team's public machinery, in one repo. A project repo of the SWCB brain.
+Sean Winslow's studios: each one makes one kind of work, with one lead who owns a job from the front door to the finish. Every studio is built from the shared kit in `craftwork/`. This is a project repo of Sean's private second brain, the SWCB repo.
 
 ## The rules live in the brain
 
@@ -8,21 +8,18 @@ Read the brain's rulebook first: [`SWCB/AGENTS.md`](https://github.com/seanwinsl
 
 ## Folder map
 
-| Folder | Holds | Owner |
-|---|---|---|
-| `craftwork/` | The law every team inherits, the shared templates, the handoff law and the trace kit | Sean |
-| `productcraft/`, `systemcraft/`, `devcraft/`, `motioncraft/` | Each team's machinery: its own law (`CLAUDE.md`), bench, lanes, templates and trace profile | Sean |
-| `<team>/corpus/` | The team's canon: distillates and book ingests. **Private, gitignored** | Sean |
-| `<team>/ledger/` | A clone of the team's private `<team>-ledger` repo. **Private, gitignored**; commit and push it in its own repo | Sean |
-| `<team>/books/` | Guard only: ebooks live in `~/Books/<team>/`. **Gitignored** | Sean |
-| `.claude/skills/` | The doors: `craftwork`, `productcraft`, `systemcraft`, `devcraft`, `motioncraft`. `.agents/skills/` links to them for Codex | Sean |
-| `bin/` | Repo checks | Sean |
+| Folder | Holds |
+|---|---|
+| `craftwork/` | The shared kit: the template a studio copies, the shared guides, the builder and the checks. See [`craftwork/README.md`](craftwork/README.md). |
+| `<studio>/` | One studio, built from the kit. The folder is also the studio's skill: its `SKILL.md` is the lead's page, beside the taste page and the folders that load only when needed. |
+| `<studio>/library/` | The studio's book notes. **Private: git ignores it, and it never leaves this disk.** |
+| `.claude/skills/`, `.agents/skills/` | Links to each studio folder, so Claude and Codex find it by name. The builder makes them. |
+| `bin/` | The public-safety check. |
 
-A live session Sean drives counts as Sean. No overnight agent works this repo.
+Sean owns all of it. A live session Sean drives counts as Sean. No overnight agent works this repo.
 
 ## Rules for this repo
 
-- **This repo is public; the private layer never enters it.** A team's corpus, ledger and books stay on disk, and book-derived text never lands in a tracked file or an issue.
-- **Run `bin/canary-check.sh` before every push.** It proves git would stage nothing private. A new team gets the same three private folders, and the check covers it without edits.
-- **A rule-8 ticket is a follow-up issue on the brain's private tracker**: one issue per item on `seanwinslow28/SWCB`, labelled `needs-triage`. Never an issue on this public repo, and never with book-derived text. (The name comes from the old brain's inbox rule.)
-- **Each team's law is its own `CLAUDE.md`**, on top of [`craftwork/law.md`](craftwork/law.md). Work inside a team follows both.
+- **This repo is public.** Book notes stay in each studio's private `library/`, and text drawn from a book never lands in a tracked file or an issue. Never name Sean's employer or its products here.
+- **Run the checks before every push:** `bin/canary-check.sh` proves git would stage nothing private, and the kit's checks are listed in [`craftwork/README.md`](craftwork/README.md).
+- **Follow-up work goes on the brain's private tracker,** one issue per item on `seanwinslow28/SWCB`, labelled `needs-triage`. Never an issue on this public repo, and never with text drawn from a book.

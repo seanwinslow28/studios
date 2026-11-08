@@ -2,19 +2,21 @@
 """Old-terms scan: nothing from the studios' earlier setup survives in the new one.
 
 Reads the word list in old_terms.txt beside this file and fails if any of
-them appears in the kit or in a studio built from it.
+them appears anywhere in this repo: the kit, every studio, the front pages.
 
 Usage:
-    old_terms.py                  scan the kit and every studio built from it
+    old_terms.py                  scan every file git tracks or would add
     old_terms.py PATH [PATH ...]  scan these files or folders instead
 
-Each studio's private library/ folder is skipped (book notes, never tracked).
+Each studio's private library/ folder is skipped (book notes, never tracked),
+and so is anything git ignores.
 Exit 0 when nothing is found, 1 when anything is.
 """
 from __future__ import annotations
 
 import argparse
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -25,6 +27,7 @@ TERMS_FILE = HERE / "old_terms.txt"
 KIT_PARTS = ("README.md", "new_studio.py", "template", "guides", "checks")
 TEXT = {".md", ".py", ".txt", ".json", ".html", ".htm", ".sh", ".yml", ".yaml",
         ".toml", ".js", ".mjs", ".ts", ".css", ".csv"}
+TEXT_NAMES = {".gitignore"}
 SKIP_DIRS = {"library", "__pycache__", ".pytest_cache", "node_modules", ".git"}
 
 
@@ -50,9 +53,24 @@ def studios(root: Path) -> list[Path]:
     )
 
 
+def is_text(p: Path) -> bool:
+    return p.suffix.lower() in TEXT or p.name in TEXT_NAMES
+
+
 def default_targets(root: Path = REPO) -> list[Path]:
-    kit = root / "craftwork"
-    return [kit / part for part in KIT_PARTS if (kit / part).exists()] + studios(root)
+    """Every text file git tracks or would add, skipping what it ignores."""
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(root), "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+            capture_output=True, check=True, text=True,
+        ).stdout
+    except (OSError, subprocess.CalledProcessError):
+        kit = root / "craftwork"
+        return [kit / part for part in KIT_PARTS if (kit / part).exists()] + studios(root)
+    files = (root / name for name in out.split("\0") if name)
+    return [f for f in files
+            if f.is_file() and is_text(f)
+            and not any(part in SKIP_DIRS for part in f.relative_to(root).parts)]
 
 
 def files_in(target: Path):
@@ -62,7 +80,7 @@ def files_in(target: Path):
     for p in sorted(target.rglob("*")):
         if any(part in SKIP_DIRS for part in p.relative_to(target).parts):
             continue
-        if p.is_file() and p.suffix.lower() in TEXT:
+        if p.is_file() and is_text(p):
             yield p
 
 

@@ -1,11 +1,7 @@
 # studios
 
-Specialist AI teams ("-craft teams") that plan, execute and audit one kind of work, explain every material choice, and name what they leaned on from the canon.
+Studios that each make one kind of work. One lead owns each job from the front door to the finish, with helpers who add breadth and a fresh check for facts. The lead keeps only truth and safety rules; taste comes from Sean, on each studio's own taste page.
 
-- [`craftwork/`](craftwork/README.md): the shared law, templates, handoff contract and trace kit every team inherits.
-- [`productcraft/`](productcraft/README.md): product leadership, seven seats.
-- [`systemcraft/`](systemcraft/README.md): AI PM system design, five seats.
-- [`devcraft/`](devcraft/README.md): software engineering, four seats. Being built.
-- [`motioncraft/`](motioncraft/README.md): animation and motion design, four seats. Being built.
+- [`craftwork/`](craftwork/README.md): the shared kit and recipe every studio is built from.
 
-Each team keeps its machinery here in public and its brain (corpus and decision ledger) private, off this repo.
+Each studio is a folder here that is also its skill. Its book notes stay private, on Sean's disk only.
