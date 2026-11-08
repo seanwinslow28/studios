@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"$HOME/Code-Brain/SWCB/tools/plain-check/plain_check.py\"; if [ -f \"$f\" ]; then python3 \"$f\" --hook; fi"
+          }
+        ]
+      }
+    ]
+  }
+}

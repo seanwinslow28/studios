@@ -8,6 +8,8 @@
 /*/corpus/
 /*/ledger/
 /*/books/
+# A studio's library/ holds its book notes: private, on this disk only.
+/*/library/
 *.epub
 
 # Each machine's named folders for the trace kit (SWCB #210); the shape is in

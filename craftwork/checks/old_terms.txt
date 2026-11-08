@@ -1,0 +1,49 @@
+# Words and phrases from the studios' earlier setup. The scan fails if any
+# appears in the kit or in a studio built from it. One per line, matched as
+# whole words, case-insensitive. A line starting "re:" is a regular expression.
+# Lines starting "#" are notes. This file is the scan's data and is never
+# scanned itself.
+
+# The earlier setup's own vocabulary
+the law
+shared law
+team law
+law.md
+re:(?<!per-)\bseats?\b
+re:(?<!swim )\blanes?\b
+ledger
+ledgers
+bench
+corpus
+coordinator
+sidecar
+tracekit
+trace kit
+verdict
+verdicts
+handoff contract
+runtime registry
+model registry
+close digest
+status vocabulary
+brief bundle
+red-team
+red team
+rule-8
+rule 8
+North Star points
+
+# Pointing back at the earlier setup
+deprecated
+superseded
+supersedes
+replaces
+replaced by
+legacy
+old craftwork
+craftwork-v1
+
+# Internal codes the earlier setup used
+re:\bmc-[a-z]+-\d+\b
+re:\bpass-\d+\b
+re:\bSWCB #\d+
