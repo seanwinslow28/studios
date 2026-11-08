@@ -104,7 +104,7 @@ def test_missing_taste_page_fails(repo):
 
 # ---- the old-terms scan ---------------------------------------------------
 
-def test_the_kit_itself_is_clean():
+def test_the_whole_repo_is_clean():
     assert old_terms.scan(old_terms.default_targets(), old_terms.load_terms()) == []
 
 
@@ -117,6 +117,18 @@ def test_finds_an_old_term(repo):
     (studio / "expertise" / "notes.md").write_text(f"Ask the {first_plain_term()} first.\n")
     hits = old_terms.scan([studio], old_terms.load_terms())
     assert len(hits) == 1 and hits[0][1] == 1
+
+
+def test_the_default_scan_covers_the_whole_repo(repo):
+    import subprocess
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    (repo / ".gitignore").write_text("/*/library/\nignored.md\n")
+    (repo / "README.md").write_text(f"The {first_plain_term()} lives here.\n")
+    (repo / "ignored.md").write_text(first_plain_term())
+    studio = build(repo)
+    (studio / "library" / "book.md").write_text(first_plain_term())
+    hits = old_terms.scan(old_terms.default_targets(repo), old_terms.load_terms())
+    assert [h[0].name for h in hits] == ["README.md"]
 
 
 def test_skips_the_private_library(repo):

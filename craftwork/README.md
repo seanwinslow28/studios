@@ -14,7 +14,7 @@ Every studio works the same way. One lead owns each job from the front door to t
 | `guides/review-pages.md` | The house review page every checkpoint uses, and the end-of-job scorecard. |
 | `guides/build-a-studio.md` | The recipe for building or rebuilding a studio, and how it stays small. |
 | `new_studio.py` | Builds an empty studio from the template and links it in as a skill. |
-| `checks/` | The size check, the old-terms scan, and their tests. |
+| `checks/` | The size check, the old-terms scan, and their tests. The public-safety check sits in `bin/`. |
 
 Two shared tools live in the brain, so there's one copy of each: the plain-writing check (`~/Code-Brain/SWCB/tools/plain-check/`), which this repo's Claude settings run before anything is posted, and the house page template and its tools (`~/Code-Brain/SWCB/docs/prototypes/house-look/`).
 
@@ -31,7 +31,8 @@ Then follow `guides/build-a-studio.md` with Sean.
 ```
 python3 craftwork/checks/size_budget.py
 python3 craftwork/checks/old_terms.py
+bin/canary-check.sh
 uvx --from pytest pytest craftwork/checks
 ```
 
-The size check holds each studio's always-loaded pages, the lead's instructions plus the taste page, to 2,000 words. The old-terms scan fails on any word from the studios' earlier setup.
+The size check holds each studio's always-loaded pages, the lead's instructions plus the taste page, to 2,000 words. The old-terms scan fails on any word from the studios' earlier setup, anywhere in the repo. The canary check proves git would never stage a studio's private book notes.
