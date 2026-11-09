@@ -12,3 +12,6 @@ __pycache__/
 .venv/
 .env
 .claude/settings.local.json
+
+# Each studio's local folder paths (private, per machine).
+*/folders.local

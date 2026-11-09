@@ -44,7 +44,33 @@ Every job runs the same six steps. `craftwork/guides/job.md` has the detail; rea
 | 5. Craft and fixes | Make it good. Each note gets the smallest fix that answers it. | His notes. |
 | 6. Finish | Deliver it with proof, then a short scorecard. | He approves it. |
 
-Step 1 follows `craftwork/guides/front-door.md` and this studio's own page, `motioncraft/front-door.md`. Where the studio's pages say more about a step, they win for this studio.
+Step 1 follows `craftwork/guides/front-door.md` and this studio's own page, `motioncraft/front-door.md`. Where the studio's pages say more about a step, they win for this studio. When Sean brings a film he admires, it's the main example in step 2: read `motioncraft/expertise/film-from-a-reference.md`.
+
+**The order Motioncraft locks in (step 3).** Each lock removes a kind of rework, so never polish anything that sits on an unlocked one.
+
+1. **What it says.** The words, read aloud and timed; for a piece with no voice, the story in a few beats; for a sting, the mark or the line.
+2. **The sound.** Voice, then music, then the mix. The locked sound fixes the clock: after it, the length doesn't change.
+3. **The look.** Characters, world and type, judged on one short test shot of the piece's own hero moment, never on a style frame alone.
+
+Step 4 is then the whole piece on that clock, cheap, every beat present.
+
+**Before Sean sees any version,** run these on the file he'll see, from the final render, and say on the review page how each was checked. The how is in `motioncraft/expertise/checking-the-work.md`; the scripts are in `motioncraft/tools/scripts/`.
+
+- Look at frame sheets around every transition, and scan for frame-to-frame jumps: nothing pops, stalls, ghosts or peeks in at an edge.
+- Every line of type and every product shot reads at phone width.
+- Each of Sean's notes is visibly fixed: the same moment from the last version and this one, side by side.
+- Sound: −16 LUFS with peaks under −1 dB, every scripted word heard back in order, sync exact.
+- The fresh check reads every claim and number on screen, and the frame count.
+
+**Skills to load at each step:**
+
+| Step | Skills |
+|---|---|
+| 1. Front door | `creative-director`; `idea-lab` for a wide brainstorm |
+| 2. What good looks like | `watch`, `animation-vocabulary`, `video-shotcraft` |
+| 3. Lock in order | `motion-art-direction`; `writing-humanity-pass` on the words; `beat-sync-editing` when cuts sit on the beat |
+| 4 and 5. Rough, craft, fixes | `hyperframes`, `animation-principles`, `shot-composition`, `color-motion`, `kinetic-typography`, and `rive` or `lottie-animations` when the piece calls for them |
+| 6. Finish | None; `motioncraft/expertise/colour-and-finish.md` has the recipe |
 
 What this studio keeps:
 
