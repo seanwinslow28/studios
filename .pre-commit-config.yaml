@@ -1,0 +1,29 @@
+# Checks git runs before every commit in the studios repo, for every studio.
+# Run by prek (brew install prek). Set up once per clone:
+#   git config core.hooksPath .githooks
+# The scripts live in craftwork/checks/; craftwork/README.md says more.
+# The name check runs first and stops the run if it fails, so the secrets
+# check never prints a file path that holds a private name.
+fail_fast: true
+repos:
+  - repo: local
+    hooks:
+      - id: private-names
+        name: no private names in staged files
+        entry: craftwork/checks/private-names.sh staged
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+      - id: secrets
+        name: no passwords, keys or tokens
+        entry: craftwork/checks/secrets.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+      - id: private-names-in-message
+        name: no private names in the commit message
+        entry: craftwork/checks/private-names.sh message
+        language: system
+        stages: [commit-msg]

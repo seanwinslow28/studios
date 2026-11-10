@@ -16,7 +16,7 @@ A few words used below: a **venv** is a project's private Python folder; **launc
 | Testing | pytest, with Hypothesis for tests that try hundreds of odd inputs. Free. Not installed (added per project). | Yes. |
 | Shell script quality | ShellCheck to catch bugs, shfmt to tidy, Bats to test. Free. ShellCheck installed; the other two not. | Yes. |
 | Scheduled jobs (launchd) | macOS's own tools, `launchctl` and `plutil`, which agents can drive and read. Free. Built in. | Yes. |
-| A throwaway test Mac | Tart: a disposable copy of macOS running inside a window, wiped after each test. Free for personal use. Not installed. Needs about 25 GB of disk. | Yes. |
+| A throwaway test Mac | Tart: a disposable copy of macOS running inside a window, wiped after each test. Free for personal use. Not installed. Needs about 25 GB of disk, more like 30 to 35 GB for the newest macOS (see `tart.md`). | Yes. |
 | Secret and private-name scanning | Betterleaks, run before every commit by prek. Free. Gitleaks installed; Betterleaks and prek not. | Yes. |
 | Repeatable commands | just, so every job has one-word commands like `just check`. Free. Not installed. Only once a job has more than a few commands. | Yes. |
 | Extra code review | Nothing new. The Codex fresh check is enough, and pip-audit, already installed, checks downloaded Python parts for known holes. | Yes. |
@@ -43,7 +43,7 @@ Sean's answer, November 10, 2026, on the three walls the old setup had:
 ## Two things to know
 
 - **The scanner's private-name list must live outside the repo.** The repo is public, so a rule file naming what to hide would itself leak it. The list stays in Sean's home folder and the hook points at it.
-- **The laptop has about 58 GB free.** One test Mac takes about 25 GB. The Mac Mini may be a better home for it; that needs checking.
+- **The laptop has about 58 GB free.** One test Mac takes about 25 GB, or 30 to 35 GB for the newest macOS. The Mac Mini may be a better home for it; that needs checking.
 
 ## More details
 
