@@ -11,3 +11,20 @@ A good guide covers:
 - **Safety:** what it uploads or spends, and when to ask Sean first.
 
 Tools are scouted, not inherited. When a better tool turns up, tell Sean what it would take to get it, and write its guide once he has it. An old restriction on a tool is a question for Sean, not a rule.
+
+## The guides.
+
+- `choices.md`: the tool list, prices, privacy notes and Sean's answers. Read first, to see what's approved.
+- `research-with-sources.md`: quick research with sources, and when to hand a question to the overnight researcher.
+- `gemini-deep-research.md`: a big paid research report, when a question needs many sources cross-checked.
+- `last30days.md`: what people are saying right now on Reddit, Hacker News, YouTube and more.
+- `fusion-discovery-council.md`: mining real complaints for products worth making.
+- `market-sizing.md`: sizing a market and its competitors from free sources.
+- `product-skills.md`: which installed product-method skills to reach for, and where their output needs real facts.
+- `calls-and-transcripts.md`: recording, transcribing and making sense of interviews.
+- `tally.md`: surveys and waitlists.
+- `demand-tests-and-stripe.md`: cheap tests of whether people want something, up to asking for money.
+- `claude-artifacts.md`: clickable prototypes and pages.
+- `sheets-and-python.md`: reading numbers honestly, before any number reaches Sean.
+- `posthog.md`: analytics for a side product, only once it's live.
+- `mermaid-and-docs.md`: diagrams, and choosing between a doc and a page.

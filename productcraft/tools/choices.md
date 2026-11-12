@@ -19,7 +19,7 @@ A few words used below: a **skill** is a packaged set of instructions Claude loa
 | Market size and competitors | The market-sizing skill on free sources: company filings, Google Trends, Similarweb's free view, app store lookups. | Free | Yes | Yes. |
 | The product methods | The installed product skills: interview scripts, assumption maps, opportunity trees, strategy and pricing, pre-mortems, test analysis. | Free | Yes | Yes. |
 | Recording and transcribing calls | Granola's free plan for calls Sean may record, with its training switch off; parakeet-mlx on the Mac for anything sensitive, which never leaves the machine. | Free | Granola yes; parakeet is one command to add | Yes. |
-| Making sense of interviews | The interview-summary skill plus Claude, with every quote checked against the transcript. | Free | Yes | Yes. |
+| Making sense of interviews | The interview-summary skill plus Claude, with every quote checked against the transcript. Claude sends the text to Anthropic, so a sensitive transcript is summarized with a local Ollama model or after Sean's yes. | Free | Yes | Yes. |
 | Surveys | Tally's free plan, which Claude can drive. | Free account | No | Yes. |
 | Cheap demand tests | A page the lead builds, a Tally waitlist, and a Stripe payment link when it's time to ask for money. | Free; Stripe takes 2.9% plus 30¢ per payment | No (two free accounts) | Yes. |
 | Clickable prototypes | Claude artifacts. | Free | Yes | Yes. |
@@ -55,6 +55,7 @@ Day-job material is the care point. Day-job jobs keep their folders in Sean's pr
 
 ## Things to know
 
+- **The two paid research tools have no keys on the Mac Mini yet.** Gemini Deep Research needs a Gemini key and the discovery council needs an OpenRouter key; neither was found there on November 12, 2026. Adding them is Sean's to do, when a job first needs one.
 - **Search volume is hard to get free.** Google's Trends programming access is invite-only and the old scraper is broken; the Trends website still works by hand.
 - **Reddit's own programming access closed to new applications on October 31,** reportedly. last30days reads it another way.
 - **Free traffic and app numbers are rough ranges only.**
