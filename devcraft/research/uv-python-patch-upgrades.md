@@ -40,6 +40,8 @@ Sean's pick as the shelf piece closest to what Devcraft should make, November 10
 
 It's the focus for now: a small fix that prevents the breakage, keeps what's in use, and says plainly where it stops.
 
+On the first job's step 2 page (November 10), he said yes to the four things measured from it and its neighbours, in order: nothing still in use gets deleted; one fixed name, moved by one quick swap; tested against the real failure, with a way back that's been tried; says plainly where it stops.
+
 ## More details
 
 - uv documentation, Python versions: https://docs.astral.sh/uv/concepts/python-versions/ and storage location (`~/.local/share/uv/python` by default): https://docs.astral.sh/uv/reference/storage/
