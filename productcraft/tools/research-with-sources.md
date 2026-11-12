@@ -8,7 +8,7 @@ Three free ways to find out what's true, each with every claim tied to where it 
 - **The research skill:** a question that needs reading across many pages, such as how three competitors price or what a standard actually says. It starts a helper in the background, tells it to use primary sources (the maker's own page, the paper, the filing, the official docs) and to follow every claim back to the source that owns it, and has it write one file with each claim's source beside it.
 - **The overnight researcher:** a question that can wait until morning and deserves depth. It works alone on the Mac Mini, searches and reads the web, and returns a short brief: a direct answer, findings, the gaps it couldn't fill, and the sources. Every claim rests on a quote that a separate checker fetches from the cited page and finds, word for word.
 
-Where something else beats them: what people are saying this month belongs to last30days; a 20-source report needed today belongs to Gemini Deep Research, which costs money; finding products worth making belongs to fusion-discovery-council.
+Where something else beats them: what people are saying this month belongs to last30days; any finding that would change a call also goes to Codex as a second researcher, with the same question word for word (see `codex-research.md`).
 
 ## Setup.
 
