@@ -16,9 +16,8 @@ Tools are scouted, not inherited. When a better tool turns up, tell Sean what it
 
 - `choices.md`: the tool list, prices, privacy notes and Sean's answers. Read first, to see what's approved.
 - `research-with-sources.md`: quick research with sources, and when to hand a question to the overnight researcher.
-- `gemini-deep-research.md`: a big paid research report, when a question needs many sources cross-checked.
+- `codex-research.md`: Codex as the second researcher on any question that would change a call, and how to compare the two.
 - `last30days.md`: what people are saying right now on Reddit, Hacker News, YouTube and more.
-- `fusion-discovery-council.md`: mining real complaints for products worth making.
 - `market-sizing.md`: sizing a market and its competitors from free sources.
 - `product-skills.md`: which installed product-method skills to reach for, and where their output needs real facts.
 - `calls-and-transcripts.md`: recording, transcribing and making sense of interviews.

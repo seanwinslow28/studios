@@ -9,7 +9,7 @@ A skill that reads what people have posted about a topic in the past month, acro
 - **Spotting movement.** Who switched, what's newly annoying, which complaint keeps coming back across sites.
 - **Comparisons.** "A vs B" gets its own layout: a quick call, each side, head to head.
 
-Where something else beats it: facts with a source of record (prices, dates, what a company says) belong to a web search or the overnight researcher. A long cited report is Gemini Deep Research. Turning complaints into ranked opportunities is fusion-discovery-council, which uses last30days as one of its feeds.
+Where something else beats it: facts with a source of record (prices, dates, what a company says) belong to a web search or the overnight researcher. A finding that would change a call gets checked by the two researchers, the lead and Codex (see `codex-research.md`).
 
 ## Setup.
 
