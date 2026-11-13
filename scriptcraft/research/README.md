@@ -14,3 +14,7 @@ Links and words only. Other people's work never goes in this repo or in a finish
 ## Sean's own scripts come first
 
 His screenplays from before AI are the biggest sample of his voice there is, so the shelf starts from them: what he did well, and what he'd fix now. They and their readout stay private and never land in this repo. `scriptcraft/folders.local`, which git ignores, says where they are on this Mac.
+
+## Borrowed from another shelf
+
+- **Oktapodi** (Gobelins students, 2007), on Motioncraft's shelf at `motioncraft/research/oktapodi-gobelins.md`: two minutes of pure visual comedy with no words and a cruel last-second snatch. Scriptcraft's benchmark for a script told with no dialogue.
