@@ -28,4 +28,4 @@ The moving end of launch-film voiceover: a hundred words, no product, and every 
 
 ## What Sean said about it
 
-Not seen yet.
+He loves it, November 13, 2026: "it tugs at your heart strings. Similar to the 'Oh, the Places You'll Go!' Dr. Seuss book. Just a nice short piece that inspires and really makes you connect and dream."

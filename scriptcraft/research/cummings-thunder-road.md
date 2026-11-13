@@ -27,4 +27,4 @@ A real grief that escalates into an absurd performance, personal underneath. It 
 
 ## What Sean said about it
 
-Not seen yet.
+Not mentioned in his reactions, November 13, 2026.

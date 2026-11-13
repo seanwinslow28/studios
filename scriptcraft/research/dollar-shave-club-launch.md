@@ -29,4 +29,4 @@ The model for a funny launch film on a small budget: a founder's voice, every jo
 
 ## What Sean said about it
 
-Not seen yet.
+He loves it for the same reason as Old Spice, November 13, 2026: "This is more in your face while talking about the product and doing silly things along the way with some great cut scenes." Like Old Spice, it "feels like an Adult Swim sketch."

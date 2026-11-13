@@ -30,4 +30,4 @@ A cheerful, dated TV format escalated scene by scene into horror, and very visua
 
 ## What Sean said about it
 
-Not seen yet.
+"Ok," November 13, 2026. He prefers Monty Python, and this "feels like a modern-day version of one of their sketches. Just keeping the joke going until it's not funny, but then funny, then not funny, then back to being funny, because it's just so drawn out and you don't know how to feel." He likes its escalation and that it "draws back to the classic sitcoms I'd watch after school."

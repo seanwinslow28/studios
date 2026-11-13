@@ -28,3 +28,5 @@ Sean's Go Fish, Bob is the spec he thinks caught this show best, and his cooking
 ## What Sean said about it
 
 On his own spec, November 13, 2026: "I thought I nailed the tone of Bob's Burgers and the characters pretty well."
+
+And, November 13, 2026: "probably my favorite adult animated cartoon," for its dry, witty joke writing "filled with puns." He also named its ugly characters as part of the comedy.

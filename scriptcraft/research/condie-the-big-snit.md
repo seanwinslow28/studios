@@ -28,4 +28,4 @@ A small, real domestic irritation pushed up against the end of the world, with w
 
 ## What Sean said about it
 
-Not seen yet.
+He loves it, November 13, 2026: "very old-school-looking animation that has line boils and is hand drawn, that incorporates absurdism and things you can only do in animation. The ugly characters add to the comedy (similar to Bob's Burgers)."

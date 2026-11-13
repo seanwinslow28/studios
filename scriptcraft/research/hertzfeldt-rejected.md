@@ -28,4 +28,4 @@ A happy corporate surface that rots, step by step, into violence and the void: S
 
 ## What Sean said about it
 
-Not seen yet.
+He loves it, November 13, 2026, "for its hand-drawn animation style that feels simple and gets jokes across. That's what I tried to do with Break Time," the animated short he made from his Fetish script.

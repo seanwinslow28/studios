@@ -28,4 +28,4 @@ Almost exactly Sean's Petey Possum register: a cheerful kids' format with one vi
 
 ## What Sean said about it
 
-Not seen yet.
+He loves it, November 13, 2026: "a cross between a familiar childhood kids' show" turned into "a surrealist musical comedy-horror with dark turns. It stays funny because they're puppets."

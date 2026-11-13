@@ -31,4 +31,4 @@ The funniest 30-second voiceover there is, and proof that a launch film's words 
 
 ## What Sean said about it
 
-Not seen yet.
+He loves it, November 13, 2026: "it introduced absurdity and Adult Swim type comedy into the world of advertisements. It's possible others did that too (beer commercials, I'm sure), but Old Spice stands out to me." It "feels like an Adult Swim sketch, which is great."
