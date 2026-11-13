@@ -11,7 +11,7 @@ Two pieces by Jason Cohen, who later founded WP Engine, a large WordPress hostin
 
 ## How it turned out
 
-- **He used it on WP Engine.** He says 30 people agreed to pay $50 a month before the company had a name, a website or a product. That claim is his own; no second source.
+- **He used it on WP Engine.** He says 30 people agreed to pay $50 a month before the company had a name, a website or a product. That claim is his own; no second source. His December 20, 2010 post, "Vetting a startup (or two)", gives it as 30 people saying they would pay $49 a month, of whom "20 actually did": a third of firm yeses never paid. https://blog.asmartbear.com/?p=434
 - **WP Engine grew into a large company,** widely reported.
 - **Thin spot:** it's a method, so the evidence is its author's results and how widely it's taught, not a study.
 
