@@ -56,3 +56,5 @@ Nothing else. No logs of agent steps, no self-scores.
 ## Between studios
 
 Borrow expertise from any studio freely: read its briefs and guides, or send a helper with them. Work passes from one studio to another only through Sean, at the second studio's front door.
+
+When the first studio's brief says the work is a showcase, a piece Sean is making for his portfolio, it comes with a case study already started. At its finish, the studio adds its own chapter: what it was asked, the calls Sean made with his reasons, and the real work, drawn from its decisions record and review pages. The brief says where the case study lives.

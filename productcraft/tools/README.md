@@ -18,6 +18,7 @@ Tools are scouted, not inherited. When a better tool turns up, tell Sean what it
 - `research-with-sources.md`: quick research with sources, and when to hand a question to the overnight researcher.
 - `codex-research.md`: Codex as the second researcher on any question that would change a call, and how to compare the two.
 - `last30days.md`: what people are saying right now on Reddit, Hacker News, YouTube and more.
+- `hunting-grounds.md`: the places the explore-first hunt reads for pain, and how to read each one well.
 - `market-sizing.md`: sizing a market and its competitors from free sources.
 - `product-skills.md`: which installed product-method skills to reach for, and where their output needs real facts.
 - `calls-and-transcripts.md`: recording, transcribing and making sense of interviews.
