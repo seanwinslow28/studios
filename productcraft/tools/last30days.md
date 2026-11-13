@@ -13,13 +13,13 @@ Where something else beats it: facts with a source of record (prices, dates, wha
 
 ## Setup.
 
-- **Installed:** version 3.26.0, from October 1, 2026, as a Claude Code plugin. It needs Python 3.12 or newer (the Mac Mini has 3.15). Ask for it with `/last30days <topic>`.
+- **Installed:** version 3.3.0, as a Claude Code plugin. It needs Python 3.12 or newer (the Mac Mini has 3.15). Ask for it with `/last30days <topic>`.
 - **What works on the Mac Mini with no keys:** Reddit, Hacker News, Polymarket, YouTube (through the yt-dlp program, installed), GitHub (through the gh tool, signed in) and Claude's own web search. It has been used: about 64 saved briefs sit in `~/Documents/Last30Days`.
-- **What isn't set up:** X, TikTok and Instagram. No settings file exists at `~/.config/last30days/.env`. TikTok and Instagram need a ScrapeCreators key (10,000 free calls, then pay as you go). Every way into X uses either Sean's own X login or a paid key, so turning it on is his call.
+- **Keys already set up:** the settings file `~/.config/last30days/.env` exists and holds a ScrapeCreators key, a Brave search key, and an X sign-in setting. The skill uses the ScrapeCreators key on its own, including for Reddit, and it costs calls: 10,000 free, then pay as you go. Sean said on November 12, 2026 to keep it, staying within the free calls unless he approves more. Say roughly how many calls a run used. The same day he said yes to reading X through the sign-in setting.
 - **The one command that proves it works,** a health check that lists each source as working, on but unproven, broken, or available but off. When there's no recent run it makes a short free test of the keyless sources; it never touches paid ones:
 
 ```bash
-python3 ~/.claude/plugins/cache/last30days-skill/last30days/3.26.0/skills/last30days/scripts/last30days.py doctor
+python3 ~/.claude/plugins/cache/last30days-skill/last30days/3.3.0/skills/last30days/scripts/last30days.py doctor
 ```
 
 ## How to ask.
@@ -47,7 +47,7 @@ A post with 4,000 upvotes is one person's view that many people saw. Engagement 
 
 ## The Reddit caveat.
 
-Reddit is the skill's richest source and its most fragile. It reads Reddit with no key, through Reddit's public site search, subreddit listings and top-comment pages, plus a third-party archive called arctic-shift. Reddit's RSS feeds switch off on November 13, 2026; version 3.26.0 already stopped relying on them.
+Reddit is the skill's richest source and its most fragile. It reads Reddit with no key, through Reddit's public site search, subreddit listings and top-comment pages, plus a third-party archive called arctic-shift. Reddit's RSS feeds switch off on November 13, 2026; check the changelog that the installed version doesn't rely on them.
 
 Reading Reddit without logging in is rate-limited, and Reddit refuses some pages to data-center addresses. When that happens the skill falls back to the archive, or reports Reddit as rate-limited. That's why each brief has a partial-coverage section. A source marked partial, rate-limited, timed out or unreachable didn't come back empty; it wasn't heard. Never tell Sean "nobody on Reddit is talking about this" from a partial run. After a thin run, `doctor --postmortem` says what broke.
 
@@ -61,10 +61,10 @@ Reading Reddit without logging in is rate-limited, and Reddit refuses some pages
 
 ## Safety.
 
-It reads public posts and posts nothing, likes nothing, changes nothing. The topic goes out as search terms to every source it reads, so keep day-job specifics out of it. Briefs save to `~/Documents/Last30Days`, outside every repo. Three things need Sean first: letting it read his browser's X login, adding any paid key, and its option to publish a feed of briefs to a public website, which is public unless password-protected. Don't use that option.
+It reads public posts and posts nothing, likes nothing, changes nothing. The topic goes out as search terms to every source it reads, so keep day-job specifics out of it. Briefs save to `~/Documents/Last30Days`, outside every repo. Reading X through his sign-in has Sean's yes (November 12, 2026). Two things still need him first: adding any paid key or going past the free calls, and its option to publish a feed of briefs to a public website, which is public unless password-protected. Don't use that option.
 
 ## More details
 
-- Skill: `~/.claude/plugins/cache/last30days-skill/last30days/3.26.0/skills/last30days/SKILL.md` (setup guide, keyword-trap checks, the weighting rules under "Judge Agent" and "RECOMMENDATIONS", doctor states, and "Security & Permissions"). Changelog for 3.26.0 (the RSS change): `~/.claude/plugins/marketplaces/last30days-skill/CHANGELOG.md`.
+- Skill: `~/.claude/plugins/cache/last30days-skill/last30days/3.3.0/skills/last30days/SKILL.md` (setup guide, keyword-trap checks, the weighting rules under "Judge Agent" and "RECOMMENDATIONS", doctor states, and "Security & Permissions"). Changelog: `~/.claude/plugins/marketplaces/last30days-skill/CHANGELOG.md`.
 - Source repository: https://github.com/mvanhorn/last30days-skill
-- Checked on the Mac Mini, November 12, 2026, read-only: no `~/.config/last30days/.env`; yt-dlp, gh (signed in) and node present; Python 3.15. The doctor command was not run, and no search was run.
+- Corrected November 12, 2026, after the first real job: the installed version is 3.3.0 and the settings file exists with the keys above (values not read). First check, same day, read-only: yt-dlp, gh (signed in) and node present; Python 3.15. The doctor command was not run, and no search was run.
