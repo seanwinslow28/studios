@@ -35,14 +35,14 @@ A few words used below: **Fountain** is the plain-text way of writing a screenpl
 
 ## Books
 
-Sean said yes to all five on November 13, 2026, and buys them himself into `~/Books/scriptcraft/`, outside every repo. The lead turns each into private notes in `scriptcraft/library/books/`.
+Sean said yes to the first five on November 13, 2026, then had them researched properly the same day, after the first list was found to be checked too lightly. He said yes to this final five, and buys them himself as ebooks into `~/Books/scriptcraft/`, outside every repo. The lead turns each into private notes in `scriptcraft/library/books/`. The research, with runners-up, store links and prices, is in `books-research.md` in this folder.
 
 | Book | What it teaches Scriptcraft |
 |---|---|
-| The UCB Comedy Improvisation Manual (Besser, Roberts and Walsh, 2013) | "The game": find the first unusual thing, then heighten it. The basis of most modern sketch writing. |
+| The Upright Citizens Brigade Comedy Improvisation Manual (Besser, Roberts and Walsh, second edition, 2023) | "The game": find the first unusual thing, then heighten it. The basis of most modern sketch writing. Kindle only, as page pictures. |
 | The Hidden Tools of Comedy (Steve Kaplan, 2013) | Why a comic scene works: characters who keep trying and keep losing. |
-| Into the Woods (John Yorke, 2013) | Story structure at any length, with the hero's choice made on screen. |
-| Poking a Dead Frog (Mike Sacks, 2014) | How top comedy writers write and punch up jokes, in their own words. |
-| Hey Whipple, Squeeze This (Luke Sullivan, latest edition) | Writing ads, for launch-film voiceovers. |
+| Into the Woods (John Yorke, 2013) | Story structure at any length: one shape that repeats in every scene, so it holds for a two-minute short as well as a feature. |
+| Joke Farming (Elliott Kalan, 2025) | A step-by-step way to build a joke and punch it up, from premise and structure to the final wording. |
+| Hey Whipple, Squeeze This (Luke Sullivan, sixth edition, 2022) | Writing ads, for launch-film voiceovers: the idea, short copy and the video spot. |
 
 Borrowed from Motioncraft: Liz Blazer's Animated Storytelling, for writing for animation.
