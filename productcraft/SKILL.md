@@ -46,7 +46,7 @@ Every job runs the same six steps. `craftwork/guides/job.md` has the detail; rea
 | 5. Craft and fixes | Make it good. Each note gets the smallest fix that answers it. | His notes. |
 | 6. Finish | Deliver it with proof, then a short scorecard. | He approves it. |
 
-Step 1 follows `craftwork/guides/front-door.md` and this studio's own page, `productcraft/front-door.md`. Where the studio's pages say more about a step, they win for this studio.
+Step 1 follows `craftwork/guides/front-door.md` and this studio's own page, `productcraft/front-door.md`. Where the studio's pages say more about a step, they win for this studio. The front-door page also holds explore first, for when Sean brings no idea, and the showcase, built for his portfolio without asking anyone, with its own locks and finish.
 
 **The order Productcraft locks in (step 3).** Each lock removes a kind of rework, so never build on an unlocked one.
 
@@ -65,13 +65,13 @@ Step 4 is then every section present, with evidence gaps marked as gaps, never f
 - Skill output is cut to what this job needs: no made-up customers, and no team roles, quarterly goals or big-company budgets on a one-person side product.
 - The fresh check: a helper who didn't make it reads it cold, checks every fact and number, and makes the case for the opposite call where a real one exists. It's never told it must find something; "nothing wrong" is a fine answer.
 
-**Teach as you work.** Every review page has one short section, "What a strong product leader would notice here": three to five plain lines on what a master would spot in this piece of work. Draw them from the closing section of the same name in the brief for the area, applied to this job. It's always read out in the page's narration.
+**Teach as you work.** Every review page has one short section, "What a strong product leader would notice here": three to five plain lines on what a master would spot here, drawn from the closing section of the same name in the area's brief. It's always read out in the page's narration.
 
 **Skills to load at each step:**
 
 | Step | Skills |
 |---|---|
-| 1. Front door | `idea-lab` for a wide brainstorm |
+| 1. Front door | `last30days` and `research` for the hunt; `idea-lab` for a wide brainstorm |
 | 2. What good looks like | `research`, with Codex as the second researcher; `last30days` for what people are saying now |
 | 3. Lock in order | `identify-assumptions-new` (or `-existing` for a product already live), then `prioritize-assumptions`; `brainstorm-experiments-new` for the test |
 | 4 and 5. Rough, craft, fixes | `interview-script` then `summarize-interview`; `value-proposition`, `pricing-strategy` or `beachhead-segment` when the job reaches them; `ab-test-analysis` or `cohort-analysis` for results |
@@ -83,13 +83,13 @@ Two have a known fault: cut the "magic wand" questions `interview-script` adds, 
 What this studio keeps:
 
 - `productcraft/taste.md`: Sean's taste, in his words. Read it now.
-- `productcraft/expertise/`: what a master of this craft knows, one brief per area.
-- `productcraft/tools/`: a mastery guide for each tool, on getting the very best out of it.
-- `productcraft/research/`: the shelf of vetted examples of good work.
+- `productcraft/expertise/`: what a master knows, one brief per area.
+- `productcraft/tools/`: a mastery guide for each tool.
+- `productcraft/research/`: the shelf of vetted good work.
 
 ## Writing for Sean
 
-Everything Sean reads opens in plain English: what happened, then what he needs to decide. No codes, file paths or internal names up top; those go under a "More details" fold at the bottom. Name a past decision by what was decided. Anything he rules on is a house review page that opens with "The simple version" (`craftwork/guides/review-pages.md`). The plain-writing check runs on its own before you post; when it flags something, rewrite it plainly.
+Everything Sean reads opens in plain English: what happened, then what he needs to decide. No codes, file paths or internal names up top; those go under a "More details" fold at the bottom. Name a past decision by what was decided. Anything he rules on is a house review page that opens with "The simple version" (`craftwork/guides/review-pages.md`). When the plain-writing check flags something, rewrite it plainly.
 
 ## When a job is done
 
