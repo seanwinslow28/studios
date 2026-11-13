@@ -32,3 +32,17 @@ A few words used below: **Fountain** is the plain-text way of writing a screenpl
 - One catch with Beat: it keeps revision marks and tags in a note at the end of the file, placed by character count, so an agent's edits can shift them. Keep Beat's revision tracking off while agents edit; git keeps the history.
 - Not checked yet: whether Beat's own command-line tool ships with the app, and whether JumpCut's page breaks really match Final Draft.
 - Sources: Beat's site, GitHub and App Store page; screenplain and JumpCut on GitHub and PyPI; vendor pricing pages for Highland Pro, Final Draft, Fade In and Arc Studio; voiceover timing from Voice123 and Voice Bros; animation page timing from writers on John August's site (rough).
+
+## Books
+
+Sean said yes to all five on November 13, 2026, and buys them himself into `~/Books/scriptcraft/`, outside every repo. The lead turns each into private notes in `scriptcraft/library/books/`.
+
+| Book | What it teaches Scriptcraft |
+|---|---|
+| The UCB Comedy Improvisation Manual (Besser, Roberts and Walsh, 2013) | "The game": find the first unusual thing, then heighten it. The basis of most modern sketch writing. |
+| The Hidden Tools of Comedy (Steve Kaplan, 2013) | Why a comic scene works: characters who keep trying and keep losing. |
+| Into the Woods (John Yorke, 2013) | Story structure at any length, with the hero's choice made on screen. |
+| Poking a Dead Frog (Mike Sacks, 2014) | How top comedy writers write and punch up jokes, in their own words. |
+| Hey Whipple, Squeeze This (Luke Sullivan, latest edition) | Writing ads, for launch-film voiceovers. |
+
+Borrowed from Motioncraft: Liz Blazer's Animated Storytelling, for writing for animation.
