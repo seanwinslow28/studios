@@ -14,9 +14,11 @@ This copies the template into `<name>/`, fills in the name, makes the private `l
 
 Research the best real examples of this studio's work and vet each one for how it actually turned out: who made it, how it was received, why that's believable. Measure what makes each good. Write each to `<name>/research/` as the folder's guide says. Aim for a handful of excellent examples, not a long list. Show Sean the shelf and ask which ones he loves and why; his answers go on the examples, and they seed the taste page.
 
-## 3. Scout the tools
+## 3. Scout the tools and the books
 
 Find the best tools for this kind of work today, not the ones the last version used. For each serious candidate: what it's best at, what it costs, and what it would take to get. Tell Sean what's worth buying or downloading and recommend one choice per job. He decides; nothing is bought or signed up for without him. Then write a mastery guide in `<name>/tools/` for each tool the studio will use, on getting the very best out of it.
+
+Scout the books the same way: a short list, about five, of the best books on this craft's fundamentals, each with what it teaches and what it costs. Sean buys the ones he wants and puts them in `~/Books/<name>/`, outside every repo. The lead turns each into private notes in `<name>/library/books/`. Borrow another studio's book when it already covers an area.
 
 ## 4. Gather the expertise
 
