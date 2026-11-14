@@ -35,7 +35,7 @@ A few words used below: **Fountain** is the plain-text way of writing a screenpl
 
 ## Books
 
-Sean said yes to the first five on November 13, 2026, then had them researched properly the same day, after the first list was found to be checked too lightly. He said yes to this final five, and buys them himself as ebooks into `~/Books/scriptcraft/`, outside every repo. The lead turns each into private notes in `scriptcraft/library/books/`. The research, with runners-up, store links and prices, is in `books-research.md` in this folder.
+Sean said yes to the first five on November 13, 2026, then had them researched properly the same day, after the first list was found to be checked too lightly. He said yes to this final five, and buys them himself as ebooks into `~/Books/screencraft/`, outside every repo. The lead turns each into private notes in `scriptcraft/library/books/`. The research, with runners-up, store links and prices, is in `books-research.md` in this folder.
 
 | Book | What it teaches Scriptcraft |
 |---|---|
