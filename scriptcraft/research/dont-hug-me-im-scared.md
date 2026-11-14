@@ -16,7 +16,7 @@ A 3-minute puppet short by Becky Sloan and Joseph Pelling, made in their spare t
 
 - **Cheerful, then one burst.** A run of small "that's not creative" put-downs, then about 20 seconds of frantic horror with raw meat at 81% of the runtime, then straight back to normal.
 - **The button is a straight face:** the sketchbook tells them never to be creative again.
-- **Words only in the first two-thirds:** about 160, and the horror is purely visual.
+- **Nearly all the words come before the horror:** about 160, then one straight-faced line at the end. The horror itself is purely visual.
 
 ### What a weaker version would have done
 

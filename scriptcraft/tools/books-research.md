@@ -2,7 +2,7 @@
 
 ## The simple version
 
-Every pick below is on sale as an ebook today. Most of the old list stands: the three "no ebook" books all have one. One swap: Joke Farming replaces Poking a Dead Frog, because it teaches joke building. About $70 in all.
+Every pick below is on sale as an ebook today. Most of the old list stands: the three "no ebook" books all have one. One swap: Joke Farming in place of Poking a Dead Frog, because it teaches joke building. About $70 in all.
 
 1. **Sketch: The UCB Comedy Improvisation Manual** (2023 edition). The deepest book on "the game". Kindle only, $25, as page pictures.
 2. **Comic scenes: The Hidden Tools of Comedy** (Steve Kaplan). Characters who keep trying and losing. $12.
@@ -83,7 +83,7 @@ Truby would earn a place later if Scriptcraft starts writing pieces over ten min
 
 ## 4. Joke writing and punch-up
 
-**The pick: Joke Farming: How to Write Comedy and Other Nonsense** (Elliott Kalan, University of Chicago Press, November 2025). It replaces Poking a Dead Frog.
+**The pick: Joke Farming: How to Write Comedy and Other Nonsense** (Elliott Kalan, University of Chicago Press, November 2025). It takes the place of Poking a Dead Frog.
 
 Why it wins:
 

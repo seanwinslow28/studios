@@ -1,6 +1,6 @@
 # Scriptcraft's tool list
 
-The tools Scriptcraft uses, one pick per kind of work, with Sean's yes or no. Scouted on November 13, 2026 for today's best. Each tool gets a mastery guide in this folder before the lead uses it on a job.
+The tools Scriptcraft uses, one pick per kind of work, with Sean's yes or no. Scouted on November 13, 2026 for today's best. Each tool has a mastery guide in this folder: Beat, screenplain, and table reads with Kokoro.
 
 Sean said yes to the whole free list on November 13, 2026, and installed Beat on his MacBook Pro the same day; the Mac Mini gets it next.
 
@@ -13,9 +13,9 @@ A few words used below: **Fountain** is the plain-text way of writing a screenpl
 | Kind of work | The pick | Cost | Have it? | Sean's answer |
 |---|---|---|---|---|
 | Writing and formatting | Beat, a free, open-source Mac app that saves plain Fountain files. Updated about monthly through October 2026. It has index cards, revision marks and alternate takes on a line. | Free | Yes on the MacBook Pro; the Mac Mini next | Yes. |
-| Screenplay PDFs | Beat's own export for anything Sean reads or sends. For an agent making a quick PDF, screenplain, one command through uv. | Free | No: screenplain is one command | Yes. |
-| Table reads | The brain's Kokoro narrator, already on the Mac, with a voice given to each character and the lines stitched together. | Free, runs on the Mac | Yes, the narrator; the per-character script gets written on the first job | Yes. |
-| Timing | About 150 words a minute for a voiceover (roughly 35 words for 15 seconds, 75 for 30). An animated page plays shorter than a live-action one, about 40 seconds. Checked against the length of the table-read audio. | Free | Yes | Yes. |
+| Screenplay PDFs | Beat's own export for anything Sean reads or sends. For an agent making a quick PDF, screenplain, one command through uv. Beat's PDF needs Sean at the window: the App Store copy has no command-line tool. | Free | Yes: nothing to install, uv runs it (tested November 14, 2026) | Yes. |
+| Table reads | Kokoro, the free voice already on the Mac: each line read in its own character's voice, then the lines joined with ffmpeg. The brain's narrator reads in one voice only, so the per-character read is new work. | Free, runs on the Mac | Yes, the narrator; the per-character script gets written on the first job | Yes. |
+| Timing | About 150 words a minute for a voiceover (roughly 35 words for 15 seconds, 75 for 30). An animated page plays shorter than a live-action one, about 40 seconds. Checked against the table-read audio, remembering Kokoro reads faster than a person; count pages in Beat's PDF, not screenplain's, which runs long. | Free | Yes | Yes. |
 | Outlining and punch-up | Plain text inside the script: Fountain sections and synopses show as cards in Beat; alternate jokes sit on the line in Beat or in Fountain notes. Drafts compared word by word with git. | Free | Yes | Yes. |
 
 ## Looked at and not picked
@@ -29,9 +29,9 @@ A few words used below: **Fountain** is the plain-text way of writing a screenpl
 
 ## More details
 
-- One catch with Beat: it keeps revision marks and tags in a note at the end of the file, placed by character count, so an agent's edits can shift them. Keep Beat's revision tracking off while agents edit; git keeps the history.
-- Not checked yet: whether Beat's own command-line tool ships with the app, and whether JumpCut's page breaks really match Final Draft.
-- Sources: Beat's site, GitHub and App Store page; screenplain and JumpCut on GitHub and PyPI; vendor pricing pages for Highland Pro, Final Draft, Fade In and Arc Studio; voiceover timing from Voice123 and Voice Bros; animation page timing from writers on John August's site (rough).
+- One catch with Beat: it keeps revision marks, tags and review notes in a hidden block on the file's last line, placed by character count, so an agent's edit above a mark moves the words but not the mark. Turning revision tracking off stops new marks but doesn't fix old ones. Before an agent edits, the script is closed in Beat and that block checked; if it holds marks, Sean clears or commits them first. Git keeps the history.
+- Checked November 14, 2026: Beat's App Store copy has no command-line tool (its source builds one only for the direct download, untested). Not checked yet: whether JumpCut's page breaks really match Final Draft.
+- Sources: Beat's site, GitHub and App Store page; screenplain and JumpCut on GitHub and PyPI; vendor pricing pages for Highland Pro, Final Draft, Fade In and Arc Studio; voiceover timing from Voice123 and Voice Bros; Kokoro's model card, voice list and the kokoro-onnx project; animation page timing from writers on John August's site (rough).
 
 ## Books
 
