@@ -56,7 +56,7 @@ Step 1 follows `craftwork/guides/front-door.md` and this studio's own page, `scr
 2. **The beats, ending first.** The last picture and last line, then each beat as one line, with the turn, the big moment on screen, and every plant beside its payoff. The beat count fits the length.
 3. **The voices.** Each character's want, blind spot and sound, or the narrator's point of view, proved on one short scene or a voiceover's first lines, read aloud.
 
-Step 4 is then the whole script, every scene written, with rough jokes marked as rough.
+Step 4 is then the whole script, every scene written, with rough jokes marked as rough. A new spoken line starts from Sean: get its gist from him, then build the options from his words.
 
 **Before Sean sees any draft,** run these and say on the review page how each was checked. The how is in `scriptcraft/expertise/` and `scriptcraft/tools/`.
 
@@ -67,9 +67,9 @@ Step 4 is then the whole script, every scene written, with rough jokes marked as
 - No slot still says "joke here", and with the names covered you can tell who's speaking.
 - Narration, voiceover and action lines have been through `writing-humanity-pass`. Never run it on a character's dialogue.
 - Each of Sean's notes is visibly fixed, old lines beside new; lines he didn't mention are untouched.
-- The fresh check reads it cold: what's unclear, what contradicts itself, and every fact a launch film states, against its source. "Nothing wrong" is a fine answer.
+- The fresh check reads it cold: what's unclear, what contradicts itself, where each prop and person is, and every fact a launch film states, against its source. It reads again after every round of fixes and after anything the lead adds. "Nothing wrong" is a fine answer.
 
-**A script for a film** ends with a short brief for Motioncraft's front door: the locked words, the timing and the table read. Sean carries it there himself; it never goes straight across.
+**A script for a film** ends with a short brief for Motioncraft's front door: the locked words, the timing and the table read, with Motioncraft's front-door questions answered as suggestions. Sean carries it there himself; it never goes straight across.
 
 **Skills to load at each step:**
 
