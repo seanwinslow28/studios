@@ -20,8 +20,8 @@ The short version: nothing needs buying. Systemcraft makes designs and cheap pro
 | Showing Sean a design | A house review page with simple drawn pictures: one design per picture, the weaker version underneath. The shelf page was made this way. | Free | Yes | Yes |
 | Drawing a bigger system | D2, a free tool that turns a short text file into a diagram. Good at boxes inside boxes (an agent, its tools, its folders) and at step-by-step boards. | Free | Yes: installed November 16, 2026 | Yes |
 | A cheap working sketch | Claude Code's own parts: a skill, helpers and hooks, run without anyone at the keyboard. A run can report what it cost and be given a spending cap. | On the Claude plan | Yes | Yes |
-| Seeing what a run did | Claude Code's own saved transcripts, read whole. When one is too long to read, Arize Phoenix, a free viewer that runs on the Mac and sends nothing out. | Free | Transcripts yes; Phoenix is one command, when first needed | Yes |
-| Deciding how a design is judged | Read the first cases by hand in a sheet and write down what good means. Then promptfoo for checks worth repeating: cases in a short text file, results side by side in the browser. | Free tool; each check is a model call | Yes: promptfoo installed November 16, 2026 | Yes |
+| Seeing what a run did | Claude Code's own saved transcripts, read whole. When there are too many runs to read one by one, Arize Phoenix, a free viewer that runs on the Mac and keeps every recorded run there. | Free | Transcripts yes; Phoenix is one command, when first needed | Yes |
+| Deciding how a design is judged | Read the first cases by hand in a sheet and write down what good means. Then promptfoo for checks worth repeating: cases in a short text file, results side by side in a report file. | Free tool; each check is a model call | Yes: promptfoo installed November 16, 2026 | Yes |
 | What a design costs to run | The model makers' own price pages, read fresh for each job, plus ccusage, which adds up what past runs on this Mac used. | Free | Yes; ccusage runs with no install | Yes |
 | Checking a design for safety | A one-page checklist: the three-part rule on the shelf (private data, outside text, a way to send things out: never all three), the "at most two" version of it, and the OWASP lists. Proved with Claude Code's sandbox, which blocks a run from reaching the network. | Free | Yes | Yes |
 | Keeping up with models and tools | The makers' changelogs, plus Context7 for pulling a tool's current documents into a session. | Free up to 1,000 look-ups a month | Yes | Yes |
@@ -46,11 +46,15 @@ Asked on November 16, 2026, Sean answered: "Yes to the list, with the two free i
 
 ## Things to know
 
-- **promptfoo has belonged to OpenAI since March 2026.** It stays free and open source. Worth watching that it keeps treating other makers' models fairly.
-- **promptfoo reports how it is used back to its maker unless told not to.** Found in the installed copy on November 16, 2026. Systemcraft always runs it with that reporting switched off; the switch is in "More details", and the tool's guide will say so.
-- **A run with nobody at the keyboard can't answer questions.** A design has to say what happens at each step that would normally ask permission.
+- **OpenAI agreed to buy promptfoo's maker in March 2026.** Whether the sale has closed could not be confirmed on November 16, 2026. It stays free and open source. Worth watching that it keeps treating other makers' models fairly.
+- **promptfoo reports how it is used back to its maker unless told not to.** Found in the installed copy on November 16, 2026. Systemcraft always runs it with that reporting switched off; the switch is in "More details", and the tool's guide says so.
+- **The switch does not make promptfoo fully silent.** Tested on November 16, 2026: with reporting off, each run still sends its maker one small notice saying so. The notice carries a random number for this install, the version and the kind of Mac, and no prompts, cases or answers. No switch stops it. Its results page in the browser also reports to its maker's analytics, so Systemcraft reads results from a report file, which calls nothing.
+- **Phoenix keeps the runs on the Mac, but by default it is not silent.** Found in its documents on November 16, 2026: its viewer counts page views and fetches fonts and a price list from the internet unless two switches are set. No run data leaves either way. The switches are in the tool's guide.
+- **Phoenix can't open a run that is already saved.** It shows only runs recorded into it while it is running, so it has to be started before the run. For a run already made, the saved transcript is read directly.
+- **Switching on Claude Code's sandbox no longer lets sandboxed commands run unasked.** The default changed in a recent version, found by test on November 16, 2026. A sketch that relies on the sandbox has to say so in its settings, or the run is refused before the wall is ever tested. The safety guide has the settings.
+- **A run with nobody at the keyboard can't answer questions.** A design has to say what happens at each step that would normally ask permission. Tested on November 16, 2026: such a step is refused quietly, and the run still ends reporting success. So a sketch has to check for refusals itself.
 - **A run with nobody at the keyboard also runs the folder's own hooks without asking whether the folder is trusted.** Pointing one at a folder someone else wrote is the risk.
-- **Everything a Claude or Codex session reads goes to that company.** Only D2, ccusage, local Phoenix, the sandbox and launchd keep text on the Mac; promptfoo does too, once its reporting is off, apart from the model calls its checks make. Day-job material stays out of Systemcraft's public pages and in Sean's private work repo.
+- **Everything a Claude or Codex session reads goes to that company.** Only D2, ccusage, local Phoenix, the sandbox and launchd keep text on the Mac; promptfoo keeps prompts and answers on the Mac too, once its reporting is off, apart from the model calls its checks make and the small notice described above. Day-job material stays out of Systemcraft's public pages and in Sean's private work repo.
 - **Prices move monthly.** The lead reads the price page at the start of a job and never works from memory.
 - **Two things Productcraft's list says are on the Mac were not found on this MacBook on November 15, 2026:** Mermaid's drawing tool and any local Ollama model. They may be on the Mac Mini.
 
@@ -77,7 +81,7 @@ The other three books Sean owns stay as background reading.
 **Installed November 16, 2026, with Homebrew, after Sean's yes:** D2 0.9.0 and promptfoo 0.125.1. D2 drew a test diagram; promptfoo reported its version.
 
 - promptfoo brought its own copy of Node, which stepped in front of the Mac's usual one. It was unlinked straight away (`brew unlink node`), so the usual Node 22 is the default again and promptfoo still runs on its own copy.
-- Run promptfoo with `PROMPTFOO_DISABLE_TELEMETRY=1` set, so it reports nothing back to its maker.
+- Run promptfoo with `PROMPTFOO_DISABLE_TELEMETRY=1` set, so it sends no usage reports to its maker. The guide lists three more switches to set beside it.
 
 **No install needed:** `npx ccusage@latest` and `uvx arize-phoenix serve`.
 

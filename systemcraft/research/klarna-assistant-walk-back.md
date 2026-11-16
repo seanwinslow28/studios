@@ -20,7 +20,7 @@ The customer-service chatbot of Klarna, a payments company, built with OpenAI an
 
 - **Almost every launch number was about speed, volume or cost.** The two about quality were the 25% drop in repeat inquiries and a satisfaction score called equal to humans, with no figure.
 - **Nothing reported how the hard cases went.**
-- **The fix was a design change, not a better model:** a person always on offer, treated as part of the product.
+- **What Klarna said it would change was the design, not the model:** a person always on offer, treated as part of the product. It began with a pilot.
 
 ### How it works, in plain steps
 

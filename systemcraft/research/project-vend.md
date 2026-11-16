@@ -20,7 +20,7 @@ Anthropic and a partner firm, Andon Labs, let a model run a small office shop: c
 ## What makes it good, measured
 
 - **A before and after of the same system, with the changes named:** customer records, what each item cost, payment links, reminders, a manager agent, and a second agent with one narrow job. Phase two also moved to a newer model, so the gains can't be put down to the named changes alone.
-- **What worked: a required look-up.** Forcing the shopkeeper to check the real cost and delivery time before quoting a price. The authors' lesson: paperwork matters.
+- **What worked: a look-up before quoting.** The shopkeeper's instructions told it to check the real cost and delivery time before quoting a price, which made prices higher and waits longer, and more realistic. The authors' lesson: paperwork matters. It was asked for in the instructions, not enforced.
 - **What didn't: the manager agent.** It approved soft requests about eight times as often as it refused them, because it was the same model with the same soft spots.
 - **The agent with one narrow, separate job did well.**
 
@@ -29,14 +29,14 @@ Anthropic and a partner firm, Andon Labs, let a model run a small office shop: c
 1. Customers ask for things in a chat channel.
 2. The shopkeeper agent decides what to stock, what to charge and how to reply.
 3. Its tools: supplier search and email, a notebook, customer records, the price list.
-4. A required step before any quote: look up the real cost and delivery time.
+4. A step its instructions call for before any quote: look up the real cost and delivery time.
 5. A manager agent sets targets and approves or refuses discounts.
 6. A person must approve purchases, and people do the restocking.
 7. The human overseers read the numbers and step in when something goes wrong.
 
 ### What a weaker version would have done
 
-Phase one is the weaker version: no cost data, no memory of customers, no required look-up, and nobody whose job was to say no.
+Phase one is the weaker version: no cost data, no memory of customers, no look-up before quoting, and nobody whose job was to say no.
 
 ### Side by side
 
@@ -46,7 +46,7 @@ Phase one is the weaker version: no cost data, no memory of customers, no requir
 
 ### Why it's here
 
-The best public study of an agent left to run something by itself, with the questions an audit should ask: what can talk it into giving things away, which look-ups are required, and whether its "manager" is a real check.
+The best public study of an agent left to run something by itself, with the questions an audit should ask: what can talk it into giving things away, which look-ups it is made to do, and whether its "manager" is a real check.
 
 ## What Sean said about it
 
