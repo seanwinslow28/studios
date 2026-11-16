@@ -26,6 +26,8 @@ What it did well, in words safe to share:
 
 Eleven outside examples, written up on November 15, 2026, each answering one question a design has to answer. Sean saw all of them, with his own audit, on November 16, 2026. He picked the long-job harness as the closest to what he wants Systemcraft to do; his words are on that entry. He said nothing about the others yet. A fresh checker who hadn't written them compared every entry with its sources the same day and found 41 problems, six of them plainly wrong. All are corrected, and what couldn't be confirmed is said in each entry's "More details".
 
+Two more were added on November 16, 2026, from Systemcraft's first real job: the Remembrance Agent and GitHub's Copilot memory. Sean saw them only as part of that job's review, and their numbers were checked by the lead and a second researcher, not by that day's fresh checker.
+
 | The question | The example |
 |---|---|
 | Does this need an agent at all? | `honeycomb-query-assistant.md`: one prompt, no agent, and the misses published. |
@@ -39,6 +41,8 @@ Eleven outside examples, written up on November 15, 2026, each answering one que
 | Can outside text take it over? | `lethal-trifecta-and-camel.md`: a three-part rule, and the cost of building it in. |
 | How do you find what broke in a running system? | `claude-code-april-2026-post-mortem.md`: three small changes around the model, found only after users complained. |
 | What happens when an agent runs something by itself? | `project-vend.md`: a shop examined, fixed, and broken again. |
+| What should come back from the past, and when? | `remembrance-agent.md`: a few of your own files, and on-topic isn't useful. |
+| How does a memory stay true? | `github-copilot-memory.md`: each memory carries its evidence and is checked before use. |
 
 Every entry also names one or two side-by-sides: another real system that solved a similar problem a different way.
 
