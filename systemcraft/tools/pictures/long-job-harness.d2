@@ -1,0 +1,74 @@
+# The long-job harness: a planner, a builder and a separate checker.
+# Drawn from the public shelf entry research/anthropic-long-running-harness.md.
+# The same boxes, labels and arrows are in long-job-harness.mmd.
+#
+# Draw it with: d2 long-job-harness.d2 long-job-harness-d2.svg
+
+vars: {
+  d2-config: {
+    layout-engine: elk
+    pad: 20
+  }
+}
+
+direction: down
+
+classes: {
+  file: {shape: page}
+  tool: {style.border-radius: 8}
+  human: {style.stroke-dash: 3}
+}
+
+person: Person {shape: person}
+
+harness: Long-job harness {
+  label.near: top-left
+
+  inputs: Set by the person {
+    brief: Brief {class: file}
+    marks: Pass marks {class: file}
+  }
+
+  planner: Planner {
+    guide: Design guide {class: tool}
+  }
+
+  spec: Product spec {class: file}
+
+  builder: Builder {
+    editor: Code editor {class: tool}
+    terminal: Terminal {class: tool}
+    git: Git {class: tool}
+  }
+
+  memory: Memory between sessions {
+    features: Feature list {class: file}
+    log: Progress log {class: file}
+    saved: Saved work {class: file}
+  }
+
+  app: Running app
+
+  checker: Checker {
+    browser: Browser {class: tool}
+  }
+
+  faults: Fault list {class: file}
+}
+
+# Dashed lines are the two places a person steps in.
+person -> harness.inputs: writes {class: human}
+harness.inputs.brief -> harness.planner: reads
+harness.planner -> harness.spec: writes
+harness.spec -> harness.builder: reads
+harness.builder <-> harness.memory: reads first, then updates
+harness.builder -> harness.memory.features: pass or fail mark only
+harness.builder -> harness.app: builds and starts
+harness.checker.browser -> harness.app: uses it like a customer
+harness.inputs.marks -> harness.checker: scores against
+harness.checker -> harness.faults: any fail
+harness.faults -> harness.builder: fixes
+
+# Written person-first so the line runs straight down from the person.
+# The arrowhead still points at the person.
+person <- harness.checker: all pass:\nlooks at\nthe result {class: human}

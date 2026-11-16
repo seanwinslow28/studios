@@ -1,0 +1,54 @@
+flowchart TB
+  %% The long-job harness: a planner, a builder and a separate checker.
+  %% Drawn from the public shelf entry research/anthropic-long-running-harness.md.
+  %% The same boxes, labels and arrows are in long-job-harness.d2.
+  %% Files use the document shape, which needs Mermaid 11.3.0 or newer.
+
+  person(["Person"])
+
+  subgraph harness ["Long-job harness"]
+    subgraph inputs ["Set by the person"]
+      brief@{ shape: doc, label: "Brief" }
+      marks@{ shape: doc, label: "Pass marks" }
+    end
+
+    subgraph planner ["Planner"]
+      guide("Design guide")
+    end
+
+    spec@{ shape: doc, label: "Product spec" }
+
+    subgraph builder ["Builder"]
+      editor("Code editor")
+      terminal("Terminal")
+      git("Git")
+    end
+
+    subgraph memory ["Memory between sessions"]
+      features@{ shape: doc, label: "Feature list" }
+      log@{ shape: doc, label: "Progress log" }
+      saved@{ shape: doc, label: "Saved work" }
+    end
+
+    app["Running app"]
+
+    subgraph checker ["Checker"]
+      browser("Browser")
+    end
+
+    faults@{ shape: doc, label: "Fault list" }
+  end
+
+  %% Dotted lines are the two places a person steps in.
+  person -.->|writes| inputs
+  brief -->|reads| planner
+  planner -->|writes| spec
+  spec -->|reads| builder
+  builder <-->|reads first, then updates| memory
+  builder -->|pass or fail mark only| features
+  builder -->|builds and starts| app
+  browser -->|uses it like a customer| app
+  marks -->|scores against| checker
+  checker -->|any fail| faults
+  faults -->|fixes| builder
+  checker -.->|"all pass: looks at the result"| person

@@ -29,7 +29,7 @@ The two posts describe two harnesses, a year's models apart.
 
 **The first post's harness (November 2025), which had no checker:**
 
-- **Memory between sessions was plain files:** a feature list of over 200 items that all start as "failing", a progress log, and the saved work. The builder may change only the pass or fail mark on the list, so it can't quietly rewrite the list to look finished.
+- **Memory between sessions was plain files:** a feature list of over 200 items that all start as "failing", a progress log, and the saved work. The builder is told, in strongly worded instructions, to change only the pass or fail mark on the list, so that it doesn't quietly rewrite the list to look finished. That is a request in the instructions, not something the machinery enforces.
 - **Each new session started the same way:** read the notes, start the app, run one basic test to catch anything the last session broke, then pick one unfinished feature.
 
 ### How it works, in plain steps
