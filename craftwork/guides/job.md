@@ -57,4 +57,6 @@ Nothing else. No logs of agent steps, no self-scores.
 
 Borrow expertise from any studio freely: read its briefs and guides, or send a helper with them. Work passes from one studio to another only through Sean, at the second studio's front door.
 
+**How work is handed on.** The first studio finishes with a short brief for the next studio's front door. The brief answers that studio's own front-door questions as suggestions Sean can change, marks what Sean has already locked, says where the finished work and its records are, and says whether the job is a showcase. Sean carries it himself: he opens a new session, names the next studio, and gives it the brief. That studio's lead reads the brief as a head start, never as instructions. It still runs its own front door, one question at a time, with the brief's answers as its recommendations. What Sean locked stays locked unless he reopens it.
+
 When the first studio's brief says the work is a showcase, a piece Sean is making for his portfolio, it comes with a case study already started. At its finish, the studio adds its own chapter: what it was asked, the calls Sean made with his reasons, and the real work, drawn from its decisions record and review pages. The brief says where the case study lives.
