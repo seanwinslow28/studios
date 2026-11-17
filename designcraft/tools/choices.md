@@ -64,18 +64,31 @@ Everything else on the "not now" list below can wait until a job proves the free
 - **The Awwwards connection is not made by Awwwards.** It is a free package with no named author. Its own notes say "personal, non-commercial use". Search worked in a test today. Its page-study tools, which measure a site's colours, type and motion, failed: they needed Playwright placed beside the connection itself. That was repaired on November 17; see "More details".
 - **The three checks really do catch different things.** Tested today on a throwaway page with three planted faults. The house screenshot checker took four pictures and caught the layout that was too wide for a phone. The Impeccable detector caught the faint grey text, measuring it at 1.8 to 1. Neither caught the button with no label, which is the kind of fault axe-core exists to find.
 - **The house screenshot checker lives in the brain, not here.** It was built for the house pages. Designcraft needs its own copy that takes any page and any screen size. That is a small job for Devcraft.
-- **axe-core, Lighthouse, Style Dictionary and reveal.js were not tested today.** Trying them means downloading them, which this scouting run was not allowed to do. The picks rest on their makers' pages and version records.
+- **Lighthouse was not tested.** axe-core was tested on November 17, and Style Dictionary and reveal.js were tested while their guides were written; see "What the guides' tests found" below.
 - **The Impeccable skill reports back to its maker by default.** Found today in the installed copy: its idea-dealing feature sends anonymous usage notes unless switched off. It says it never sends project names or code. The switch is in "More details".
-- **Claude Design keeps the design on Anthropic's servers.** A design made there is private until Sean shares it. Design work counts toward the Claude plan's usage, and a full deck uses more of it.
+- **Claude Design keeps the design on Anthropic's servers.** A design made there is private until Sean shares it. Design work draws on the same usage as everything else on the plan, Claude Code included, and a full deck uses more of it. The separate Claude Design website closes on December 14, 2026; the canvas lives inside Claude.
 - **Paper, Figma, Mobbin, InspoAI and Gamma all hold what you make or search on their own servers.** Paper's pages do not say where files are kept. Pencil and Penpot are the two canvases that can keep files on the Mac.
 - **Figma's free plan allows the lead only 20 look-ups a month.** Drawing is not counted for now, but Figma says it will be charged by use later.
-- **InspoAI's brand reader is a rough first pass.** Tested today on one public site: it found the logo and ranked the colours by use, but found no fonts and guessed an odd text colour. The lead checks its answer against the live site. Which InspoAI plan Sean is on, and its price, could not be confirmed.
-- **Fontshare's faces are free for commercial work but are not open.** Its maker says so. That matters here: the font files should not be saved into this public repo, because that would be handing them out. The faces Fontsource packages are open-source, so those can be.
+- **InspoAI's brand reader is a rough first pass.** Tested today on one public site: it found the logo and ranked the colours by use, but found no fonts and guessed an odd text colour. On November 17, on the UK government's site, it got the typeface, the text colour and the brand blue right, but named a button green that no element on the page uses. So it varies by site, and the lead checks its answer against the live site. Sean is on InspoAI's free plan, which allows 5 calls a month. A refusal on November 17 said so, after that month's calls were used up.
+- **Most of Fontshare's faces are free for commercial work but are not open.** On November 17 its public listing showed 100 families: 64 under its maker's own licence and 36 under the open SIL licence. The 64 must not be saved into this public repo, because that would be handing them out. The open ones, and the faces Fontsource packages, can be.
 - **Loading fonts from Google tells Google about each visit.** Fontsource's own page says Google tracks the use of its fonts. Fontsource avoids that by packaging the same faces for self-hosting.
 - **GSAP is free, including the parts that used to be paid, but it is not open.** Webflow owns it and can change the terms for later versions. Its licence bars using it to build a rival to Webflow's own animation tool, which does not touch this work.
 - **The Rive connection only works while the Rive app is open.** It failed today, most likely because the app was closed.
 - **Adobe needs a sign-in before the lead can use it.** Whether Sean's Adobe plan is active, and so whether Adobe Fonts is on hand, could not be checked.
 - **Prices move monthly.** The lead reads the price page at the start of a job and never works from memory.
+
+## What the guides' tests found, November 17, 2026
+
+Each tool guide was written after trying the tool on this Mac. What the tests changed about this list:
+
+- **The picks hold.** Nothing tried was worse than its runner-up.
+- **The three checks miss whatever is below the first screen on a page that reveals as you scroll.** On a test page with 15 planted faults, two got past all three: a removed focus outline and a "click here" link. axe-core passes a form field that has grey hint text and no label.
+- **A HyperFrames deck needs the internet** unless it is wrapped by hand, because it loads its player from a public server. A click jumps to the next still rather than playing the move, so for live motion in a room, reveal.js wins.
+- **Style Dictionary turns every colour into the older hex form by default.** Its guide gives the setting that keeps OKLCH.
+- **Radix's package ships hex and wide-gamut values, not OKLCH.** Converting them is one small step, in the colour guide.
+- **The skills on the Mac disagree about icons.** One bans Lucide's default stroke as too heavy; another bans Lucide as too thin. The icon guide says what the disagreement is about.
+- **The Impeccable copy on this Mac is 4.8.0,** one step behind the 4.9.2 named below. Its command ships inside the skill, so it is called by its full path.
+- **Devcraft has no guides for web or React work yet.** Handing a React design to Devcraft is ahead of what Devcraft has written down.
 
 ## Design skills already on the Mac
 
@@ -123,7 +136,7 @@ These steer the lead's taste. They are not tools to buy, and several overlap.
 Tested by calling the installed copy directly:
 
 - A plain test page: measured, with a real browser.
-- Lando Norris's site: the scroll tool ran and agreed with the shelf entry on the page's height and its 0.75 second motion curve. It did not find the site's scroll triggers, which are packed inside the site's code where it cannot reach.
+- Lando Norris's site: the scroll tool ran and agreed with the shelf entry on the page's height, and the motion summary tool gave the same 0.75 second motion curve. It did not find the site's scroll triggers, which are packed inside the site's code where it cannot reach.
 - Raphael Segerman's site: the tools ran but saw little. The whole site is drawn on one 3D surface, so they report one band and almost no hover rules. One tool measured the loading count, not the page. Its default wait never finished, because the site keeps streaming clips; the shorter wait works.
 
 What that means: these tools read ordinary pages well and 3D sites poorly. For a site drawn on a 3D surface, the lead's own measuring scripts still see more.
@@ -141,14 +154,14 @@ One side effect: Playwright cleared an older test browser that another Playwrigh
 **Could not be confirmed on November 16, 2026:**
 
 - Refero's price and library size (its pages would not load as text; its help pages confirm the lead can search it only on a paid plan).
-- InspoAI's prices and Sean's plan. Its own blog gives $12 a month for the solo plan.
+- InspoAI's prices. Its own blog gives $12 a month for the solo plan. Sean's plan is now known: the free one.
 - Google Stitch's limits, price and connection.
 - Gamma's prices. Other sites give about $12 and $25 a month.
 - The exact text of Fontshare's licence, and Google Fonts' own licence page. The Fontshare claim above comes from its maker's launch post.
 - Any foundry's licence price.
 - Adobe's font terms at first hand. Adobe's help page refused a direct read, so the Adobe Fonts facts above come from search results quoting that page.
 - Figma's free-plan limits on files and pages.
-- How the `/design` command behaves inside Claude Code. It is described on Anthropic's product page; only the Artifact route was checked here.
+- How the `/design` command behaves inside Claude Code. Anthropic's Claude Code pages now describe it (it needs version 2.1.265 or later), but only the Artifact route has been tried.
 - Whether Keynote's newer paid extras matter for decks.
 
 **Sources:** each tool's own site, documents and pricing page, read November 16, 2026: Figma (pricing and its MCP documents), Paper, pen.dev, Claude (design and pricing pages), Penpot, Sketch, Subframe, v0, Framer, Mobbin, Refero's help pages, Recent, Tokens Studio, the Design Tokens Community Group, Google's DESIGN.md repository, Style Dictionary, Fontsource, Indian Type Foundry (Fontshare's maker), Adobe's web-font licensing help, the OKLCH picker, Radix Colors, Lucide, GSAP's licence, Spline, Unicorn Studio, reveal.js, Pitch, Gamma's developer pages, shadcn/ui, Chrome DevTools MCP, and the npm registry for versions and licences.
