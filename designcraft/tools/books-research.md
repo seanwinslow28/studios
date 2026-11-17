@@ -46,7 +46,7 @@ Checked in Sean's own Chrome on November 17, 2026.
 - **It does not appear in Google Drive.** Google Play keeps bought books in its own library.
 - **The download is locked.** The library's Export choice gives a small file that only opens in Adobe Digital Editions, and the book stays protected there. Nothing was exported.
 - **The web reader works.** The book opens in the browser, two pages side by side, 370 pages in all. The arrow key turns the page, and the page address changes with each turn, so a capture can tell where it is.
-- **So the way in is the reader, one screen at a time,** the same way the capture skill handles Kindle and Apple Books. That skill has no page for Google Play yet. It needs one: how to open the book, turn a page, tell that the page settled, and tell where the book ends.
+- **So the way in is the reader, one screen at a time,** the same way the capture skill handles Kindle and Apple Books. Sean asked for a Google Play page in that skill, and it was added the same day from what was seen here: where the book is, the settings to hold still, how a page turns, and what tells you where you are. No capture has used the page yet, so the first run has to prove it.
 - **Not done yet:** the capture itself. It belongs to the next step, where the books become private notes.
 
 ## 1. Screens that look good
