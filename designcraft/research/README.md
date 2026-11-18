@@ -13,13 +13,13 @@ Links and words only. Other people's work never goes in this repo or in a finish
 
 ## Where the shelf stands
 
-Sixteen examples. Fifteen were written on November 16, 2026, in three groups of five, each group running from one pole to its opposite. Sean added the sixteenth the next day.
+Nineteen examples. Fifteen were written on November 16, 2026, in three groups of five, each group running from one pole to its opposite. Sean added the sixteenth the next day. Three more came on November 18, 2026, for Designcraft's first real job, Sean's portfolio site, each showing one part of that site done well; the same day, Segerman's entry was updated after his site was watched in motion.
 
 - **App and product screens:** Linear (calm and dense), Things 3 (calm and spacious), Duolingo (warm and playful), Family (how it behaves), and the UK government's visa checker (plain on purpose).
-- **Web pages:** Lando Norris's site (spectacle that still works as a site), Igloo Inc (pure spectacle), Bruno Simon's portfolio (weird, and it still works), Scout Motors (spectacle that sells), Poor Charlie's Almanack (calm), and Raphael Segerman's portfolio (a plain page with a second layer underneath), which Sean added.
+- **Web pages:** Lando Norris's site (spectacle that still works as a site), Igloo Inc (pure spectacle), Bruno Simon's portfolio (weird, and it still works), Scout Motors (spectacle that sells), Poor Charlie's Almanack (calm), and Raphael Segerman's portfolio (a plain page with a second layer underneath), which Sean added. Added for his portfolio site: the Guardian's vanishing glaciers (a thin line the scroll pulls across a photo, from then to now), Sam Rose's Load Balancing (plain drawings that run the real rules), and Karolis Kosas's portfolio (one picture and a few words per project).
 - **Presentations, the side branch:** Shopify's Renaissance edition (a brand turned on its head), Bret Victor's and Hans Rosling's talks (the visuals are the event), the Mechanical Watch article (the reader's hand does the reveals), and Spotify Wrapped (the warning).
 
-A helper who did not write the entries checked every claim against its source, and the entries carry its corrections.
+A helper who did not write the first sixteen entries checked every claim against its source, and those entries carry its corrections.
 
 ## What Sean decided, November 17, 2026
 
