@@ -15,7 +15,7 @@ Sean's rule for buying, November 8, 2026: the free tools now, and a paid one onl
 | 2D character animation | Blender's Grease Pencil | Yes. Installed. Blender 5.3 between films, not during one. |
 | 3D and layered depth | Blender, plus HyperFrames for flat layers | Yes. Both on hand. |
 | Motion design, moving type, logo intros | HyperFrames, plus Resolve's Fusion for hand-finished motion | Yes. **No to After Effects** unless a job truly needs it: Sean wants Fusion, and any plug-ins that make it better, to do that work. |
-| Interactive and small animations | Rive, Lottie Creator and its MCP connection | Yes, when a job calls for them. Sean pays for both (Rive on a paid plan, so no splash) and wants their full power used. |
+| Interactive and small animations | Rive (its command-line tool first), Lottie Creator and its MCP connection | Yes, when a job calls for them. Sean pays for both (Rive on a paid plan, so no splash) and wants their full power used. On November 19, 2026 he chose Rive's command-line tool as the main way in, because it gives Claude Code the most to work with. |
 | Voice and sound effects | ElevenLabs | Yes. Already paid for. Sean's choice for sound effects over any new paid tool. |
 | Music | Lyria | Yes. Check Google's terms before a paid job. |
 | Offline sound effects | Stable Audio 3, the free version that runs on the Mac | Optional backup. Sean made an online account, but the free version needs none. Never pay for it; ElevenLabs covers sound effects. |

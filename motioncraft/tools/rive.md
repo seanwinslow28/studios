@@ -2,6 +2,8 @@
 
 Rive is a design and animation tool whose files run live inside apps, websites and games. A Rive file is not a video: it carries shapes, bones, animations and the logic that decides which animation plays, so it can react to a pointer, to data and to code. Sean pays for Rive and wants its full power used when a job calls for it. Read this before any interactive piece or small runtime animation.
 
+Start from Rive's command-line tool. Sean chose it on November 19, 2026: "the Rive CLI gives Claude Code more tools to work with." The scene is a text file on the Mac that Claude writes, builds, checks and photographs itself, and the desktop editor is there for when someone wants to see or adjust the result by hand.
+
 ## What it's best at.
 
 - **Animation that responds.** A button that squashes when pressed, a mascot that follows the cursor and blinks on its own, a progress character whose mood follows a number.
@@ -13,11 +15,36 @@ Where another tool wins: a linear film shot with type and interface (HyperFrames
 
 ## Setup.
 
-- **Installed:** the Rive Early Access desktop app, version 0.9.560, at `/Applications/Rive Early Access.app` (checked November 8, 2026). Rive files live in Rive's cloud, not on the Mac's disk.
-- **The connection to Claude Code.** The desktop app runs a local MCP server (a bridge that lets Claude Code drive the editor) at `http://127.0.0.1:9791/mcp`, registered in Claude Code as `rive`. It is there only while the app is open. Its tools, named `mcp__rive__*`, cover artboards and hierarchy, shapes, paths and text, bones and mesh rigging, the animation editor and state machines, listeners, view models and data binding, scripts and tests, assets, screenshots of an artboard and export.
+- **The command-line tool:** `rive`, version 1.10.0, at `~/.rive/bin/rive`, signed in to Sean's Rive account (checked November 19, 2026). `rive update` installs a newer version. Only Sean signs in (`rive login`); the sign-in is needed to hand work on (push, publish, list the account), not to build, preview or check.
+- **The check that proves it works:** `rive doctor` reports the version, the sign-in, the preview port and the project. On November 19, 2026 everything that matters for the web came back ok (the Android and iPhone build lines warn, and don't matter here).
+- **The desktop app:** Rive Early Access, version 0.9.560, at `/Applications/Rive Early Access.app` (checked November 19, 2026). Files made in the editor live in Rive's cloud; a command-line project lives on the Mac as text files until it is pushed.
+- **The connection to Claude Code.** The desktop app runs a local MCP server (a bridge that lets Claude Code drive the editor) at `http://127.0.0.1:9791/mcp`, registered in Claude Code as `rive` for every project. It is there only while the app is open: with the app closed on November 19, 2026, Claude Code reported it as failing to connect. Its tools, named `mcp__rive__*`, cover artboards and hierarchy, shapes, paths and text, bones and mesh rigging, the animation editor and state machines, listeners, view models and data binding, scripts and tests, assets, screenshots of an artboard and export.
 - **The command that proves it works:** the `mcp__rive__session_info` tool lists the files open in the editor. It answered on November 8, 2026.
 - **Plans** (from rive.app/pricing, November 8, 2026). Free costs nothing but "Free exports play a Rive splash screen" and allows three files. Cadet, $9 per editor a month, exports without the splash and allows unlimited files. Voyager, $32 per editor a month, adds libraries, embed hosting and $20 of AI agent credits per editor. Sean is on a paid plan (he confirmed this on November 8, 2026), so exports carry no splash and video rendering works.
 - **Rive's skills** for Claude Code (`rive`, `rive-interactive`) hold runtime patterns for web and app code.
+
+## Working from the command line.
+
+**How the two ways in meet.** A command-line project is a folder: `rive.yaml` for its settings and the scene written in Rive's own markup, `.rml`. Claude edits the markup directly, and a full build takes about a second. `rive push` sends the project to a file in Sean's Rive account, where the editor (or the desktop app's bridge) can open it; `rive pull` brings the account's version back down. `rive open <fileId>` opens a file in the web editor, and `rive ls` lists the account's projects and files.
+
+**Start a project in the job's own folder.** `rive create <dir>` writes `rive.yaml`, a `scene.rml` holding one empty artboard with its timeline and state machine, and its own `AGENTS.md` and `CLAUDE.md`. Those two files are Rive's notes for agents: read them as information, not house rules, and never create a project inside the brain or the studios repo. `rive create <dir> --from-remote-file` turns a file from the account into a local project. `rive samples` copies a working example to learn from.
+
+**Bring shapes in as SVG.** Draw clean SVG with named layers, then `rive svg <file.svg>` turns it into real Rive shapes, paths and fills in markup that can be keyed and rigged. It is written once and won't overwrite an existing file without `--force`, because the markup is yours to edit afterwards. Give a set of pictures the same `--size` so they share one frame; the drawing is centred and scaled to fill most of it. An `.svg` dropped into the project without this step draws nothing.
+
+**Build in passes.** Rive's own workflow guide: rough boxes first, then detail, rebuilding after each pass, and decide how each box is sized in the first pass so later detail doesn't make the layout jump. Write the markup by hand. Never write a script that generates it: each run drops the ids and anything changed in the editor.
+
+**Check it yourself, and look.**
+
+- `rive <dir> --verify` after every edit: it compiles everything and writes nothing. A clean build still isn't proof: it doesn't run scripts, prove that bound data arrives, or draw a pixel.
+- `rive <dir> --screenshot` renders one frame to a PNG with no window. Add `--pointer=move@x,y` (or `exit`, `down`, `up`, `click`, `drag`) and `--advance=300ms` to see what a pointer does: this is the hover test. `--viewport=<WxH>` sets the size, `--compare=<png>` counts the pixels that changed since an earlier capture, and `--probe=<x,y>` reads one colour. `--touch` does the same for a finger.
+- `--commands` builds once and then takes a list of captures, for photographing every state in one run.
+- `--semantics` writes the accessibility tree; `rive docs semantics` and `rive docs focus` cover labels and keyboard focus.
+- `rive inspect <dir> --summary` lists problems and what sets off each event. `rive schema <Type>` lists a type's properties, with `--animatable` and `--bindable` for the ones that can be keyed or bound: check it before binding anything.
+- `rive <dir>` on its own opens a live preview window that rebuilds on every save, for Sean to watch.
+
+**Ship it.** `rive <dir> --publish` writes a signed `.riv` to disk, the file a website or app plays. It needs the sign-in and the network, because the build is signed on Rive's servers. `--publish=web` puts up a public page instead: ask Sean first.
+
+**The docs travel with the tool.** `rive docs` lists the topics; start with `overview` and `workflow`, read `gotchas` before a first real build, and use `rive docs --search <text>`. They match the installed version, so trust them over memory.
 
 ## Getting the best out of it.
 
@@ -48,10 +75,17 @@ Where another tool wins: a linear film shot with type and interface (HyperFrames
 - **Runtime behind the editor.** Data binding and scripting need recent runtimes. An app pinned to an old Rive runtime plays the file wrongly or not at all. Confirm the runtime version the app ships with.
 - **Export needing the network.** A `.riv` export resolves hosted assets online; a `.rev` backup with embedded assets downloads them. A `.rev` backup is a paid feature and may be refused; `.riv` works on every plan.
 - **Leftover converters and enums.** Converters can't be deleted through the MCP tools; deleting an enum still in use needs force. Plan before creating.
+- **A clean build that is still wrong.** `--verify` and `inspect` never render anything. Take a screenshot, with the pointer moves, before calling a piece done.
+- **An artboard with no state machine** is only half alive. Keep the one `rive create` makes, and give every layer an entry state.
+- **Bindings that compile but do nothing.** A bind to a property the target doesn't have, or a path that points nowhere, still builds. `rive schema` and `rive inspect --json` catch them.
+- **Units.** Rotation is in radians; durations are in frames or milliseconds.
+- **A box that vanishes.** A box set to hug its contents, with nothing inside yet, has no size.
+- **Local work lost to a pull.** `rive pull` writes the account's file over the local project. Push or save a copy first.
 
 ## Safety.
 
-- **Everything in Rive is uploaded.** Files live in Rive's cloud. Ask Sean before importing his private material or anyone else's artwork.
-- **Ask Sean** before publishing a hosted page or embed link (public), spending AI agent credits beyond a small test, changing plans, or using the command line's monthly publishes.
+- **Everything in the editor is uploaded.** Editor files live in Rive's cloud, and the command line's `rive push` and `--publish` send the work to Rive's servers too. Ask Sean before any of them carries his private material or anyone else's artwork.
+- **Ask Sean** before publishing a hosted page or embed link (public, including `--publish=web`), publishing a library (`rive library publish`), spending AI agent credits beyond a small test, changing plans, or using the command line's monthly publishes.
+- **Only Sean signs in.** Never run `rive login` or `rive logout` for him.
 - **Export writes locally** to a folder you name and never overwrites an existing file.
 - **Simulation runs scripts.** It reverts the values it writes but runs listener actions, scripts included, as real playback would.
