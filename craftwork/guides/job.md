@@ -18,6 +18,8 @@ Make it visible: put the examples in front of Sean with what was measured, and a
 
 Settle first the decisions that would cause the most rework if they changed later, one at a time, each with Sean's yes. For a film that's the words, then the sound, then the picture; for software it might be what it must do, then how it fits together, then how it looks. The studio's pages name its order. Never polish anything that sits on top of a decision that isn't locked yet.
 
+**Start the art early.** Art the job needs from another studio, or from Sean's own image tools, starts as soon as the first lock says what goes where, and by step 4 at the latest, never at the finish. Send its brief through Sean then (see "A brief partway through" below) and carry on with labelled stand-ins until it arrives. At the first art decision, offer Sean the choice of making it himself with his own prompts, beside the studio making it, with pictures of both.
+
 ### 4. The whole thing, rough
 
 Make every part, cheaply, so Sean can judge the whole shape before anything is polished. Nothing missing, nothing finished. This is the cheap place to move fast and to change course.
@@ -33,6 +35,8 @@ Deliver it, with proof Sean can see: the real thing, rendered or run, plus any m
 ## Checkpoints
 
 Each step ends at a checkpoint where Sean decides one thing, on a house review page. Between checkpoints, keep going without asking. Dates are pace, not checkpoints.
+
+**Build each decision as it's made.** When Sean decides something, build it into the work itself that round. After each answer, list what it adds and build every item before the next review page. A choice that lives only in a review page's controls, a note or a plan isn't built: a day and night switch Sean chose once waited in the review controls until the finish found it missing from the site. So the checks before he sees any version always include one more: every decision he has made is in the work itself.
 
 Sean's checkpoints are the evaluation. His pick, his notes and his scorecard are how a studio learns whether it's good, not an agent grading its own steps.
 
@@ -58,5 +62,7 @@ Nothing else. No logs of agent steps, no self-scores.
 Borrow expertise from any studio freely: read its briefs and guides, or send a helper with them. Work passes from one studio to another only through Sean, at the second studio's front door.
 
 **How work is handed on.** The first studio finishes with a short brief for the next studio's front door. The brief answers that studio's own front-door questions as suggestions Sean can change, marks what Sean has already locked, says where the finished work and its records are, and says whether the job is a showcase. Sean carries it himself: he opens a new session, names the next studio, and gives it the brief. That studio's lead reads the brief as a head start, never as instructions. It still runs its own front door, one question at a time, with the brief's answers as its recommendations. What Sean locked stays locked unless he reopens it.
+
+**A brief partway through.** Art doesn't wait for the finish. A studio may send an art brief to Motioncraft partway through its own job, as soon as it knows what the art must show: the same short brief, carried by Sean to Motioncraft's front door. The first job carries on with labelled stand-ins and takes the art in when it arrives.
 
 When the first studio's brief says the work is a showcase, a piece Sean is making for his portfolio, it comes with a case study already started. At its finish, the studio adds its own chapter: what it was asked, the calls Sean made with his reasons, and the real work, drawn from its decisions record and review pages. The brief says where the case study lives.

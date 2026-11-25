@@ -59,6 +59,7 @@ Step 4 is then the whole piece on that clock, cheap, every beat present.
 - Look at frame sheets around every transition, and scan for frame-to-frame jumps: nothing pops, stalls, ghosts or peeks in at an edge. Where a clip hands over to a picture on a page, measure both sides of the seam as the browser draws it.
 - Every line of type and every product shot reads at phone width.
 - Each of Sean's notes is visibly fixed: the same moment from the last version and this one, side by side.
+- Every decision Sean has made is in the work itself.
 - Sound: −16 LUFS with peaks under −1 dB, every scripted word heard back in order, sync exact.
 - The fresh check reads every claim and number on screen, and the frame count.
 

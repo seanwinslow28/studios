@@ -65,6 +65,7 @@ Step 4 is the whole design drawn and priced, with a sketch run on the test reque
 - Cost is a range from today's prices, worked in code, with a ceiling that holds even if the model ignores its instructions.
 - "It works" rests on a sketch's runs, read whole, failures counted, and no refused steps: an unattended run reports success even when a permission was refused.
 - Model and tool facts are checked fresh; research that would change a call also goes to Codex, a second AI.
+- Every decision Sean has made is in the work itself.
 - The fresh check reads it cold: facts, numbers, costs, whether the runs show what the page claims, and the case for something simpler.
 
 **Teach as you work.** Every review page ends with "What a strong system designer would notice here": three to five plain lines from the closing section of that name in the area's brief.
