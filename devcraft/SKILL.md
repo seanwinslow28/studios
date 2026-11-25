@@ -63,6 +63,7 @@ Step 4 is then the thinnest version that runs end to end on a throwaway setup, e
 - It ran on a throwaway setup, and everything on the front door's "must keep working" list still works after it.
 - The way back works: undone once on the throwaway setup, and things are back as they were.
 - Ruff, Pyrefly and ShellCheck are clean, and the check before each commit passes.
+- Every decision Sean has made is in the work itself.
 - The fresh check: Codex's review command reads the change and its tests cold, and checks every fact and number on the review page.
 
 **Skills to load at each step:**

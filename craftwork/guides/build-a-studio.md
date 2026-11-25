@@ -34,7 +34,7 @@ Start from what he loved and disliked on the shelf, his past notes in the brain,
 
 ## 7. Fill in the lead's page
 
-Add what's specific to this studio: the order it locks decisions in, the checks it runs before Sean sees a version, the skills to load at each step. Keep it short; detail goes in the expertise and tools folders, which load only when needed.
+Add what's specific to this studio: the order it locks decisions in, the checks it runs before Sean sees a version (always including that every decision Sean has made is in the work itself), the skills to load at each step. Keep it short; detail goes in the expertise and tools folders, which load only when needed.
 
 ## 8. Check it
 

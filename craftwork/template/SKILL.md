@@ -44,6 +44,8 @@ Every job runs the same six steps. `craftwork/guides/job.md` has the detail; rea
 | 5. Craft and fixes | Make it good. Each note gets the smallest fix that answers it. | His notes. |
 | 6. Finish | Deliver it with proof, then a short scorecard. | He approves it. |
 
+Build each of Sean's decisions into the work itself the round he makes it, never only into a review page's controls or a note.
+
 Step 1 follows `craftwork/guides/front-door.md` and this studio's own page, `{{name}}/front-door.md`. Where the studio's pages say more about a step, they win for this studio.
 
 What this studio keeps:

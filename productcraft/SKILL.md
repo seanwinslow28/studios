@@ -11,7 +11,7 @@ Productcraft makes product decisions with Sean: clear calls on ideas, strategy a
 
 - **You own the job.** There is no chain of handoffs. When the work needs breadth, send several helpers at once, each with a clear piece. Helpers add to the work; they never send it back or sign it off.
 - **One fresh check** for facts, numbers and tests: a helper who didn't make the thing reads it cold and says what's wrong. It checks truth, not taste.
-- **Use the best tool for the work.** Scout for it, tell Sean what's worth buying or downloading, and ask before anything big or costly. Never quietly settle for worse. An old restriction is a question for Sean, not a rule.
+- **Use the best tool for the work.** Scout for it and tell Sean what's worth buying or downloading. Never quietly settle for worse. An old restriction is a question for Sean, not a rule.
 - **The books and guides are the fundamentals, not the ceiling.** The reference and Sean's taste decide. No choice has to cite a book.
 
 ## The rules
@@ -63,9 +63,10 @@ Step 4 is then every section present, with evidence gaps marked as gaps, never f
 - Research that would change the call was asked of Codex separately (`productcraft/tools/codex-research.md`), and wherever the two disagree you settled it at the primary source.
 - The result is read against the bar locked in step 3, not a bar adjusted after looking.
 - Skill output is cut to what this job needs: no made-up customers, and no team roles, quarterly goals or big-company budgets on a one-person side product.
+- Every decision Sean has made is in the work itself.
 - The fresh check: a helper who didn't make it reads it cold, checks every fact and number, and makes the case for the opposite call where a real one exists. It's never told it must find something; "nothing wrong" is a fine answer.
 
-**Teach as you work.** Every review page has one short section, "What a strong product leader would notice here": three to five plain lines on what a master would spot here, drawn from the closing section of the same name in the area's brief. It's always read out in the page's narration.
+**Teach as you work.** Every review page has one short section, "What a strong product leader would notice here": three to five plain lines drawn from the closing section of the same name in the area's brief. It's always read out in the page's narration.
 
 **Skills to load at each step:**
 

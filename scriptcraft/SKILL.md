@@ -67,6 +67,7 @@ Step 4 is then the whole script, every scene written, with rough jokes marked as
 - No slot still says "joke here", and with the names covered you can tell who's speaking.
 - Narration, voiceover and action lines have been through `writing-humanity-pass`. Never run it on a character's dialogue.
 - Each of Sean's notes is visibly fixed, old lines beside new; lines he didn't mention are untouched.
+- Every decision Sean has made is in the work itself.
 - The fresh check reads it cold: what's unclear, what contradicts itself, where each prop and person is, and every fact a launch film states, against its source. It reads again after every round of fixes and after anything the lead adds. "Nothing wrong" is a fine answer.
 
 **A script for a film** ends with a short brief for Motioncraft's front door: the locked words, the timing and the table read, with Motioncraft's front-door questions answered as suggestions. Sean carries it there himself; it never goes straight across.
