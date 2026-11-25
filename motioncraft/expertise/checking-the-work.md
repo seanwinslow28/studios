@@ -40,7 +40,7 @@ Smooth gradients, such as a sky, a vignette or a soft glow, break into visible s
 
 ### Wrong frame rate or colour tags.
 
-A file can carry the right pictures with the wrong labels. Read the delivered file's rate, size, frame count, duration and colour tags. For standard HD video the tags are BT.709 for primaries, transfer and matrix, at video range. An untagged or mis-tagged file looks right in one player and washed out or too dark in another; Safari and QuickTime are the usual offenders. Check brand colours by running a chart of the film's colours through the whole pipeline and measuring the difference against the design values (`make_chart.py`, `measure_colour.py`). That difference is measured in ΔE00, a unit where about 1 is the smallest change most people can see. Aim for the brand colour within 1 and flat fields within about 1.5 on the web file. Fix the tag at encode rather than shifting colours to compensate.
+A file can carry the right pictures with the wrong labels. Read the delivered file's rate, size, frame count, duration and colour tags. For standard HD video the tags are BT.709 for primaries, transfer and matrix, at video range; a clip that has to match pictures on a web page is the exception, below. An untagged or mis-tagged file looks right in one player and washed out or too dark in another; Safari and QuickTime are the usual offenders. Check brand colours by running a chart of the film's colours through the whole pipeline and measuring the difference against the design values (`make_chart.py`, `measure_colour.py`). That difference is measured in ΔE00, a unit where about 1 is the smallest change most people can see. Aim for the brand colour within 1 and flat fields within about 1.5 on the web file. Fix the tag at encode rather than shifting colours to compensate.
 
 ### Clipped audio.
 
@@ -58,6 +58,16 @@ A whole layer shakes rigidly, nothing redrawn. It often comes from positions sna
 
 Something appears or vanishes in a single frame with no motion, or a line of type survives one frame past its cut. Spot it on sheets at the native rate around every transition, and by checking each line's visibility one frame before and one frame after each cut. Fix by giving the element an entrance or exit, hiding the change behind something passing in front, or trimming the stray frame.
 
+### A jump where a clip hands over to a picture.
+
+On a web page a clip often hands over to a still, or a still to a clip: a card rests on a picture, plays a clip when pointed at, and ends on a finished painting. Each layer can look right on its own while the hand-over jumps. Three things jump:
+
+- **Colour.** Browsers draw video and pictures on different tone curves. An H.264 clip tagged BT.709 throughout, or not tagged at all, is drawn on the television curve, so its middle tones come out lighter than the same colours in a JPEG or PNG: up to about 11 levels of 255 in Chrome and 10 in Safari's engine, measured on a chart of 32 colour patches encoded both ways. Tagging the clip with BT.709 primaries and matrix but the web's own sRGB transfer curve (in ffmpeg, `setparams=color_primaries=bt709:color_trc=iec61966-2-1:colorspace=bt709:range=tv` before the encoder) brought both browsers within about 2 to 5 levels. A video model adds its own drift: a clip made from a first and a last frame often paints its ends a little darker or duller than the frames it was given. A colour correction at each end, measured against the pictures and faded to nothing by the middle of the clip, meets them without regrading the whole clip.
+- **Size and position.** Fit each end frame of the clip to its picture by edges, finding the best scale and shift, rather than by eye; 0.4 percent, about a pixel at each edge of a card, read as the picture growing. Draw every layer at the same size, with the same transform.
+- **Crispness.** A low-resolution clip is softer than the picture it hands to, and fine texture (halftone dots, brush marks, thin keys) snapping back in at once reads as the picture getting bigger even when nothing moved. Dissolve over a few tenths of a second instead of switching, or make the clip sharper.
+
+Spot it by grabbing the frame on each side of every seam as the page draws it, in Chrome and in Safari's engine (a headless browser at twice the pixels is enough), then measuring the size fit and the mean colour gap in each channel. Watching at speed misses it: on one job the viewer caught the same kind of jump twice before anyone measured it. Fix colour at the encode, size in the layout, and crispness with the dissolve or a sharper clip, then measure again.
+
 ### Also worth a look.
 
 Unplanned black or frozen frames, a file that doesn't decode cleanly end to end, artwork edges showing past the paint, and every script word heard, in order, when speech-to-text runs on the final mix.
@@ -65,6 +75,7 @@ Unplanned black or frozen frames, a file that doesn't decode cleanly end to end,
 ## How it goes wrong, and the fix.
 
 - **Checking the preview, not the deliverable.** Fix: every check runs on the file going out.
+- **Checking each layer alone, not the seam between them.** Fix: grab both sides of every hand-over as the player draws them, and measure the gap.
 - **Describing instead of showing.** Fix: frames, clips and numbers, labelled with time and frame number; taste notes left to Sean.
 - **Mastering from a compressed file.** Every later step inherits its damage. Fix: finish from a clean high-quality master, and make the web file from that.
 
