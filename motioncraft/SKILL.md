@@ -56,7 +56,7 @@ Step 4 is then the whole piece on that clock, cheap, every beat present.
 
 **Before Sean sees any version,** run these on the file he'll see, from the final render, and say on the review page how each was checked. The how is in `motioncraft/expertise/checking-the-work.md`; the scripts are in `motioncraft/tools/scripts/`.
 
-- Look at frame sheets around every transition, and scan for frame-to-frame jumps: nothing pops, stalls, ghosts or peeks in at an edge.
+- Look at frame sheets around every transition, and scan for frame-to-frame jumps: nothing pops, stalls, ghosts or peeks in at an edge. Where a clip hands over to a picture on a page, measure both sides of the seam as the browser draws it.
 - Every line of type and every product shot reads at phone width.
 - Each of Sean's notes is visibly fixed: the same moment from the last version and this one, side by side.
 - Sound: −16 LUFS with peaks under −1 dB, every scripted word heard back in order, sync exact.
